@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "status": "PROPOSED_REQUIRES_MATTHEW_APPROVAL",
+  "orgUrl": "https://org3a57b8d4.crm.dynamics.com",
+  "sourceInventorySha256": "5451cfc33e79f48f0942fbd2773ecc1cc30fda43bffbb809ccfd3aca188313b6",
+  "destructiveOperationsPermitted": false,
+  "retainedRecords": [
+    {
+      "entitySet": "cr664_loandeals",
+      "recordId": "70dc1d05-8f74-f111-ab0f-70a8a59be491",
+      "reason": "Retain the only OmniCare 365 row with a linked client and subsequent modification history."
+    },
+    {
+      "entitySet": "cr664_workspaceentitlementses",
+      "recordId": "fc62592c-d47e-40e9-972b-c58c618427d0",
+      "reason": "Retain the earlier of two otherwise identical active default Banker Workspace entitlements."
+    }
+  ],
+  "findings": [
+    {
+      "category": "controlled-classification-conflict",
+      "entitySet": "cr664_loandeals",
+      "recordId": "e262b023-5a8b-f111-ab10-70a8a59b1fe2",
+      "recordName": "SYSTEM TEST - FULL E2E - 2026-07-25 - Working Capital",
+      "etag": "W/\"5245373\"",
+      "before": {
+        "cr664_istestrecord": false
+      },
+      "changes": {
+        "cr664_istestrecord": true
+      },
+      "reason": "Resolve the explicit false flag that conflicts with unmistakable controlled-record identity. Retain the record.",
+      "operation": "patch"
+    },
+    {
+      "category": "duplicate-deal-disposition",
+      "entitySet": "cr664_loandeals",
+      "recordId": "00404e2f-5d71-f111-ab0d-70a8a59be491",
+      "recordName": "OmniCare 365",
+      "etag": "W/\"4690047\"",
+      "before": {
+        "statecode": 0,
+        "statuscode": 1
+      },
+      "changes": {
+        "statecode": 1,
+        "statuscode": 2
+      },
+      "reason": "Deactivate and retain as history: unlinked Intake/Open duplicate with no tasks, documents, memos, timeline, approval, or funding records.",
+      "operation": "patch"
+    },
+    {
+      "category": "duplicate-deal-disposition",
+      "entitySet": "cr664_loandeals",
+      "recordId": "b06c5dcd-8e74-f111-ab0f-70a8a59be491",
+      "recordName": "OmniCare 365",
+      "etag": "W/\"4702553\"",
+      "before": {
+        "statecode": 0,
+        "statuscode": 1
+      },
+      "changes": {
+        "statecode": 1,
+        "statuscode": 2
+      },
+      "reason": "Deactivate and retain as history: unlinked Intake/Open duplicate with no tasks, documents, memos, timeline, approval, or funding records.",
+      "operation": "patch"
+    },
+    {
+      "category": "duplicate-entitlement-disposition",
+      "entitySet": "cr664_workspaceentitlementses",
+      "recordId": "792f17d4-ef9b-431a-9d3b-a718be1c8b35",
+      "recordName": "ckingma@oldglorybank.com - Banker Workspace",
+      "etag": "W/\"3630397\"",
+      "before": {
+        "statecode": 0,
+        "statuscode": 1
+      },
+      "changes": {
+        "statecode": 1,
+        "statuscode": 2
+      },
+      "reason": "Deactivate the later-created duplicate while retaining the earlier identical active default entitlement for the same profile.",
+      "operation": "patch"
+    }
+  ]
+}

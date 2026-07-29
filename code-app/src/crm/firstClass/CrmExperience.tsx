@@ -8,6 +8,7 @@ import { CRM_GROWTH_SCHEMA_DEPENDENCY, CRM_OPPORTUNITY_STAGES } from './crmGrowt
 import { CrmEngagementCenter } from './CrmEngagementCenter';
 import { CrmCopilotSurface } from './CrmCopilotSurface';
 import { canOpenCrmRecord, deriveCrmRoleView, type CrmOperatingRole } from './crmRoleViews';
+import { governedOperationalCrmPopulation } from '../workspace/governedCrmPopulation';
 
 interface Props {
   readonly section: string;
@@ -26,7 +27,10 @@ export function CrmExperience(props: Props) {
   useEffect(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadCrmWorkspaceData().then((data) => !cancelled && setState({ kind: 'ready', data }))
+    loadCrmWorkspaceData().then((data) => !cancelled && setState({
+      kind: 'ready',
+      data: governedOperationalCrmPopulation(data),
+    }))
       .catch((error: unknown) => !cancelled && setState({ kind: 'failed', message: error instanceof Error ? error.message : String(error) }));
     return () => { cancelled = true; };
   }, [nonce]);

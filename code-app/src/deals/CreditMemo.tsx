@@ -669,6 +669,7 @@ function memoStatusToSeverity(key: CreditMemoStatusKey | undefined): SeverityKey
 function finalizeOutcomeMessage(outcome: FinalizeCreditMemoOutcome): string {
   if (outcome.kind === 'invalid-input') return outcome.message;
   if (outcome.kind === 'write-failed') return outcome.error;
+  if (outcome.kind === 'verification-failed') return outcome.error;
   if (outcome.kind === 'governance-partial') {
     return outcome.auditError ?? outcome.timelineError ?? 'Finalized, but a governance record failed to write.';
   }

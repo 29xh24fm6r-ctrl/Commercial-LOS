@@ -51,6 +51,9 @@ const FLAG_TYPE_BY_CATEGORY: Record<DataQualityFlagCandidate['category'], string
   'zero-amount-deal': 'InvalidValue',
   'duplicate-entitlement': 'InvalidValue',
   'inconsistent-boarding-linkage': 'BrokenReference',
+  'duplicate-boarding-link': 'BrokenReference',
+  'incomplete-boarded-loan': 'InvalidValue',
+  'controlled-classification-conflict': 'InvalidValue',
 };
 
 export interface CreateFlagInput {

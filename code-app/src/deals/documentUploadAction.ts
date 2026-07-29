@@ -79,6 +79,8 @@ export interface UploadFileResult {
 export interface ReadbackResult {
   readonly ok: boolean;
   readonly originalFileName?: string;
+  readonly content?: Uint8Array;
+  readonly error?: string;
 }
 export interface WriteResult {
   readonly ok: boolean;
@@ -98,8 +100,10 @@ export interface DocumentUploadDeps {
     uploadedByBind: string | undefined;
     nowIso: string;
   }): Promise<WriteResult>;
-  /** Reads back cr664_originalfilename to confirm the write persisted. */
-  readback(documentId: string): Promise<ReadbackResult>;
+  /** Downloads the real File-column bytes immediately after upload. */
+  readbackBytes(documentId: string): Promise<ReadbackResult>;
+  /** Reads back metadata after the verified binary is stamped received. */
+  readbackMetadata(documentId: string): Promise<ReadbackResult>;
   resolveActorChangedBy: ResolveActorChangedBy;
   emitAudit(payload: {
     documentId: string;
@@ -132,6 +136,17 @@ function validateInput(input: UploadDocumentFileInput): string | undefined {
     return `The file is larger than the ${(MAX_UPLOAD_BYTES / (1024 * 1024)).toFixed(0)} MB limit.`;
   }
   return undefined;
+}
+
+export function equalDocumentBytes(
+  expected: Uint8Array,
+  actual: Uint8Array,
+): boolean {
+  if (expected.byteLength !== actual.byteLength) return false;
+  for (let index = 0; index < expected.byteLength; index += 1) {
+    if (expected[index] !== actual[index]) return false;
+  }
+  return true;
 }
 
 export async function uploadDocumentFile(
@@ -177,8 +192,30 @@ export async function uploadDocumentFile(
     return { kind: 'upload-failed', error: uploadResult.error ?? 'File upload failed' };
   }
 
-  // Step 1b: stamp metadata (only after a successful binary upload — never claim
-  // uploadstatus=true for a file that didn't actually land).
+  // Step 1b: download the actual File-column bytes before stamping any received/uploaded
+  // metadata. Metadata alone is not persistence evidence.
+  const byteReadback = await deps.readbackBytes(input.documentId);
+  if (
+    !byteReadback.ok ||
+    !byteReadback.content ||
+    !equalDocumentBytes(input.content, byteReadback.content)
+  ) {
+    const detail = byteReadback.ok
+      ? `Downloaded bytes did not match the ${input.content.byteLength}-byte upload.`
+      : byteReadback.error ?? 'File-byte readback was unavailable.';
+    void deps.emitAudit({
+      documentId: input.documentId,
+      dealId: input.dealId,
+      outcome: AUDIT_OUTCOME_FAILED,
+      failureReason: detail,
+      correlationId,
+      nowIso,
+      actor,
+    });
+    return { kind: 'readback-mismatch', detail };
+  }
+
+  // Step 1c: stamp metadata only after byte-for-byte verification.
   const uploadedByBind = actor.ok ? actor.changedByBind : undefined;
   let metadataResult: WriteResult;
   try {
@@ -207,9 +244,8 @@ export async function uploadDocumentFile(
     return { kind: 'upload-failed', error: metadataResult.error ?? 'Metadata update failed after a successful file upload' };
   }
 
-  // Step 1c: readback verification — the file genuinely landed with the
-  // expected filename before this is reported as a clean success.
-  const readback = await deps.readback(input.documentId);
+  // Step 1d: confirm the durable metadata after the byte-verified upload.
+  const readback = await deps.readbackMetadata(input.documentId);
   if (!readback.ok || readback.originalFileName !== input.fileName) {
     return {
       kind: 'readback-mismatch',

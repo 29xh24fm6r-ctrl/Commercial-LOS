@@ -2,6 +2,7 @@ import { Cr664_documentchecklistsService } from '../generated/services/Cr664_doc
 import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from './documentStatusClassification';
 import { requirementStatusFromCode } from './documentRequirementStatusCodes';
 import type { DocumentRequirementFields } from './documentRequirementFields';
+import type { DocumentChecklistFileFields } from './documentChecklistFileFields';
 
 export type DocumentStatus = 'outstanding' | 'received' | 'reviewed';
 
@@ -31,6 +32,9 @@ export interface DealDocument {
    * `loadDealDocuments`, the one real producer, always sets it.
    */
   receivedByCoreUserId?: string | undefined;
+  originalFileName?: string | undefined;
+  mimeType?: string | undefined;
+  fileSizeBytes?: number | undefined;
 }
 
 export interface DealDocumentsResult {
@@ -77,14 +81,16 @@ export async function loadDealDocuments(dealId: string): Promise<DealDocumentsRe
   // DocumentRequirementWorkspace, and must not double-count as a live gap.
   const all = (result.data ?? [])
     .filter((d) => {
-      const raw = d as unknown as DocumentRequirementFields;
+      const raw = d as unknown as DocumentRequirementFields &
+        DocumentChecklistFileFields;
       return !isGovernedExcusedDocument({
         waived: raw.cr664_waived,
         requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
       });
     })
     .map((d): DealDocument => {
-      const raw = d as unknown as DocumentRequirementFields;
+      const raw = d as unknown as DocumentRequirementFields &
+        DocumentChecklistFileFields;
       const uploaded = d.cr664_uploadstatus === true;
       const status = deriveStatus({
         reviewer: d.cr664_reviewer,
@@ -102,6 +108,9 @@ export async function loadDealDocuments(dealId: string): Promise<DealDocumentsRe
         modifiedOn: d.modifiedon,
         status,
         receivedByCoreUserId: raw._cr664_receivedby_value,
+        originalFileName: raw.cr664_originalfilename,
+        mimeType: raw.cr664_mimetype,
+        fileSizeBytes: raw.cr664_filesizebytes,
       };
     });
 

@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const uploadFileToRecordMock = vi.fn();
+const downloadFileFromRecordMock = vi.fn();
 vi.mock('@microsoft/power-apps/data', () => ({
-  getClient: vi.fn(() => ({ uploadFileToRecord: uploadFileToRecordMock })),
+  getClient: vi.fn(() => ({
+    uploadFileToRecord: uploadFileToRecordMock,
+    downloadFileFromRecord: downloadFileFromRecordMock,
+  })),
 }));
 vi.mock('../../.power/schemas/appschemas/dataSourcesInfo', () => ({ dataSourcesInfo: {} }));
 
@@ -35,6 +39,7 @@ const resolvedActor = { ok: true, changedByBind: '/cr664_users(u-1)' };
 
 beforeEach(() => {
   uploadFileToRecordMock.mockReset();
+  downloadFileFromRecordMock.mockReset();
   updateMock.mockReset();
   getMock.mockReset();
   auditCreateMock.mockReset();
@@ -105,17 +110,47 @@ describe('buildLiveDocumentUploadDeps', () => {
   });
 
   describe('readback', () => {
+    it('downloads the actual File-column bytes', async () => {
+      downloadFileFromRecordMock.mockResolvedValue({
+        success: true,
+        data: new Uint8Array([1, 2, 3]),
+      });
+      const deps = buildLiveDocumentUploadDeps();
+      const result = await deps.readbackBytes('doc-1');
+      expect(result).toEqual({
+        ok: true,
+        content: new Uint8Array([1, 2, 3]),
+      });
+      expect(downloadFileFromRecordMock).toHaveBeenCalledWith(
+        'cr664_documentchecklists',
+        'doc-1',
+        'cr664_documentfile',
+      );
+    });
+
+    it('reports a failed File-column byte download honestly', async () => {
+      downloadFileFromRecordMock.mockResolvedValue({
+        success: false,
+        error: { message: 'read denied' },
+      });
+      const deps = buildLiveDocumentUploadDeps();
+      expect(await deps.readbackBytes('doc-1')).toEqual({
+        ok: false,
+        error: 'read denied',
+      });
+    });
+
     it('reads back cr664_originalfilename', async () => {
       getMock.mockResolvedValue({ success: true, data: { cr664_originalfilename: 'tax.pdf' } } as never);
       const deps = buildLiveDocumentUploadDeps();
-      const result = await deps.readback('doc-1');
+      const result = await deps.readbackMetadata('doc-1');
       expect(result).toEqual({ ok: true, originalFileName: 'tax.pdf' });
     });
 
     it('reports unavailable on a non-success read', async () => {
       getMock.mockResolvedValue({ success: false } as never);
       const deps = buildLiveDocumentUploadDeps();
-      const result = await deps.readback('doc-1');
+      const result = await deps.readbackMetadata('doc-1');
       expect(result).toEqual({ ok: false });
     });
   });

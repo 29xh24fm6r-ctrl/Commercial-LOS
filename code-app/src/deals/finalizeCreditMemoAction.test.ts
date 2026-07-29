@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../generated/services/Cr664_creditmemo1sService', () => ({
-  Cr664_creditmemo1sService: { getAll: vi.fn(), update: vi.fn() },
+  Cr664_creditmemo1sService: { getAll: vi.fn(), get: vi.fn(), update: vi.fn() },
 }));
 vi.mock('../generated/services/Cr664_creditmemodraftsectionsService', () => ({
   Cr664_creditmemodraftsectionsService: { getAll: vi.fn() },
@@ -19,8 +19,10 @@ import { Cr664_auditeventsService } from '../generated/services/Cr664_auditevent
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { buildFinalizedMemoText, finalizeCreditMemoAction } from './finalizeCreditMemoAction';
 import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
+import { AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 
 const memoGetAll = vi.mocked(Cr664_creditmemo1sService.getAll);
+const memoGet = vi.mocked(Cr664_creditmemo1sService.get);
 const memoUpdate = vi.mocked(Cr664_creditmemo1sService.update);
 const sectionGetAll = vi.mocked(Cr664_creditmemodraftsectionsService.getAll);
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
@@ -74,6 +76,13 @@ describe('finalizeCreditMemoAction', () => {
     // answering something reasonable by default since loadDealCreditMemo always
     // fires both queries in parallel.
     sectionGetAll.mockImplementation(() => ok([]) as never);
+    memoGet.mockImplementation(() =>
+      ok({
+        cr664_creditmemo1id: 'memo-1',
+        cr664_status: 788190001,
+        cr664_memotext: 'Full memo text',
+      }) as never,
+    );
   });
 
   it('rejects a blank finalization note without reading anything', async () => {
@@ -128,6 +137,9 @@ describe('finalizeCreditMemoAction', () => {
       cr664_status: 788190001,
       cr664_memotext: 'Full memo text',
     });
+    expect(memoGet).toHaveBeenCalledWith('memo-1', {
+      select: ['cr664_status', 'cr664_memotext'],
+    });
     expect(auditCreate).toHaveBeenCalledTimes(1);
     expect(timelineCreate).toHaveBeenCalledTimes(1);
   });
@@ -157,6 +169,33 @@ describe('finalizeCreditMemoAction', () => {
       expect(outcome.error).not.toMatch(/EntityRecordNotFound/);
       expect(outcome.error).not.toMatch(/cr664_creditmemo1/);
     }
+  });
+
+  it('does not claim success when persisted final text does not match the write', async () => {
+    memoGetAll.mockImplementation(() => ok([memoRow()]) as never);
+    memoUpdate.mockImplementation(() => ok({ cr664_creditmemo1id: 'memo-1' }) as never);
+    memoGet.mockImplementation(() =>
+      ok({
+        cr664_creditmemo1id: 'memo-1',
+        cr664_status: 788190001,
+        cr664_memotext: 'stale draft text',
+      }) as never,
+    );
+    auditCreate.mockImplementation(() => ok({ cr664_auditeventid: 'audit-1' }) as never);
+
+    const outcome = await finalizeCreditMemoAction(baseInput(), okResolver);
+
+    expect(outcome.kind).toBe('verification-failed');
+    if (outcome.kind === 'verification-failed') {
+      expect(outcome.memoId).toBe('memo-1');
+      expect(outcome.error).toMatch(/could not be verified/i);
+    }
+    expect(timelineCreate).not.toHaveBeenCalled();
+    expect(auditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cr664_outcomestatus: AUDIT_OUTCOME_FAILED,
+      }),
+    );
   });
 
   it('returns governance-partial when the memo update succeeds but the audit write fails', async () => {

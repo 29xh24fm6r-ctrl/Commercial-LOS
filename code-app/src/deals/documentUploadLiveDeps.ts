@@ -71,7 +71,36 @@ export function buildLiveDocumentUploadDeps(): DocumentUploadDeps {
       }
     },
 
-    async readback(documentId) {
+    async readbackBytes(documentId) {
+      try {
+        const [{ getClient }, { dataSourcesInfo }] = await Promise.all([
+          import('@microsoft/power-apps/data'),
+          import('../../.power/schemas/appschemas/dataSourcesInfo'),
+        ]);
+        const client = getClient(dataSourcesInfo);
+        const res = await client.downloadFileFromRecord(
+          CHECKLIST_ENTITY_SET,
+          documentId,
+          CHECKLIST_FILE_COLUMN,
+        );
+        if (!res.success || !res.data) {
+          return {
+            ok: false,
+            error:
+              res.error?.message ??
+              'downloadFileFromRecord returned non-success.',
+          };
+        }
+        return { ok: true, content: res.data };
+      } catch (err: unknown) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+
+    async readbackMetadata(documentId) {
       try {
         const { Cr664_documentchecklistsService } = await import(
           '../generated/services/Cr664_documentchecklistsService'

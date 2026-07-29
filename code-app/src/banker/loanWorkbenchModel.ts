@@ -1,5 +1,6 @@
 import type { PipelineDeal } from './dealQueries';
 import type { WorkQueueTaskRow } from './workQueueQueries';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 
 /**
  * Phase 258 — Loan Workflow workbench model.
@@ -105,6 +106,7 @@ export function deriveLoanWorkbench(
   tasks: readonly WorkQueueTaskRow[],
   ownerName: string | undefined,
   now: Date,
+  options: { readonly includeControlled?: boolean } = {},
 ): WorkbenchModel {
   const nowMs = now.getTime();
   // Defensive: ownerName is sourced from the resolved banker identity
@@ -113,8 +115,11 @@ export function deriveLoanWorkbench(
   // useMemo and crash the whole Loan Workflow tab. Tasks/deals are likewise
   // coerced so a partial live payload can never throw during derivation.
   const owner = (ownerName ?? '').trim().length > 0 ? (ownerName as string) : 'You';
-  const safeDeals = deals ?? [];
-  const safeTasks = tasks ?? [];
+  const safeDeals = options.includeControlled === true
+    ? (deals ?? [])
+    : operationalDeals(deals ?? []);
+  const governedDealIds = new Set(safeDeals.map((deal) => deal.id));
+  const safeTasks = (tasks ?? []).filter((task) => governedDealIds.has(task.dealId));
 
   const rows: WorkbenchRow[] = safeDeals.map((d) => {
     const sections: WorkbenchSectionKey[] = ['active'];
@@ -169,14 +174,9 @@ export function deriveLoanWorkbench(
     attention: 0,
   };
   for (const r of rows) {
-    // N-19 remediation: a classified test/smoke record belongs to its sections
-    // (so section-browsing and search find it — see rowsForSection below and
-    // the quick-search box in BankerLoanWorkflowWorkbench.tsx) and now also
-    // counts toward the queue-card tally, so the tally always equals the
-    // table's own row count for that section — never a silent mismatch.
-    // testRecordCounts separately discloses how many of the tally are test
-    // records, preserving the distinction without hiding it in a number that
-    // no longer matches what the banker sees below it.
+    // Default derivation contains only the governed operational population.
+    // Authorized investigative callers may explicitly include controlled rows;
+    // their counts remain disclosed separately in that mode.
     for (const sec of r.sections) {
       counts[sec] += 1;
       if (r.isTestRecord) testRecordCounts[sec] += 1;

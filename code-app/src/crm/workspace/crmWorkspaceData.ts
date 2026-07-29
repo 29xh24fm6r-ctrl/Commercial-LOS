@@ -97,6 +97,8 @@ export interface CrmRecord {
   readonly orgIndustryDescriptor?: string;
   /** Raw stored NAICS code (`cr664_naicscode`). */
   readonly orgNaicsCode?: string;
+  /** Exact title resolved from the governed NAICS reference table when available. */
+  readonly orgNaicsTitle?: string;
   /** The NAICS-derived sector title — provenance for the displayed Industry when no manual override is set. */
   readonly orgIndustryDerivedSector?: string;
   /** Raw stored notes (`cr664_notes`). */
@@ -170,7 +172,10 @@ function row(label: string, value: string | undefined): CrmDetailRow | undefined
 // Per-domain mappers (pure, exported for tests)
 // ---------------------------------------------------------------------------
 
-export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
+export function mapOrganization(
+  o: Cr664_crmorganizations,
+  naicsTitle?: string,
+): CrmRecord {
   const industry = deriveOrgIndustry(o.cr664_industry, o.cr664_naicscode);
   // The NAICS-derived sector alone (ignoring any manual override) — the provenance the edit panel
   // shows so the banker sees where the displayed Industry comes from. Never fabricated.
@@ -184,6 +189,7 @@ export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
     badge: s(o.cr664_status) ?? s(o.statecodename),
     orgIndustryDescriptor: s(o.cr664_industry),
     orgNaicsCode: s(o.cr664_naicscode),
+    orgNaicsTitle: s(naicsTitle),
     orgIndustryDerivedSector: derivedFromNaics,
     orgNotes: s(o.cr664_notes),
     orgLegalName: s(o.cr664_legalname),
@@ -193,6 +199,9 @@ export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
       row('DBA', s(o.cr664_dbaname)),
       row('Type', s(o.cr664_organizationtype)),
       row('Industry', industry),
+      row('NAICS code', s(o.cr664_naicscode)),
+      row('NAICS title', s(naicsTitle)),
+      row('NAICS sector', derivedFromNaics),
       row('State of formation', s(o.cr664_stateofformation)),
       row('Website', s(o.cr664_website)),
       row('Tax ID on file', yn(o.cr664_taxidpresent)),
@@ -420,9 +429,41 @@ export async function loadCrmWorkspaceData(): Promise<CrmWorkspaceData> {
   ] = await Promise.all([
     loadDomain(async () => {
       const { Cr664_crmorganizationsService } = await import('../../generated/services/Cr664_crmorganizationsService');
-      const r = await Cr664_crmorganizationsService.getAll({ top: ROW_CAP });
+      const [{ Cr664_naicscodesService }, r] = await Promise.all([
+        import('../../generated/services/Cr664_naicscodesService'),
+        Cr664_crmorganizationsService.getAll({ top: ROW_CAP }),
+      ]);
       if (!r.success) throw new Error(r.error?.message ?? 'Organizations read failed');
-      return (r.data ?? []).map(mapOrganization);
+      let titles = new Map<string, string>();
+      try {
+        const reference = await Cr664_naicscodesService.getAll({
+          select: ['cr664_code', 'cr664_title'],
+          top: 5000,
+          maxPageSize: 5000,
+        });
+        if (reference.success) {
+          titles = new Map(
+            (reference.data ?? [])
+              .map((row) => [
+                s(row.cr664_code),
+                s(row.cr664_title),
+              ] as const)
+              .filter(
+                (entry): entry is readonly [string, string] =>
+                  entry[0] !== undefined && entry[1] !== undefined,
+              ),
+          );
+        }
+      } catch {
+        // Organizations remain available; an unavailable reference title is
+        // rendered honestly rather than failing the entire CRM domain.
+      }
+      return (r.data ?? []).map((organization) =>
+        mapOrganization(
+          organization,
+          titles.get(s(organization.cr664_naicscode) ?? ''),
+        ),
+      );
     }, false),
     loadDomain(async () => {
       const { Cr664_crmpersonsService } = await import('../../generated/services/Cr664_crmpersonsService');

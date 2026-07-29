@@ -11,13 +11,12 @@
  * The patterns are deliberately SPECIFIC (bracketed tags or explicit test phrases) so an ordinary
  * deal name like "Acme Expansion" or "Latest Retail Deal" is never misclassified.
  *
- * N-17 remediation (Production Remediation Factory Arc Phase 11) — a governed
- * `cr664_istestrecord` Dataverse column (see scripts/schema-migrations/pr142-test-record-field/)
- * now exists as the authoritative classification once an admin sets it explicitly. Name-pattern
- * matching remains the fallback for every record the field hasn't been set on (including every
- * pre-existing deal, and any read path not yet wired to the new column) — this is deliberately
- * non-breaking: an explicit `true`/`false` on the field always wins; `undefined`/`null` (unset, or
- * not carried by a given read model) falls through to the name convention exactly as before.
+ * A governed `cr664_istestrecord` Dataverse column exists, but production acceptance proved that
+ * some unmistakably controlled records carry an explicit false value. Treating false as an
+ * unconditional override contaminated operational totals. Classification therefore fails safe:
+ * an explicit false plus governed controlled-record naming is a classification conflict. The
+ * record remains visible to authorized investigation/data-quality workflows, but never enters an
+ * operational default until the conflict is reviewed and corrected.
  */
 
 const TEST_DEAL_PATTERNS: readonly RegExp[] = [
@@ -29,6 +28,13 @@ const TEST_DEAL_PATTERNS: readonly RegExp[] = [
   /\bqa\s*test\b/i,
   /\btest\s*deal\b/i,
   /\bdo\s*not\s*use\b/i,
+  // Production-controlled conventions observed during the 2026-07-29 acceptance run.
+  // These are anchored or explicit phrases to avoid matching ordinary words containing "test".
+  /^\s*(?:system\s*test|test|qa|smoke)\s*(?:[-—–:]|\b)/i,
+  /^\s*ogb\s+full\s+workflow\s+test\b/i,
+  /\bstage\s+advancement\s+smoke\b/i,
+  /\bfull\s+e2e\b/i,
+  /\b(?:v\d+\s+)?[\w\s-]*\bsmoke\b/i,
   // final-seven-workstreams (2026-07-23) — the repository's own controlled-test-record naming rule
   // is "SYSTEM TEST - <description>" as a NAME PREFIX (not necessarily bracketed). Anchored at the
   // start so an unrelated deal that happens to mention "system test" mid-sentence is never
@@ -52,15 +58,73 @@ export interface NamedDealLike {
   readonly isTestRecord?: boolean | null | undefined;
 }
 
+export type DealRecordClassificationKind =
+  | 'operational'
+  | 'controlled'
+  | 'classification-conflict';
+
+export interface DealRecordClassification {
+  readonly kind: DealRecordClassificationKind;
+  readonly governedFlag: boolean | null | undefined;
+  readonly nameMatchesControlledConvention: boolean;
+  readonly reason:
+    | 'no-controlled-evidence'
+    | 'governed-flag'
+    | 'governed-name'
+    | 'governed-flag-and-name'
+    | 'explicit-false-conflicts-with-governed-name';
+}
+
 /**
- * True when a deal record is a test/smoke record. The governed `isTestRecord` field, when
- * explicitly set, always wins over name inference — it is the authoritative signal once an admin
- * has classified the record. An unset field (undefined/null) falls back to name matching.
+ * Return the full classification, including the fail-safe conflict state required by production
+ * data governance. Callers that only need inclusion/exclusion may use isTestOrSmokeDeal.
+ */
+export function classifyDealRecord(
+  deal: NamedDealLike | null | undefined,
+): DealRecordClassification {
+  const governedFlag = deal?.isTestRecord;
+  const nameMatchesControlledConvention = isTestOrSmokeDealName(deal?.name);
+
+  if (governedFlag === true) {
+    return {
+      kind: 'controlled',
+      governedFlag,
+      nameMatchesControlledConvention,
+      reason: nameMatchesControlledConvention
+        ? 'governed-flag-and-name'
+        : 'governed-flag',
+    };
+  }
+  if (governedFlag === false && nameMatchesControlledConvention) {
+    return {
+      kind: 'classification-conflict',
+      governedFlag,
+      nameMatchesControlledConvention,
+      reason: 'explicit-false-conflicts-with-governed-name',
+    };
+  }
+  if (nameMatchesControlledConvention) {
+    return {
+      kind: 'controlled',
+      governedFlag,
+      nameMatchesControlledConvention,
+      reason: 'governed-name',
+    };
+  }
+  return {
+    kind: 'operational',
+    governedFlag,
+    nameMatchesControlledConvention,
+    reason: 'no-controlled-evidence',
+  };
+}
+
+/**
+ * True when a deal is controlled OR carries a classification conflict. A conflict is excluded
+ * fail-safe from operational defaults and separately visible through classifyDealRecord.
  */
 export function isTestOrSmokeDeal(deal: NamedDealLike | null | undefined): boolean {
-  if (deal?.isTestRecord === true) return true;
-  if (deal?.isTestRecord === false) return false;
-  return isTestOrSmokeDealName(deal?.name);
+  return classifyDealRecord(deal).kind !== 'operational';
 }
 
 export interface DealPartition<T> {
@@ -68,17 +132,24 @@ export interface DealPartition<T> {
   readonly operational: readonly T[];
   /** Classified test/smoke deals — preserved (never deleted), surfaced only to authorized admins. */
   readonly test: readonly T[];
+  /** Explicit-false/name conflicts requiring production-data review. Also included in `test`. */
+  readonly conflicts: readonly T[];
 }
 
 /** Split a deal list into operational vs test/smoke. Pure; order-preserving. */
 export function partitionDealsByTestClassification<T extends NamedDealLike>(deals: readonly T[]): DealPartition<T> {
   const operational: T[] = [];
   const test: T[] = [];
+  const conflicts: T[] = [];
   for (const d of deals) {
-    if (isTestOrSmokeDeal(d)) test.push(d);
-    else operational.push(d);
+    const classification = classifyDealRecord(d);
+    if (classification.kind === 'operational') operational.push(d);
+    else {
+      test.push(d);
+      if (classification.kind === 'classification-conflict') conflicts.push(d);
+    }
   }
-  return { operational, test };
+  return { operational, test, conflicts };
 }
 
 /**

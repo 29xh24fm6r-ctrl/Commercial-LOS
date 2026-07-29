@@ -155,6 +155,7 @@ describe('RelationshipContext — Phase 77', () => {
     useDealDataMock.mockReturnValue(dealData(deal()));
     loadMock.mockReturnValue(new Promise(() => {}));
     render(<RelationshipContext />);
+    expect(loadMock).toHaveBeenCalledWith('banker-1');
     expect(
       screen.getByRole('heading', { name: /relationship context/i }),
     ).toBeInTheDocument();

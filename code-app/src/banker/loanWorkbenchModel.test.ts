@@ -105,8 +105,8 @@ describe('Phase 258 — deriveLoanWorkbench', () => {
   });
 });
 
-describe('N-19 — the queue-card count always equals the table it sits above (no same-page contradiction)', () => {
-  it('a test-flagged deal is a full row (findable via rowsForSection / search) AND counted, with the split disclosed separately', () => {
+describe('Production GO — the queue-card population is governed and internally reconcilable', () => {
+  it('excludes a controlled record from the default rows and counts', () => {
     const model = deriveLoanWorkbench(
       [
         deal({ id: 'real-1', name: 'Acme WC' }),
@@ -122,17 +122,32 @@ describe('N-19 — the queue-card count always equals the table it sits above (n
       NOW,
     );
 
-    // The queue-card count matches the table exactly — both real and test rows count.
     const active = rowsForSection(model, 'active');
     expect(model.counts.active).toBe(active.length);
+    expect(model.counts.active).toBe(1);
+    expect(model.testRecordCounts.active).toBe(0);
+    expect(active.map((r) => r.id)).not.toContain('310da4b3-cb86-f111-ab10-70a8a59b1fe2');
+  });
+
+  it('supports an explicit investigative derivation that remains labeled', () => {
+    const model = deriveLoanWorkbench(
+      [
+        deal({ id: 'real-1', name: 'Acme WC' }),
+        deal({
+          id: 'controlled-1',
+          name: 'SYSTEM TEST - Read Path Forensic Deal',
+          stage: 'Underwriting',
+          isTestRecord: true,
+        }),
+      ],
+      [],
+      'Dana',
+      NOW,
+      { includeControlled: true },
+    );
     expect(model.counts.active).toBe(2);
-
-    // The test/smoke split is disclosed separately rather than silently folded in.
     expect(model.testRecordCounts.active).toBe(1);
-
-    // The test row is still present and section-browsable/searchable, labeled.
-    expect(active.map((r) => r.id)).toContain('310da4b3-cb86-f111-ab10-70a8a59b1fe2');
-    const testRow = model.rows.find((r) => r.id === '310da4b3-cb86-f111-ab10-70a8a59b1fe2')!;
+    const testRow = model.rows.find((r) => r.id === 'controlled-1')!;
     expect(testRow.isTestRecord).toBe(true);
     expect(testRow.stage).toBe('Underwriting');
   });
@@ -144,7 +159,7 @@ describe('N-19 — the queue-card count always equals the table it sits above (n
     expect(model.rows[0]!.isTestRecord).toBeUndefined();
   });
 
-  it('every section count equals that section\'s exact row count, for a mix of real and test deals across sections', () => {
+  it('every default section count equals its exact governed row count', () => {
     const model = deriveLoanWorkbench(
       [
         deal({ id: 'real-1', name: 'Acme WC', createdOn: '2026-06-25T00:00:00Z' }),

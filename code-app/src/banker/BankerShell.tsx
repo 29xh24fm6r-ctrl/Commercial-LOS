@@ -124,7 +124,11 @@ export interface BankerShellProps {
  * carrying which tab to land on, rather than silently doing nothing. Validates against the real
  * tab set so a stale/forged location.state can never select a tab that doesn't exist.
  */
-function resolveInitialTab(state: unknown): ShellTab {
+function resolveInitialTab(state: unknown, search = ''): ShellTab {
+  const queryTab = new URLSearchParams(search).get('tab');
+  if (queryTab && TAB_SPECS.some((t) => t.key === queryTab)) {
+    return queryTab as ShellTab;
+  }
   if (state && typeof state === 'object' && 'initialTab' in state) {
     const candidate = (state as { initialTab?: unknown }).initialTab;
     if (typeof candidate === 'string' && TAB_SPECS.some((t) => t.key === candidate)) {
@@ -138,15 +142,57 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const { bankerId, fullName, email, systemUserId, writeDisabledReason } = useBanker();
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state));
+  const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state, location.search));
   const [pendingTab, setPendingTab] = useState<ShellTab | null>(null);
+  const mountedRef = useRef(true);
+  const transitionTimerRef = useRef<number | null>(null);
+  const pendingClearTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+      if (pendingClearTimerRef.current !== null) {
+        window.clearTimeout(pendingClearTimerRef.current);
+      }
+    };
+  }, []);
+
   const selectTab = useCallback((next: ShellTab) => {
     setPendingTab(next);
-    window.setTimeout(() => {
+    const params = new URLSearchParams(location.search);
+    params.set('tab', next);
+    navigate(
+      { pathname: location.pathname, search: `?${params.toString()}` },
+      { state: { ...(location.state && typeof location.state === 'object' ? location.state : {}), initialTab: next } },
+    );
+    if (transitionTimerRef.current !== null) {
+      window.clearTimeout(transitionTimerRef.current);
+    }
+    if (pendingClearTimerRef.current !== null) {
+      window.clearTimeout(pendingClearTimerRef.current);
+    }
+    transitionTimerRef.current = window.setTimeout(() => {
+      transitionTimerRef.current = null;
+      if (!mountedRef.current) return;
       setTab(next);
-      window.setTimeout(() => setPendingTab(null), 350);
+      pendingClearTimerRef.current = window.setTimeout(() => {
+        pendingClearTimerRef.current = null;
+        if (mountedRef.current) setPendingTab(null);
+      }, 350);
     }, 0);
-  }, []);
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  // Browser Back/Forward is authoritative. This keeps Loan Workflow and every
+  // other banker tab addressable without losing the existing pending feedback.
+  useEffect(() => {
+    const routedTab = resolveInitialTab(location.state, location.search);
+    setTab(routedTab);
+    setPendingTab(null);
+  }, [location.key, location.search, location.state]);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   // Bugfix — the post-create readback retry in `onDealCreated` below is a multi-await async
@@ -154,14 +200,6 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   // route change / test teardown). Without this guard, its eventual `setState`/`navigate` calls
   // fire against an unmounted component, and an uncaught rejection from the retry itself becomes an
   // unhandled rejection that outlives the component entirely.
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
   const reload = useCallback(() => {
     let cancelled = false;
     setState({ kind: 'loading' });

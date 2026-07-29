@@ -73,14 +73,19 @@ describe('Workstream O — loadDataQualityScanInputs', () => {
       { organizationId: 'o1', name: 'Acme LLC', legalName: 'Acme LLC', website: 'acme.com' },
     ]);
     expect(result.inputs.boardedLoans).toEqual([
-      { portfolioBoardedLoanId: 'b1', originatedLoanDealId: 'd1', assignedServicingOwnerId: 'u1', active: true },
+      expect.objectContaining({
+        portfolioBoardedLoanId: 'b1',
+        originatedLoanDealId: 'd1',
+        assignedServicingOwnerId: 'u1',
+        active: true,
+      }),
     ]);
     expect(result.inputs.entitlements).toEqual([
       { id: 'e1', entitlementName: 'a@b.com - Admin Full Access', accessLevelKind: 'Full', active: true },
     ]);
   });
 
-  it('excludes test/smoke deal names from the deal scan population', async () => {
+  it('retains controlled rows in the Admin scan so classification conflicts can be surfaced', async () => {
     dealsGetAll.mockResolvedValue({
       success: true,
       data: [
@@ -93,7 +98,7 @@ describe('Workstream O — loadDataQualityScanInputs', () => {
     entitlementsLoad.mockResolvedValue({ success: true, rows: [] });
 
     const result = await loadDataQualityScanInputs();
-    expect(result.inputs.deals.map((d) => d.dealId)).toEqual(['d2']);
+    expect(result.inputs.deals.map((d) => d.dealId)).toEqual(['d1', 'd2']);
   });
 
   it('reports a failed domain without blocking the others', async () => {

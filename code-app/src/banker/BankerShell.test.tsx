@@ -174,9 +174,9 @@ beforeEach(() => {
  * tab a deal-cockpit "back to workspace" navigation should land on), which requires a Router
  * context. Production always mounts BankerShell inside the app's real router; wrap it here too.
  */
-function renderShell() {
+function renderShell(initialEntry = '/') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <BankerShell workspaceName="Banker Workspace" />
     </MemoryRouter>,
   );
@@ -611,6 +611,14 @@ describe('Phase 166 — dashboard KPI card interactions', () => {
 // ---------------------------------------------------------------------------
 
 describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', () => {
+  it('restores Loan Workflow from addressable tab route state', () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = renderShell('/?tab=loan-workflow');
+    expect(container.querySelector('[data-banker-loan-workflow="panel"]')).not.toBeNull();
+    expect(screen.getByTestId('loan-workbench')).toBeInTheDocument();
+  });
+
   it('CRM Hub sidebar nav click opens the live CRM workspace (Phase 258 system)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
@@ -644,6 +652,25 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
     ).toBeInTheDocument();
     // The lending workbench (entry into per-deal command center) renders.
     expect(screen.getByTestId('loan-workbench')).toBeInTheDocument();
+  });
+
+  it('cancels pending tab-transition timers when the shell unmounts', () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    try {
+      setUpBanker();
+      loadMock.mockResolvedValue(emptyData());
+      const { unmount } = renderShell();
+
+      fireEvent.click(screen.getByRole('button', { name: /^Loan Workflow$/i }));
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(() => vi.runAllTimers()).not.toThrow();
+    } finally {
+      clearTimeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('every real sidebar nav button is clickable AND lands on a non-empty content panel (no dead nav)', async () => {

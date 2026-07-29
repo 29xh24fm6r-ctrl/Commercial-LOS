@@ -12,7 +12,6 @@ import {
 } from '../shared/governance/stageProgressionAvailability';
 import { loadStageProgressionAvailability } from './stageProgressionAvailabilityLoader';
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
-import { GenerateWorkflowChecklistButton } from '../workflow/GenerateWorkflowChecklistButton';
 import { evaluateStageTransitionPolicy } from '../workflow/stageTransitionPolicy';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import {
@@ -211,18 +210,6 @@ export function DealStageProgressionCard({
       )}
 
       <NextActionBlock eligibility={eligibility} />
-
-      {hasActor && (
-        <GenerateWorkflowChecklistButton
-          workflow={deriveLoanWorkflowState({
-            deal,
-            tasks: tasksData,
-            documents: documentsData,
-            creditMemo: creditMemoData,
-          })}
-          dealId={deal.id}
-        />
-      )}
 
       {!availability.available && (
         <div style={styles.schemaLimitationBox} role="status" aria-label="Stage progression write availability">

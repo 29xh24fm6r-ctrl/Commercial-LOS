@@ -61,6 +61,18 @@ describe('loadPipelineByStageFallback', () => {
     expect(result).toEqual([{ stage: '(no stage)', count: 1, totalAmount: 500_000 }]);
   });
 
+  it('excludes a normally named row when the explicit controlled-record flag is true', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        dealRow({ cr664_loandealid: 'd1', cr664_istestrecord: true }),
+        dealRow({ cr664_loandealid: 'd2', cr664_istestrecord: false }),
+      ],
+    });
+    const result = await loadPipelineByStageFallback();
+    expect(result).toEqual([{ stage: 'Underwriting', count: 1, totalAmount: 500_000 }]);
+  });
+
   it('throws on a failed read rather than returning a fabricated empty aggregate', async () => {
     getAllMock.mockResolvedValue({ success: false, error: { message: 'boom' } });
     await expect(loadPipelineByStageFallback()).rejects.toThrow('boom');

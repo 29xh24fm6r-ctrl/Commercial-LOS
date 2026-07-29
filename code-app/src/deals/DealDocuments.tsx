@@ -42,6 +42,11 @@ import { toOperationalCapabilityState } from '../shared/governance/capabilityAva
 import { uploadDocumentFile, type UploadDocumentFileOutcome } from './documentUploadAction';
 import { buildLiveDocumentUploadDeps } from './documentUploadLiveDeps';
 import { isDocumentFileUploadEnabled } from './dealOriginationFeatureFlags';
+import {
+  downloadDocumentFile,
+  type DownloadDocumentFileOutcome,
+} from './documentDownloadAction';
+import { buildLiveDocumentDownloadDeps } from './documentDownloadLiveDeps';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
@@ -180,6 +185,39 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     return outcome;
   }
 
+  async function handleDownloadFile(
+    doc: DealDocument,
+  ): Promise<DownloadDocumentFileOutcome> {
+    if (!banker?.email) {
+      return {
+        kind: 'identity-unresolved',
+        reason: 'A signed-in banker identity is required to download this file.',
+      };
+    }
+    const outcome = await downloadDocumentFile(
+      {
+        documentId: doc.id,
+        dealId: deal.id,
+        fileName: doc.originalFileName ?? doc.name,
+        mimeType: doc.mimeType,
+        actorEmail: banker.email,
+      },
+      buildLiveDocumentDownloadDeps(),
+    );
+    if (outcome.kind === 'success') {
+      const blob = new Blob([Uint8Array.from(outcome.content).buffer], {
+        type: outcome.mimeType,
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = outcome.fileName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }
+    return outcome;
+  }
+
   async function handleUploadFile(file: File): Promise<UploadDocumentFileOutcome> {
     if (!pendingReceiveDoc || !banker?.email) {
       return { kind: 'unknown', message: 'Cannot upload: missing document or actor identity.' };
@@ -314,7 +352,10 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     documents.kind === 'ready' ? documents.data.reviewed.length : 0;
   const totalDocs = outstandingCount + receivedCount + reviewedCount;
   const doneDocs = receivedCount + reviewedCount;
-  const docTone = outstandingCount === 0 ? 'clear' : 'atRisk';
+  const docTone =
+    outstandingCount === 0 && missingRequiredDocuments.length === 0
+      ? 'clear'
+      : 'atRisk';
 
   return (
     <>
@@ -324,7 +365,11 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           subtitle={subtitleFor(documents)}
           icon={<DocumentsIcon />}
           iconTone={docTone}
-          count={documents.kind === 'ready' ? outstandingCount : undefined}
+          count={
+            documents.kind === 'ready'
+              ? Math.max(outstandingCount, missingRequiredDocuments.length)
+              : undefined
+          }
           countTone={docTone}
           progress={
             documents.kind === 'ready'
@@ -356,8 +401,10 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
             </button>
             {missingRequiredDocuments.length > 0 && (
               <span style={styles.docActionHint} data-add-required-document-missing>
-                {missingRequiredDocuments.length} required document
-                {missingRequiredDocuments.length === 1 ? '' : 's'} still needed to advance
+                {missingRequiredDocuments.length} governed stage requirement
+                {missingRequiredDocuments.length === 1 ? '' : 's'} not yet satisfied.
+                This is separate from the {outstandingCount} checklist row
+                {outstandingCount === 1 ? '' : 's'} awaiting receipt.
               </span>
             )}
           </div>
@@ -370,6 +417,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           onReceive={(doc) => setPendingReceiveDoc(doc)}
           onReview={(doc) => setPendingReviewDoc(doc)}
           onCreateReviewTask={(doc) => setPendingReviewTaskDoc(doc)}
+          onDownload={banker ? handleDownloadFile : undefined}
         />
       </Card>
       {/* The real banker-managed underwriting document requirement workflow — requirements
@@ -461,7 +509,7 @@ function subtitleFor(documents: AsyncResult<DealDocumentsResult>): string | unde
       nowMs,
     }),
   ).length;
-  const base = `${outstanding.length} outstanding · ${received.length} received · ${reviewed.length} reviewed`;
+  const base = `${outstanding.length} awaiting receipt · ${received.length} awaiting review · ${reviewed.length} reviewed`;
   return pendingReviewCount > 0
     ? `${base} · ${pendingReviewCount} may require review`
     : base;
@@ -475,6 +523,7 @@ function Body({
   onReceive,
   onReview,
   onCreateReviewTask,
+  onDownload,
 }: {
   documents: AsyncResult<DealDocumentsResult>;
   activity: AsyncResult<TimelineEvent[]>;
@@ -483,6 +532,7 @@ function Body({
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
   onCreateReviewTask: (doc: DealDocument) => void;
+  onDownload?: (doc: DealDocument) => Promise<DownloadDocumentFileOutcome>;
 }) {
   if (documents.kind === 'loading') return <p style={styles.muted}>Loading documents…</p>;
   if (documents.kind === 'failed')
@@ -501,9 +551,9 @@ function Body({
   return (
     <div style={styles.lists}>
       <Group
-        groupLabel="Outstanding"
+        groupLabel="Awaiting receipt"
         documents={outstanding}
-        emptyHint="No outstanding documents."
+        emptyHint="No checklist rows are awaiting receipt."
         status="outstanding"
         canWrite={canWrite}
         activityEvents={activityEvents}
@@ -511,6 +561,7 @@ function Body({
         onReceive={onReceive}
         onReview={onReview}
         onCreateReviewTask={onCreateReviewTask}
+        onDownload={onDownload}
       />
       <Group
         groupLabel="Received"
@@ -523,6 +574,7 @@ function Body({
         onReceive={onReceive}
         onReview={onReview}
         onCreateReviewTask={onCreateReviewTask}
+        onDownload={onDownload}
       />
       <Group
         groupLabel="Reviewed"
@@ -535,6 +587,7 @@ function Body({
         onReceive={onReceive}
         onReview={onReview}
         onCreateReviewTask={onCreateReviewTask}
+        onDownload={onDownload}
       />
     </div>
   );
@@ -551,6 +604,7 @@ function Group({
   onReceive,
   onReview,
   onCreateReviewTask,
+  onDownload,
 }: {
   groupLabel: string;
   documents: DealDocument[];
@@ -562,6 +616,7 @@ function Group({
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
   onCreateReviewTask: (doc: DealDocument) => void;
+  onDownload?: (doc: DealDocument) => Promise<DownloadDocumentFileOutcome>;
 }) {
   return (
     <div style={styles.group}>
@@ -584,6 +639,7 @@ function Group({
               onReceive={onReceive}
               onReview={onReview}
               onCreateReviewTask={onCreateReviewTask}
+              onDownload={onDownload}
             />
           ))}
         </ul>
@@ -601,6 +657,7 @@ function DocumentRow({
   onReceive,
   onReview,
   onCreateReviewTask,
+  onDownload,
 }: {
   doc: DealDocument;
   status: DocumentStatus;
@@ -611,7 +668,14 @@ function DocumentRow({
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
   onCreateReviewTask: (doc: DealDocument) => void;
+  onDownload?: (doc: DealDocument) => Promise<DownloadDocumentFileOutcome>;
 }) {
+  const [downloadState, setDownloadState] = useState<
+    'idle' |
+    'downloading' |
+    { readonly error: string } |
+    { readonly verifiedSha256: string }
+  >('idle');
   const overdue = status === 'outstanding' && isOverdue(doc.dueDate);
   const sev: SeverityKey =
     status === 'reviewed'
@@ -641,6 +705,24 @@ function DocumentRow({
       nowMs: Date.now(),
     });
   const showCreateReviewTask = canWrite && pendingReview;
+  const showDownload = doc.uploaded && onDownload !== undefined;
+
+  async function runDownload() {
+    if (!onDownload || downloadState === 'downloading') return;
+    setDownloadState('downloading');
+    const outcome = await onDownload(doc);
+    if (outcome.kind === 'success') {
+      setDownloadState({ verifiedSha256: outcome.sha256 });
+      return;
+    }
+    const error =
+      'reason' in outcome
+        ? outcome.reason
+        : 'error' in outcome
+          ? outcome.error
+          : 'The stored file could not be downloaded.';
+    setDownloadState({ error });
+  }
 
   return (
     <li style={styles.row}>
@@ -658,7 +740,17 @@ function DocumentRow({
             <>
               <Meta label="Received" value={formatDate(doc.receivedDate)} />
               <Meta label="Received by" value={receivedBy ?? 'Unknown'} />
-              {doc.uploaded && <Meta label="Source" value="Uploaded" />}
+              {doc.uploaded && <Meta label="Source" value="Upload metadata present" />}
+              {doc.uploaded && (
+                <Meta
+                  label="Stored file"
+                  value={
+                    doc.originalFileName
+                      ? `${doc.originalFileName}${doc.fileSizeBytes !== undefined ? ` · ${doc.fileSizeBytes} bytes` : ''}`
+                      : 'Metadata incomplete'
+                  }
+                />
+              )}
               {isReceivedDocumentPendingReview({
                 receivedDate: doc.receivedDate,
                 reviewer: doc.reviewer,
@@ -688,8 +780,24 @@ function DocumentRow({
           )}
         </div>
       </div>
-      {(showRequest || showReceive || showReview || showCreateReviewTask) && (
+      {(showRequest || showReceive || showReview || showCreateReviewTask || showDownload) && (
         <div style={styles.rowActions}>
+          {showDownload && (
+            <button
+              type="button"
+              onClick={() => void runDownload()}
+              style={styles.requestButton}
+              disabled={downloadState === 'downloading'}
+              aria-label={`Download stored file for ${doc.name}`}
+            >
+              {downloadState === 'downloading' ? 'Downloading…' : 'Download file'}
+            </button>
+          )}
+          {typeof downloadState === 'object' && 'verifiedSha256' in downloadState && (
+            <span role="status" style={styles.downloadVerified}>
+              Byte readback verified · SHA-256 {downloadState.verifiedSha256.slice(0, 12)}…
+            </span>
+          )}
           {showRequest && (
             <button
               type="button"
@@ -729,6 +837,11 @@ function DocumentRow({
             >
               Create review task
             </button>
+          )}
+          {typeof downloadState === 'object' && 'error' in downloadState && (
+            <span role="alert" style={styles.downloadError}>
+              {downloadState.error}
+            </span>
           )}
         </div>
       )}
@@ -869,6 +982,16 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
     alignSelf: 'center',
     justifyContent: 'flex-end',
+  },
+  downloadError: {
+    color: palette.atRiskFg,
+    fontSize: typography.size.xs,
+    maxWidth: 240,
+  },
+  downloadVerified: {
+    color: palette.clearFg,
+    fontSize: typography.size.xs,
+    maxWidth: 260,
   },
   requestButton: {
     background: palette.primary,

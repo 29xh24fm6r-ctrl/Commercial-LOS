@@ -61,6 +61,7 @@ export interface FinalizeCreditMemoInput {
 
 export type FinalizeCreditMemoOutcome =
   | { kind: 'success'; memoId: string }
+  | { kind: 'verification-failed'; memoId: string; error: string }
   | {
       kind: 'governance-partial';
       memoId: string;
@@ -79,6 +80,15 @@ const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
 
 const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
 const TIMELINE_SUBTYPE_CREDIT_MEMO_FINALIZED = 'creditmemo:finalized';
+
+function persistedMemoMatchesFinal(
+  row: { cr664_status?: unknown; cr664_memotext?: unknown } | undefined,
+  expectedText: string | undefined,
+): boolean {
+  if (!row || Number(row.cr664_status) !== MEMO_STATUS_FINAL) return false;
+  if (expectedText === undefined) return true;
+  return row.cr664_memotext === expectedText;
+}
 
 /**
  * A draft's parent memo preview is persisted with explicit draft language.
@@ -234,13 +244,12 @@ export async function finalizeCreditMemoAction(
   const correlationId = newCorrelationId('cm');
   const nowIso = new Date().toISOString();
   const actor = await resolveActorChangedBy(input.actorEmail);
+  const finalizedText = buildFinalizedMemoText(current.fullText);
 
   try {
     const result = await Cr664_creditmemo1sService.update(memoId, {
       cr664_status: MEMO_STATUS_FINAL,
-      ...(current.fullText
-        ? { cr664_memotext: buildFinalizedMemoText(current.fullText) }
-        : {}),
+      ...(finalizedText ? { cr664_memotext: finalizedText } : {}),
     });
     if (!result.success) {
       const rawError = result.error?.message ?? 'Unknown memo finalize error';
@@ -269,6 +278,52 @@ export async function finalizeCreditMemoAction(
       nowIso,
     });
     return { kind: 'write-failed', error: mapBusinessSafeError(rawError, correlationId).safeMessage };
+  }
+
+  // A successful PATCH is not proof that the final status and content are
+  // durable. Read the same row back and compare both fields before emitting a
+  // success audit/timeline or telling the operator the memo is final.
+  try {
+    const readback = await Cr664_creditmemo1sService.get(memoId, {
+      select: ['cr664_status', 'cr664_memotext'],
+    });
+    if (!readback.success || !persistedMemoMatchesFinal(readback.data, finalizedText)) {
+      const rawError = readback.success
+        ? 'Final memo readback did not match the status and text written.'
+        : readback.error?.message ?? 'Final memo readback failed.';
+      void emitAuditEvent({
+        dealId,
+        memoId,
+        note,
+        actor,
+        correlationId,
+        outcome: AUDIT_OUTCOME_FAILED,
+        failureReason: rawError,
+        nowIso,
+      });
+      return {
+        kind: 'verification-failed',
+        memoId,
+        error: `The memo update could not be verified. Refresh before taking any approval action (reference ${correlationId}).`,
+      };
+    }
+  } catch (err: unknown) {
+    const rawError = err instanceof Error ? err.message : String(err);
+    void emitAuditEvent({
+      dealId,
+      memoId,
+      note,
+      actor,
+      correlationId,
+      outcome: AUDIT_OUTCOME_FAILED,
+      failureReason: rawError,
+      nowIso,
+    });
+    return {
+      kind: 'verification-failed',
+      memoId,
+      error: `The memo update could not be verified. Refresh before taking any approval action (reference ${correlationId}).`,
+    };
   }
 
   const [audit, timeline] = await Promise.all([
