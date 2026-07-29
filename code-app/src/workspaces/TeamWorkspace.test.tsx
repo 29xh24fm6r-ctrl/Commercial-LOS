@@ -224,7 +224,7 @@ describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
     expect(screen.queryByLabelText('Switch to Team Workspace')).toBeNull();
   });
 
-  it('hides the inline switcher when the user has no additional entitlements (team-bootstrap, no manager probe)', async () => {
+  it('still shows the first-class CRM peer when the user has no manager entitlement', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
     // Probe returns not-entitled — only the bootstrap (team) is in the
     // allowed set. Both switcher gates (links.length >= 2) hide
@@ -233,12 +233,8 @@ describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
     renderTeamWorkspace();
     expect(await screen.findByTestId('team-ops-queue')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('navigation', { name: /Team workspace switcher/i }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole('navigation', { name: /^Workspace switcher$/i }),
-    ).toBeNull();
+    expect(screen.getByRole('navigation', { name: /Team workspace switcher/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /Switch to CRM Workspace/i }).length).toBeGreaterThan(0);
   });
 
   it('does NOT render the Portfolio Workspace link when the user is NOT manager-entitled', async () => {

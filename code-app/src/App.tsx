@@ -12,6 +12,7 @@ import { DealRoute } from './deals/DealRoute';
 import { FeatureSurfaceRoute } from './navigation/FeatureSurfaceRoute';
 import { DesignGallery } from './design/Gallery';
 import { AppCommandPalette } from './navigation/AppCommandPalette';
+import { CrmWorkspace } from './crm/firstClass/CrmWorkspace';
 
 export default function App() {
   return (
@@ -29,6 +30,14 @@ export default function App() {
             element={
               <WorkspaceGate allowed={WORKSPACE_ROUTES.banker}>
                 <BankerWorkspace />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path={`${WORKSPACE_ROUTES.crm}/*`}
+            element={
+              <WorkspaceGate allowed={WORKSPACE_ROUTES.crm}>
+                <CrmWorkspace />
               </WorkspaceGate>
             }
           />

@@ -305,6 +305,7 @@ describe('Phase 124C — useEntitledRoutes', () => {
     expect(result.current.routes).toEqual([
       WORKSPACE_ROUTES.manager,
       WORKSPACE_ROUTES.team,
+      WORKSPACE_ROUTES.crm,
     ]);
   });
 
@@ -316,7 +317,7 @@ describe('Phase 124C — useEntitledRoutes', () => {
     await waitFor(() => {
       expect(result.current.kind).toBe('ready');
     });
-    expect(result.current.routes).toEqual([]);
+    expect(result.current.routes).toEqual([WORKSPACE_ROUTES.crm]);
   });
 
   it('returns an empty routes list when the probe failed (no fake widening on error)', async () => {
@@ -330,7 +331,7 @@ describe('Phase 124C — useEntitledRoutes', () => {
     await waitFor(() => {
       expect(result.current.kind).toBe('ready');
     });
-    expect(result.current.routes).toEqual([]);
+    expect(result.current.routes).toEqual([WORKSPACE_ROUTES.crm]);
   });
 });
 
@@ -686,6 +687,7 @@ describe('Phase 204 — useAdminEntitlement + admin route admission', () => {
       WORKSPACE_ROUTES.manager,
       WORKSPACE_ROUTES.team,
       WORKSPACE_ROUTES.admin,
+      WORKSPACE_ROUTES.crm,
     ]);
   });
 

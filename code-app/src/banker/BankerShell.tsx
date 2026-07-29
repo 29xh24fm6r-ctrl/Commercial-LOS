@@ -21,6 +21,7 @@ import { BankerLoanWorkflowTab } from './BankerLoanWorkflowTab';
 import { LendingOSLayout, type LendingOSNavKey } from './LendingOSLayout';
 import { GreetingHeader } from './GreetingHeader';
 import { BankerKpiGrid } from './BankerKpiGrid';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { CrmHubWorkspace } from '../crm/workspace/CrmHubWorkspace';
 import { BankerOperatingCommandCenter } from './BankerOperatingCommandCenter';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
@@ -313,6 +314,14 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
     <LendingOSLayout
       activeNav={activeNav}
       onNavSelect={(navKey) => {
+        if (navKey === 'crm-hub') {
+          // Update local state as well so isolated shell tests and any slow route
+          // transition never leave a blank panel. In production the route change
+          // immediately unmounts this shell.
+          setTab('crm-hub');
+          navigate(WORKSPACE_ROUTES.crm);
+          return;
+        }
         const target = TAB_SPECS.find((t) => t.nav === navKey);
         if (target) setTab(target.key);
       }}
@@ -340,7 +349,15 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       <main style={styles.main} role="main" aria-label="Banker workspace">
         <div style={styles.body}>
           <section style={styles.contentArea} aria-label="Banker workspace content">
-            <TabBar active={tab} onSelect={setTab} kpis={kpis} state={state} />
+            <TabBar
+              active={tab}
+              onSelect={(next) => {
+                setTab(next);
+                if (next === 'crm-hub') navigate(WORKSPACE_ROUTES.crm);
+              }}
+              kpis={kpis}
+              state={state}
+            />
             <div style={styles.tabPanel} role="tabpanel" aria-labelledby={`tab-${tab}`}>
               <ErrorBoundary surface={TAB_SPECS.find((t) => t.key === tab)?.label ?? 'This section'} navKey={tab}>
                 <TabContent
