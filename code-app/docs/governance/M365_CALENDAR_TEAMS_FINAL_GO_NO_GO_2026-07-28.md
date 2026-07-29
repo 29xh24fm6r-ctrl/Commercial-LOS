@@ -2,11 +2,11 @@
 
 Date: 2026-07-28
 
-Current repository certification posture: `UNKNOWN` until operator live evidence is captured.
+Current repository certification posture: `UNKNOWN` overall. Outlook email is already certified from existing live evidence; the remaining six lanes still require operator live evidence.
 
 | Lane | Current default | Evidence file |
 | --- | --- | --- |
-| OUTLOOK_EMAIL | UNKNOWN | `docs/operator-evidence/m365-calendar-teams/outlook-email.md` |
+| OUTLOOK_EMAIL | PASS | `docs/operator-evidence/OUTLOOK_LIVE_SEND_CERTIFICATION_2026-07-28.md` |
 | OUTLOOK_CALENDAR_READ | UNKNOWN | `docs/operator-evidence/m365-calendar-teams/calendar-runtime.md` |
 | OUTLOOK_AVAILABILITY | UNKNOWN | `docs/operator-evidence/m365-calendar-teams/availability.md` |
 | OUTLOOK_CALENDAR_WRITE | UNKNOWN | `docs/operator-evidence/m365-calendar-teams/outlook-event-creation.md` |

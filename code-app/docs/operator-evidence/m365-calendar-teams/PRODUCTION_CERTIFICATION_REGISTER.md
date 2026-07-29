@@ -6,7 +6,7 @@ This register is intentionally not pre-populated with PASS. Operators must updat
 
 | Lane | Evidence file | Required proof |
 | --- | --- | --- |
-| OUTLOOK_EMAIL | `outlook-email.md` | Internal test email can be sent through the approved Office 365 Outlook connector and audited. |
+| OUTLOOK_EMAIL | `../OUTLOOK_LIVE_SEND_CERTIFICATION_2026-07-28.md` plus consolidation note in `outlook-email.md` | Existing certified evidence proves the internal diagnostic Outlook email send only. No new send is required unless that evidence is invalidated. |
 | OUTLOOK_CALENDAR_READ | `calendar-runtime.md` | Runtime binding and read-only calendar retrieval are confirmed for the signed-in banker. |
 | OUTLOOK_AVAILABILITY | `availability.md` | Real busy/free calendar data drives the availability panel with timezone correctness. |
 | OUTLOOK_CALENDAR_WRITE | `outlook-event-creation.md` | Governed internal-only meeting creation returns a durable event ID and blocks duplicates. |
