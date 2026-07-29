@@ -36,6 +36,51 @@ vi.mock('../admin/AdminContext', () => ({
     writeDisabledReason: undefined,
   }),
 }));
+vi.mock('../bootstrap/BootstrapContext', () => ({
+  useBootstrap: () => ({
+    upn: 'admin@oldglorybank.com',
+    fullName: 'Ada Admin',
+    route: '/workspaces/banker',
+    workspaceName: 'Banker Workspace',
+  }),
+}));
+vi.mock('../bootstrap/workspaceEntitlements', () => ({
+  useEntitledRoutes: () => ({
+    kind: 'ready',
+    routes: ['/workspaces/team', '/workspaces/manager', '/workspaces/admin'],
+  }),
+  deriveWorkspaceLinks: ({
+    bootstrapRoute,
+    currentRoute,
+    entitledRoutes,
+    includePortfolioSurface,
+  }: {
+    bootstrapRoute: string;
+    currentRoute: string;
+    entitledRoutes: ReadonlyArray<string>;
+    includePortfolioSurface?: boolean;
+  }) => {
+    const allowed = new Set([bootstrapRoute, ...entitledRoutes]);
+    const catalog = [
+      { key: 'banker', label: 'Banker Workspace', route: '/workspaces/banker' },
+      { key: 'team', label: 'Team Workspace', route: '/workspaces/team' },
+      { key: 'manager', label: 'Manager Workspace', route: '/workspaces/manager' },
+      {
+        key: 'portfolio',
+        label: 'Portfolio Workspace',
+        route: '/workspaces/manager?surface=portfolio',
+      },
+      { key: 'admin', label: 'Admin Workspace', route: '/workspaces/admin' },
+    ];
+    return catalog
+      .filter((link) =>
+        link.key === 'portfolio'
+          ? includePortfolioSurface && allowed.has('/workspaces/manager')
+          : allowed.has(link.route),
+      )
+      .map((link) => ({ ...link, isCurrent: link.route === currentRoute }));
+  },
+}));
 
 // Stub every diagnostic panel to a marker so the test isolates the shell.
 // Factories are hoisted, so each must be self-contained (no outer refs).
@@ -63,6 +108,9 @@ vi.mock('../admin/AdminDurableRecordCapabilityPanel', () => ({ AdminDurableRecor
 vi.mock('../admin/FinalOperatingCertificationPanel', () => ({ FinalOperatingCertificationPanel: () => <div data-testid="panel-FinalOperatingCertificationPanel" /> }));
 vi.mock('../admin/AdminDataQualityDetectionPanel', () => ({ AdminDataQualityDetectionPanel: () => <div data-testid="panel-AdminDataQualityDetectionPanel" /> }));
 vi.mock('../admin/TestDataView', () => ({ TestDataView: () => <div data-testid="panel-TestDataView" /> }));
+vi.mock('../admin/AdminDealReferenceValues', () => ({ AdminDealReferenceValues: () => <div data-testid="panel-AdminDealReferenceValues" /> }));
+vi.mock('../admin/AdminLoanRemovalPanel', () => ({ AdminLoanRemovalPanel: () => <div data-testid="panel-AdminLoanRemovalPanel" /> }));
+vi.mock('../admin/AdminAssignServicingOwnerPanel', () => ({ AdminAssignServicingOwnerPanel: () => <div data-testid="panel-AdminAssignServicingOwnerPanel" /> }));
 
 import { AdminWorkspace } from './AdminWorkspace';
 
@@ -96,6 +144,34 @@ describe('Phase 257 — AdminWorkspace renders inside the Lending OS sidebar she
     const identity = screen.getByLabelText('Signed in banker');
     expect(within(identity).getByText('Ada Admin')).toBeInTheDocument();
     expect(within(identity).getByText('admin@oldglorybank.com')).toBeInTheDocument();
+  });
+
+  it('keeps all entitlement-derived workspace links available when admin is open', () => {
+    renderAdmin();
+    const nav = screen.getByRole('navigation', { name: /lending os navigation/i });
+    const workspaceRegion = within(nav).getByRole('navigation', {
+      name: /workspace switcher/i,
+    });
+    expect(within(workspaceRegion).getByRole('link', { name: /banker workspace/i })).toHaveAttribute(
+      'href',
+      '/workspaces/banker',
+    );
+    expect(within(workspaceRegion).getByRole('link', { name: /team workspace/i })).toHaveAttribute(
+      'href',
+      '/workspaces/team',
+    );
+    expect(within(workspaceRegion).getByRole('link', { name: /manager workspace/i })).toHaveAttribute(
+      'href',
+      '/workspaces/manager',
+    );
+    expect(within(workspaceRegion).getByRole('link', { name: /portfolio workspace/i })).toHaveAttribute(
+      'href',
+      '/workspaces/manager?surface=portfolio',
+    );
+    expect(within(workspaceRegion).getByText('Admin Workspace')).toHaveAttribute(
+      'data-workspace-link-current',
+      'true',
+    );
   });
 
   it('still wraps content in the AdminProvider (authorization plumbing preserved)', () => {
