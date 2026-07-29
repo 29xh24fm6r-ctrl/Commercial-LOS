@@ -201,9 +201,9 @@ describe('Phase 116 — explicit alias coverage matches the documented live envi
 });
 
 describe('Phase 116 — WORKSPACE_ROUTES contract', () => {
-  it('exposes exactly five canonical keys (banker / team / manager / executive / admin)', () => {
+  it('exposes the six canonical workspace keys including first-class CRM', () => {
     expect(Object.keys(WORKSPACE_ROUTES).sort()).toEqual(
-      ['admin', 'banker', 'executive', 'manager', 'team'].sort(),
+      ['admin', 'banker', 'crm', 'executive', 'manager', 'team'].sort(),
     );
   });
 
@@ -274,6 +274,7 @@ describe('Workstream Q — WORKSPACE_DISPLAY_NAMES matches the live-alias contra
   it('matches the six documented live Platform Workspace names verbatim for the five non-portfolio keys', () => {
     expect(WORKSPACE_DISPLAY_NAMES).toEqual({
       banker: 'Banker Workspace',
+      crm: 'CRM Workspace',
       team: 'Team Workspace',
       manager: 'Manager Command Center',
       executive: 'Executive Dashboard',

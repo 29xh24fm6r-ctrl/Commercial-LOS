@@ -211,6 +211,10 @@ export function useEntitledRoutes(): EntitledRoutesState {
   if (a.kind === 'entitled') {
     routes.push(WORKSPACE_ROUTES.admin);
   }
+  // CRM is a peer workspace over the same governed relationship truth. Every
+  // authenticated LOS workspace identity may enter it; the CRM route applies
+  // its own role-aware detail policy and never widens Dataverse query scope.
+  routes.push(WORKSPACE_ROUTES.crm);
   return { kind: 'ready', routes };
 }
 
@@ -220,6 +224,7 @@ export function useEntitledRoutes(): EntitledRoutesState {
 
 export type WorkspaceLinkKey =
   | 'banker'
+  | 'crm'
   | 'team'
   | 'manager'
   | 'portfolio'
@@ -286,6 +291,7 @@ const LINK_META: Record<
   { route: string; label: string }
 > = {
   banker: { route: WORKSPACE_ROUTES.banker, label: 'Banker Workspace' },
+  crm: { route: WORKSPACE_ROUTES.crm, label: 'CRM Workspace' },
   team: { route: WORKSPACE_ROUTES.team, label: 'Team Workspace' },
   manager: { route: WORKSPACE_ROUTES.manager, label: 'Manager Workspace' },
   portfolio: { route: PORTFOLIO_SURFACE_URL, label: 'Portfolio Workspace' },
@@ -295,6 +301,7 @@ const LINK_META: Record<
 
 const LINK_ORDER: ReadonlyArray<WorkspaceLinkKey> = [
   'banker',
+  'crm',
   'team',
   'manager',
   'portfolio',

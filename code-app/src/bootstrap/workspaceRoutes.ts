@@ -1,5 +1,6 @@
 export const WORKSPACE_ROUTES = {
   banker: '/workspaces/banker',
+  crm: '/workspaces/crm',
   team: '/workspaces/team',
   manager: '/workspaces/manager',
   executive: '/workspaces/executive',
@@ -54,6 +55,7 @@ export function isProductStrategySurface(surfaceParam: string | null | undefined
 const EXPLICIT_ALIASES: Readonly<Record<string, WorkspaceKey>> = Object.freeze({
   'Admin Control Center': 'admin',
   'Banker Workspace': 'banker',
+  'CRM Workspace': 'crm',
   'Manager Command Center': 'manager',
   'Team Workspace': 'team',
   'Executive Dashboard': 'executive',
@@ -93,6 +95,7 @@ const EXPLICIT_ALIASES_LOWER: ReadonlyMap<string, WorkspaceKey> = new Map(
  */
 export const WORKSPACE_DISPLAY_NAMES: Readonly<Record<WorkspaceKey, string>> = Object.freeze({
   banker: 'Banker Workspace',
+  crm: 'CRM Workspace',
   team: 'Team Workspace',
   manager: 'Manager Command Center',
   executive: 'Executive Dashboard',
@@ -107,6 +110,7 @@ export const WORKSPACE_DISPLAY_NAMES: Readonly<Record<WorkspaceKey, string>> = O
  * five role keywords from Phases 4 / 32 match.
  */
 const MATCHERS: ReadonlyArray<readonly [WorkspaceKey, RegExp]> = [
+  ['crm', /\bcrm\b/i],
   ['banker', /\bbanker\b/i],
   ['team', /\bteam\b/i],
   ['manager', /\bmanager\b/i],
