@@ -111,6 +111,24 @@ describe('DocumentRequirementWorkspace', () => {
     expect(within(debtScheduleAfter).getByText('2026-07-03T00:00:00Z')).toBeInTheDocument();
   });
 
+  it('reloads when a sibling document operation changes the shared checklist rows', async () => {
+    loadMock
+      .mockResolvedValueOnce({ kind: 'ready', rows: rowsFixture('requested') })
+      .mockResolvedValueOnce({ kind: 'ready', rows: rowsFixture('under_review') });
+
+    const { rerender } = render(
+      <DocumentRequirementWorkspace dealId="deal-1" deal={deal} banker={banker} reloadToken={0} />,
+    );
+    await screen.findByText(/Required.+Requested/);
+
+    rerender(
+      <DocumentRequirementWorkspace dealId="deal-1" deal={deal} banker={banker} reloadToken={1} />,
+    );
+
+    await screen.findByText(/Required.+Under Review/);
+    expect(loadMock).toHaveBeenCalledTimes(2);
+  });
+
   it('fail-visible: a governance-partial outcome is shown to the banker', async () => {
     loadMock.mockResolvedValue({ kind: 'ready', rows: rowsFixture('not_assessed') });
     performMock.mockResolvedValue({
