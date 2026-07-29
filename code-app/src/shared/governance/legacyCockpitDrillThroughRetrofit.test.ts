@@ -202,6 +202,26 @@ describe('Phase 144B — deal metric deck adapter', () => {
     });
     expect(resolveDrillThroughAction(targets['loan-amount']).kind).toBe('unavailable');
   });
+
+  it('blocker drill-through explains the same authoritative requirements counted by the tile', () => {
+    const targets = dealMetricDeckTargets({
+      loanAmountLabel: '$2,500,000', loanAmountKnown: true, missingFieldLabels: [], totalFieldCount: 13,
+      populatedFieldCount: 13, taskOpenCount: 0, taskOverdueCount: 0, taskCompletedCount: 0,
+      docOutstandingCount: 0, docReceivedCount: 0, docReviewedCount: 0, targetCloseLabel: 'Jun 30, 2026',
+      daysToCloseLabel: 'in 20d', memoStateLabel: 'Draft',
+      hardBlockers: [{
+        id: 'INTAKE:field:amount',
+        severity: 'hard',
+        category: 'field',
+        label: 'Loan amount',
+        detail: 'Loan amount is required before stage advancement.',
+        resolverSurface: 'Deal Profile',
+        remediation: { kind: 'edit-profile', field: 'Loan amount' },
+      }],
+    });
+    expect(targets.blockers.summary).toMatch(/1 mandatory stage-exit requirement/i);
+    expect(targets.blockers.detailSections[0].rows[0].label).toBe('Loan amount');
+  });
 });
 
 describe('Phase 144B — executive adapter', () => {

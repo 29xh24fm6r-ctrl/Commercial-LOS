@@ -104,6 +104,10 @@ export async function loadTeamIdentity(upn: string): Promise<TeamIdentityResult>
   if (!banker) return { kind: 'not-banker' };
   const teamId = banker._cr664_team_value;
   if (!teamId) return { kind: 'no-team' };
+  const bankerRaw = banker as unknown as Record<string, unknown>;
+  const teamName =
+    getLookupFormattedValue(bankerRaw, 'cr664_team') ??
+    banker.cr664_teamname;
   return {
     kind: 'ready',
     identity: {
@@ -111,7 +115,7 @@ export async function loadTeamIdentity(upn: string): Promise<TeamIdentityResult>
       fullName: banker.cr664_fullname,
       email: banker.cr664_email ?? upn,
       teamId,
-      teamName: banker.cr664_teamname ?? '(unnamed team)',
+      teamName: teamName ?? '(unnamed team)',
     },
   };
 }

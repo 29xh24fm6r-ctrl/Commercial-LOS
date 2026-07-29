@@ -12,7 +12,7 @@ describe('Phase 231 — Elite CRM + LOS full activation readiness panel', () => 
       screen.getByRole('region', { name: /Elite CRM and LOS full activation readiness/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Elite CRM \+ LOS Full Activation Readiness/i)).toBeInTheDocument();
-    expect(screen.getByText(/Gated readiness/i)).toBeInTheDocument();
+    expect(screen.getByText('Activation readiness')).toBeInTheDocument();
   });
 
   it('shows all major CRM and LOS domains in one operating layer', () => {

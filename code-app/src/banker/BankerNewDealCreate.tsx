@@ -64,7 +64,10 @@ function describeBridgeFailure(bridge: BridgeOrgToClientOutcome): string {
   }
 }
 import type { DealOriginationResult } from '../deals/dealOriginationOutcomes';
-import type { ExistingDealSignal } from '../deals/newDealDuplicateDetection';
+import {
+  detectNewDealDuplicates,
+  type ExistingDealSignal,
+} from '../deals/newDealDuplicateDetection';
 import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
@@ -259,6 +262,19 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
   // rule applies to 100% of creates rather than fabricating an exemption this schema can't express.
   const amountNumber = Number(amount.trim());
   const amountValid = amount.trim().length > 0 && Number.isFinite(amountNumber) && amountNumber > 0;
+  const duplicatePreview = useMemo(
+    () =>
+      detectNewDealDuplicates({
+        detectionEnabledOverride: true,
+        candidateDealName: dealName,
+        candidateClientName: selectedClient?.name,
+        candidateBankerId: bankerId,
+        candidateAmount: amountValid ? amountNumber : undefined,
+        existing: existingDeals,
+        exactDuplicateBlocks: true,
+      }),
+    [dealName, selectedClient?.name, bankerId, amountValid, amountNumber, existingDeals],
+  );
   const canSubmit =
     live &&
     step === 3 &&
@@ -399,6 +415,7 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
             allowCreateWithoutClient: NEW_DEAL_ALLOW_CREATE_WITHOUT_CRM_CLIENT,
             clientRelationshipsExist,
             existingDeals,
+            exactDuplicateBlocks: true,
           },
         },
         {
@@ -518,6 +535,7 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
               submitting={submit.kind === 'submitting'}
               selectedClient={selectedClient}
               selectedTeam={selectedTeam}
+              duplicatePreview={duplicatePreview}
             />
           ) : null}
         </div>
@@ -672,7 +690,7 @@ function TeamStep({
       <h4 style={styles.stepTitle}>{STEP_TITLES[2]}</h4>
       <p style={styles.stepHint}>
         Search and select the existing owning team (optional). Nothing is created
-        here — team assignment binds an existing cr664_team.
+        here — team assignment links the deal to an existing lending team.
       </p>
       <OptionPicker
         state={state}
@@ -727,6 +745,7 @@ function DetailsStep({
   submitting,
   selectedClient,
   selectedTeam,
+  duplicatePreview,
 }: {
   dealName: string;
   amount: string;
@@ -760,6 +779,7 @@ function DetailsStep({
   submitting: boolean;
   selectedClient: CrmLinkOption | null;
   selectedTeam: CrmLinkOption | null;
+  duplicatePreview: ReturnType<typeof detectNewDealDuplicates>;
 }) {
   return (
     <div style={styles.step} data-new-deal-details-step>
@@ -788,6 +808,14 @@ function DetailsStep({
           disabled={submitting}
         />
       </label>
+      {(duplicatePreview.kind === 'exact_duplicate_found' ||
+        duplicatePreview.kind === 'possible_duplicate_found') && (
+        <div style={styles.bannerWarn} role="alert" data-new-deal-duplicate-preview>
+          {duplicatePreview.kind === 'exact_duplicate_found'
+            ? 'An existing deal has the same name. Creation will be blocked; open the existing deal or use a distinct name.'
+            : `This may duplicate ${duplicatePreview.candidates?.length ?? 0} existing deal${(duplicatePreview.candidates?.length ?? 0) === 1 ? '' : 's'}. Review Active Deals before creating another record.`}
+        </div>
+      )}
       <label style={styles.label}>
         Amount
         <input

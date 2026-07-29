@@ -80,6 +80,12 @@ import {
   type DealReferenceLookupField,
   type DealReferenceLookupConfig,
 } from './dealReferenceOptions';
+import {
+  deriveRiskRatingRecordFromDeal,
+  evaluateRiskRatingReadiness,
+  parseRiskRatingFormState,
+  parseUnderwritingRecommendationFormState,
+} from '../../workflow/underwritingDeepFacts';
 
 /** The editable scalar / option-set profile fields this phase governs. */
 export type DealProfileField =
@@ -443,6 +449,37 @@ function readbackConfirms(row: Record<string, unknown>, p: PreparedField): boole
 }
 
 /**
+ * Final deep facts may not cross the generic profile write boundary incomplete.
+ * Drafts remain saveable so bankers can work incrementally; assigned/recorded
+ * facts require rationale, actor, timestamp, and exact deal linkage.
+ */
+function validateDeepFactPayload(
+  field: DealProfileField,
+  value: string | null,
+  dealId: string,
+): string | undefined {
+  if (value === null) return undefined;
+  if (field === 'riskRatingInputs') {
+    const form = parseRiskRatingFormState(value);
+    if (form.status === 'draft') return undefined;
+    const readiness = evaluateRiskRatingReadiness(
+      deriveRiskRatingRecordFromDeal({ riskRatingInputsJson: value }),
+      dealId,
+    );
+    return readiness.met ? undefined : readiness.reason;
+  }
+  if (field === 'underwritingRecommendationInputs') {
+    const form = parseUnderwritingRecommendationFormState(value);
+    if (form.status === 'draft') return undefined;
+    if (form.rationale.trim().length === 0) return 'Underwriting recommendation has no rationale recorded.';
+    if (form.underwriterActor.trim().length === 0) return 'Underwriting recommendation has no recorded underwriter.';
+    if (form.recordedAtIso.trim().length === 0) return 'Underwriting recommendation has no recorded timestamp.';
+    if (form.dealId !== dealId) return 'Underwriting recommendation record does not match this deal.';
+  }
+  return undefined;
+}
+
+/**
  * Governed Deal Profile update. Pure given its injected deps.
  */
 export async function updateDealProfile(
@@ -496,6 +533,14 @@ export async function updateDealProfile(
   const prepared: PreparedField[] = [];
   for (const key of suppliedKeys) {
     const field = key as DealProfileField;
+    const deepFactReason = validateDeepFactPayload(
+      field,
+      patch[field] as string | null,
+      dealId,
+    );
+    if (deepFactReason) {
+      return { kind: 'invalid-input', field, reason: deepFactReason };
+    }
     const result = prepareField(field, patch[field] as string | null);
     if (!result.ok) {
       return { kind: 'invalid-input', field, reason: result.reason };

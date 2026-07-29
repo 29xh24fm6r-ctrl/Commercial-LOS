@@ -122,6 +122,7 @@ export function DealMetricDeck() {
     targetCloseLabel,
     daysToCloseLabel: formatRelativeDays(metrics.daysToClose) ?? 'No date set',
     memoStateLabel: memoStateLabel(metrics.memoState),
+    hardBlockers: blockerModel?.hardBlockers,
   });
 
   return (

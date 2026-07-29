@@ -727,6 +727,8 @@ describe('MyWorkQueue — Workstream F: My Tasks shows real assigned tasks, sepa
 
     expect(await screen.findByText('My Tasks')).toBeInTheDocument();
     expect(screen.getByText(/order insurance certificate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ref:/i)).toBeInTheDocument();
+    expect(screen.getByText('DEAL77')).toBeInTheDocument();
     // Not a signal — must not appear under the Signals card too.
     expect(screen.getByText('Signals')).toBeInTheDocument();
     expect(screen.getByText(/no blocked, at-risk, or document signals/i)).toBeInTheDocument();

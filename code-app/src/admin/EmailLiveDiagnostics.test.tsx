@@ -68,10 +68,10 @@ describe('Phase 109 — diagnostics card renders posture + warning without runni
     ).toBeInTheDocument();
   });
 
-  it('shows that Phase 101 summary handoffs remain copy-to-clipboard regardless of mode', () => {
+  it('shows that summary handoffs remain copy-to-clipboard regardless of mode', () => {
     render(<EmailLiveDiagnostics />);
     expect(
-      screen.getByText(/Phase 101 summary handoffs/i),
+      screen.getByText('Summary handoffs'),
     ).toBeInTheDocument();
     // The detail line explicitly pins copy-to-clipboard regardless of EMAIL_MODE.
     expect(

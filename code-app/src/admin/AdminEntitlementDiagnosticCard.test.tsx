@@ -59,25 +59,25 @@ beforeEach(() => {
 });
 
 describe('Phase 204G — AdminEntitlementDiagnosticCard', () => {
-  it('renders the temporary-phase title and the probe gate detail', async () => {
+  it('renders the user-facing title and the probe gate detail', async () => {
     render(<AdminEntitlementDiagnosticCard />);
-    expect(screen.getByText(/Admin Entitlement Diagnostic — temporary Phase 204G/)).toBeInTheDocument();
+    expect(screen.getByText(/Admin access diagnostic/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('entitled')).toBeInTheDocument());
     // gate booleans / reason surfaced
     expect(screen.getByText('profile-label-upn')).toBeInTheDocument();
   });
 
-  it('renders the Phase 204K visible build stamp so the live UI proves it is current', () => {
+  it('labels the check without exposing an internal phase or commit', () => {
     render(<AdminEntitlementDiagnosticCard />);
     expect(
-      screen.getByText('Diagnostic build: Phase 204K / four-field workspace entitlement read / master 6d806e3'),
+      screen.getByText('Read-only access check'),
     ).toBeInTheDocument();
   });
 
-  it('renders the Phase 204K workspace-not-selected note', () => {
+  it('explains the access basis in business language', () => {
     render(<AdminEntitlementDiagnosticCard />);
     expect(
-      screen.getByText('Workspace display name not selected; entitlement-name gate used.'),
+      screen.getByText(/active workspace entitlements/i),
     ).toBeInTheDocument();
   });
 

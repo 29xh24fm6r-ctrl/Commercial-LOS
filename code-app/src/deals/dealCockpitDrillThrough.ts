@@ -12,6 +12,7 @@ import {
   type DetailRow,
   type DrillThroughTarget,
 } from '../shared/drillthrough/drillThroughTypes';
+import type { DealBlockerItem } from './dealBlockerModel';
 
 /** Minimal projection of the metric-deck inputs the targets need. */
 export interface DealMetricDeckDrillInput {
@@ -29,13 +30,23 @@ export interface DealMetricDeckDrillInput {
   targetCloseLabel: string;
   daysToCloseLabel: string;
   memoStateLabel: string;
+  /** Authoritative stage-exit blockers used by the tile and advance guard. */
+  hardBlockers?: ReadonlyArray<DealBlockerItem>;
 }
 
 const SURFACE = 'deal_cockpit' as const;
 
 /** All metric-deck tile targets, keyed by the tile label slug. */
 export function dealMetricDeckTargets(input: DealMetricDeckDrillInput): Record<string, DrillThroughTarget> {
-  const blockerCount = input.taskOverdueCount + input.docOutstandingCount;
+  const usesStageExitModel = input.hardBlockers !== undefined;
+  const blockerCount = usesStageExitModel
+    ? input.hardBlockers!.length
+    : input.taskOverdueCount + input.docOutstandingCount;
+  const blockerRows: DetailRow[] = (input.hardBlockers ?? []).map((blocker) => ({
+    label: blocker.label,
+    value: blocker.detail,
+    source: 'governed stage-exit requirement',
+  }));
   const missingRows: DetailRow[] = input.missingFieldLabels.map((label) => ({
     label,
     value: 'Not populated',
@@ -82,13 +93,26 @@ export function dealMetricDeckTargets(input: DealMetricDeckDrillInput): Record<s
       surface: SURFACE,
       entityKind: 'metric',
       summary: blockerCount === 0
-        ? 'No attention items: no overdue tasks and no outstanding documents.'
-        : `${blockerCount} attention item(s): overdue tasks and outstanding documents.`,
-      sourceCounts: [
-        { label: 'Overdue tasks', count: input.taskOverdueCount },
-        { label: 'Outstanding documents', count: input.docOutstandingCount },
-      ],
-      nextReviewStep: blockerCount > 0 ? 'Clear overdue tasks and outstanding documents to unblock the deal.' : undefined,
+        ? usesStageExitModel
+          ? 'No mandatory stage-exit requirements are holding advancement.'
+          : 'No attention items: no overdue tasks and no outstanding documents.'
+        : usesStageExitModel
+          ? `${blockerCount} mandatory stage-exit requirement(s) are holding advancement.`
+          : `${blockerCount} attention item(s): overdue tasks and outstanding documents.`,
+      sourceCounts: usesStageExitModel
+        ? [{ label: 'Mandatory requirements', count: blockerCount }]
+        : [
+            { label: 'Overdue tasks', count: input.taskOverdueCount },
+            { label: 'Outstanding documents', count: input.docOutstandingCount },
+          ],
+      detailSections: usesStageExitModel
+        ? [{ title: 'Requirements to clear', rows: blockerRows, emptyMessage: 'No mandatory requirement is holding advancement.' }]
+        : undefined,
+      nextReviewStep: blockerCount > 0
+        ? usesStageExitModel
+          ? 'Resolve each listed requirement before advancing the stage.'
+          : 'Clear overdue tasks and outstanding documents to unblock the deal.'
+        : undefined,
     }),
     'tasks-open': buildDrillThroughTarget({
       id: 'deal-tile-tasks-open',

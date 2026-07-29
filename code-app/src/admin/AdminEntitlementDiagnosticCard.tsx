@@ -43,15 +43,15 @@ export function AdminEntitlementDiagnosticCard() {
   if (!ADMIN_ENTITLEMENT_DIAGNOSTIC_ENABLED) return null;
 
   return (
-    <section style={styles.card} aria-label="Admin Entitlement Diagnostic — temporary Phase 204G">
-      <div style={styles.title}>Admin Entitlement Diagnostic — temporary Phase 204G</div>
+    <section style={styles.card} aria-label="Admin access diagnostic">
+      <div style={styles.title}>Admin access diagnostic</div>
       {/* Phase 204J/204K — visible build stamp so the live UI proves the deployed card is current. */}
-      <div style={styles.buildStamp}>Diagnostic build: Phase 204K / four-field workspace entitlement read / master 6d806e3</div>
+      <div style={styles.buildStamp}>Read-only access check</div>
       <div style={styles.subtitle}>
         Read-only diagnostic of the live admin-workspace probe. No actions, no writes — sanitized values only.
       </div>
       {/* Phase 204K — workspace display name is not selectable on this table. */}
-      <div style={styles.note}>Workspace display name not selected; entitlement-name gate used.</div>
+      <div style={styles.note}>Access is evaluated from the user&rsquo;s active workspace entitlements.</div>
       {state.kind === 'loading' && <div style={styles.muted}>Running probe…</div>}
       {state.kind === 'ready' && <DiagnosticBody diagnostic={state.diagnostic} />}
     </section>
@@ -63,12 +63,12 @@ function DiagnosticBody({ diagnostic: d }: { diagnostic: AdminEntitlementDiagnos
     <div style={styles.body}>
       <dl style={styles.summary}>
         <Field label="Final result" value={d.finalResult} />
-        <Field label="PlatformUser found" value={String(d.platformUserFound)} />
-        <Field label="PlatformUser usable" value={String(d.platformUserUsable)} />
+        <Field label="User record found" value={String(d.platformUserFound)} />
+        <Field label="User record active" value={String(d.platformUserUsable)} />
         <Field label="Full name" value={d.platformUserFullName} />
         <Field label="Email (you)" value={d.platformUserEmail} />
-        <Field label="LOS profile ids" value={String(d.profileIdsCount)} />
-        <Field label="Entitlement query OK" value={String(d.entitlementQuerySuccess)} />
+        <Field label="Lending profiles" value={String(d.profileIdsCount)} />
+        <Field label="Access check completed" value={String(d.entitlementQuerySuccess)} />
         <Field label="Rows returned" value={String(d.entitlementRowsReturned)} />
         {d.failureSummary.length > 0 && <Field label="Failure" value={d.failureSummary} />}
       </dl>

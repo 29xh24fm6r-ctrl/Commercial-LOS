@@ -95,10 +95,10 @@ export function NewDealIntakePanel() {
 
       <NewDealResolverReadinessCard />
 
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
-          Confirmed live reference targets (Phase 170D)
-        </div>
+      <details style={styles.section}>
+        <summary style={styles.sectionTitle}>
+          Technical reference details
+        </summary>
         <p style={styles.sectionNote} data-admin-new-deal-targets-note>
           Identified read-only via <code>{NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND}</code> on{' '}
           {NEW_DEAL_REFERENCE_TARGETS_CONFIRMED_ON}. Metadata names only -- no
@@ -129,10 +129,10 @@ export function NewDealIntakePanel() {
             ))}
           </tbody>
         </table>
-      </div>
+      </details>
 
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>Required fields for future intake</div>
+      <details style={styles.section}>
+        <summary style={styles.sectionTitle}>Technical field mapping</summary>
         <table style={styles.table} data-admin-new-deal-fields>
           <thead>
             <tr>
@@ -163,7 +163,7 @@ export function NewDealIntakePanel() {
             ))}
           </tbody>
         </table>
-      </div>
+      </details>
 
       <div style={styles.section}>
         <div style={styles.sectionTitle}>

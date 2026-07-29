@@ -85,15 +85,15 @@ export function EmailLiveDiagnostics() {
         <StatusRow
           label="Document-request email LIVE path"
           status="code-available"
-          detail="Wired by Phase 104 through the typed Outlook send adapter. LIVE-mode sends emit one audit row + one EmailLogged timeline row per attempt."
+          detail="Uses the governed Outlook connector. Live sends create one audit entry and one email timeline entry per attempt."
         />
         <StatusRow
           label="Borrower-update email LIVE path"
           status="code-available"
-          detail="Wired by Phase 105 through the same typed Outlook send adapter as document-request. LIVE-mode sends emit one audit row + one BorrowerUpdateSent timeline row per attempt."
+          detail="Uses the governed Outlook connector. Live sends create one audit entry and one borrower-update timeline entry per attempt."
         />
         <StatusRow
-          label="Phase 101 summary handoffs"
+          label="Summary handoffs"
           status="copy-to-clipboard"
           detail="Catch-up, activity, and relationship summary handoffs are copy-to-clipboard regardless of EMAIL_MODE. They do not call SendEmailV2; flipping LIVE does not change their behavior."
         />

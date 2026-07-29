@@ -99,6 +99,7 @@ describe('DealRiskRatingPanel', () => {
     const line = container.querySelector('[data-risk-rating-readiness="rating-readiness"]');
     expect(line?.textContent).toMatch(/Would NOT satisfy the gate/i);
     expect(line?.textContent).toMatch(/rationale/i);
+    expect(screen.getByText('Save Risk Rating')).toBeDisabled();
   });
 
   it('a draft-status rating never satisfies the gate, even with a value entered', async () => {
@@ -140,6 +141,7 @@ describe('DealRiskRatingPanel', () => {
     const line = container.querySelector('[data-risk-rating-readiness="recommendation-readiness"]');
     expect(line?.textContent).toMatch(/Would NOT satisfy the gate/i);
     expect(line?.textContent).toMatch(/rationale/i);
+    expect(screen.getByText('Save Recommendation')).toBeDisabled();
   });
 
   describe('persistence (Factory Arc Phase 5)', () => {
