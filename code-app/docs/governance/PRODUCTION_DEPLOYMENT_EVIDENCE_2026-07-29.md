@@ -66,6 +66,32 @@ and did not mutate records. Its SHA-256 is
 `52840f83fcc3e76fcbe9b6905e8f7e3e814b174a7e3d0291670194cbc808c8e0`.
 The access token remained process-local and was cleared.
 
+## Controlled post-deployment persistence smokes
+
+The approved launch harness ran two self-cleaning production smokes after
+deployment:
+
+| Capability | Correlation ID | Result |
+|---|---|---|
+| CRM live persistence | `db823f47-6c94-4820-a521-e142e4db668b` | Create, readback, update, second readback, delete, and confirmed-absent cleanup passed |
+| Portfolio boarding persistence | `3af2f014-4b16-4441-a4e4-d9a8838e4fa9` | Create, readback, update, second readback, delete, and confirmed-absent cleanup passed |
+
+Both records used the `ZZ-LAUNCH-SMOKE` marker. The harness deleted only the
+records it created and verified a 404 after cleanup. Refreshed evidence:
+
+- `docs/operator-evidence/final-launch/crmLivePersistence.json`
+  (SHA-256
+  `4f6be4499fdea0e9a23b42d9fa1caf02e4829df48d80cb538999ff1ed2ef9a4a`)
+- `docs/operator-evidence/final-launch/portfolioBoarding.json`
+  (SHA-256
+  `5e24f9ded939f56e764cf0700f2101469811e521dc4b92fe3489e23f3e5a5efd`)
+
+The launch-evidence validator accepted CRM, portfolio, document checklist, and
+stage advancement at HIGH confidence. It correctly rejected borrower-send
+evidence because no approved recipient, named approver, or transport delivery
+receipt exists. No external email was sent, and that human/external-delivery
+gate remains open.
+
 ## Required live evidence
 
 Deployment success does not establish Production GO. The following remain:
