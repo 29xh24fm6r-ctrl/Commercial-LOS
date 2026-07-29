@@ -8,6 +8,7 @@ import { CRM_GROWTH_SCHEMA_DEPENDENCY, CRM_OPPORTUNITY_STAGES } from './crmGrowt
 import { CrmEngagementCenter } from './CrmEngagementCenter';
 import { CrmCopilotSurface } from './CrmCopilotSurface';
 import type { CopilotWorkspaceContext } from '../../copilot/copilotAssistantAdapter';
+import { canOpenCrmRecord, deriveCrmRoleView } from './crmRoleViews';
 
 interface Props {
   readonly section: string;
@@ -44,6 +45,9 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
   const companyOptions = data.organizations.records.map((r) => ({ id: r.id, label: r.title }));
   const personOptions = data.people.records.map((r) => ({ id: r.id, label: r.title }));
   const authorized = Boolean(actorSystemUserId) && !writeDisabledReason;
+  if (!canOpenCrmRecord(copilotRole) && !['home','insights','reports'].includes(section)) {
+    return <StatePanel title="Aggregate CRM access only" copy="Executive CRM access does not expose customer-level records. Use Insights or Reports for governed aggregate facts." />;
+  }
 
   if (recordId && section === 'companies') return <Company360 data={data} id={recordId} />;
   if (recordId && section === 'people') return <Person360 data={data} id={recordId} />;
@@ -61,7 +65,7 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
           companyOptions={companyOptions} personOptions={personOptions} onWritten={refresh} />
         <Link className="crmws__dealLink" to="/workspaces/banker" state={{ initialTab: 'active-deals' }}>Start governed loan deal</Link>
       </section>
-      {section === 'home' && <Home data={data} />}
+      {section === 'home' && <Home data={data} role={copilotRole} />}
       {section === 'companies' && <RecordIndex title="Companies" domain="organizations" records={data.organizations.records} status={data.organizations.status} />}
       {section === 'people' && <RecordIndex title="People" domain="people" records={data.people.records} status={data.people.status} />}
       {section === 'relationships' && <RecordIndex title="Relationships" domain="relationships" records={data.relationships.records} status={data.relationships.status} />}
@@ -75,8 +79,15 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
   );
 }
 
-function Home({ data }: { data: CrmWorkspaceData }) {
+function Home({ data, role }: { data: CrmWorkspaceData; role: CopilotWorkspaceContext['workspaceRole'] }) {
   const home = useMemo(() => deriveCrmHome(data), [data]);
+  const roleView = deriveCrmRoleView(data, role);
+  if (roleView.aggregateOnly) return <><section className="crmws__metrics" aria-label="Executive aggregate CRM portfolio">
+    <Metric label="Companies" value={roleView.companyCount} source={roleView.scopeLabel} />
+    <Metric label="Recent activity" value={roleView.activityCount} source={roleView.scopeLabel} />
+    <Metric label="Coverage gaps" value={roleView.coverageGapCount} source="Deterministic aggregate; customer identities withheld" />
+    <Metric label="Opportunity pipeline" value={undefined} source="Schema dependency" />
+  </section><RoleOperatingPanel data={data} role={role} /></>;
   return (
     <>
       {home.partialDomains.length > 0 && <div className="crmws__partial" role="status">Partial data: {home.partialDomains.join(', ')} could not be read. Available facts remain visible.</div>}
@@ -101,6 +112,7 @@ function Home({ data }: { data: CrmWorkspaceData }) {
         {['Opportunities and weighted pipeline','Loan exposure and deposits','Unanswered customer communication','Service issues and risk indicators'].map((label) =>
           <div key={label}><strong>{label}</strong><span>Unavailable from the current verified CRM snapshot; no value inferred.</span></div>)}
       </section>
+      <RoleOperatingPanel data={data} role={role} />
     </>
   );
 }
@@ -161,7 +173,7 @@ function GrowthDependency({ section }: { section: string }) { return <section cl
 function Timeline({ title, records, status, empty }: { title: string; records: readonly CrmRecord[]; status: string; empty?: string }) { return <section className="crmws__panel"><PanelHead eyebrow="CHRONOLOGICAL LEDGER" title={title} />{status === 'failed' ? <StatePanel title="Timeline unavailable" copy="The timeline domain could not be read." tone="error" /> : <CompactTimeline records={records} empty={empty} />}</section>; }
 function CompactTimeline({ records, empty = 'No dated activity is present.' }: { records: readonly CrmRecord[]; empty?: string }) { if (!records.length) return <Empty copy={empty} />; return <ol className="crmws__timeline">{records.slice(0,30).map((r) => <li key={r.id}><time>{r.occurredAt ? new Date(r.occurredAt).toLocaleString() : 'Date unavailable'}</time><strong>{r.title}</strong><span>{r.subtitle ?? 'No summary recorded'}</span></li>)}</ol>; }
 function SearchResults({ results, onOpen }: { results: ReturnType<typeof searchCrm>; onOpen: (domain: CrmDomainKey,id:string) => void }) { return <div className="crmws__searchResults" role="listbox">{results.length ? results.map(({domain,record}) => <button key={`${domain}-${record.id}`} onClick={() => onOpen(domain,record.id)}><span>{record.title}</span><small>{domain} · {record.subtitle ?? 'No classification'}</small></button>) : <p>No matching authorized CRM records.</p>}</div>; }
-function Metric({ label, value, source, href }: { label:string; value?:number; source:string; href:string }) { return <Link className="crmws__metric" to={href}><span>{label}</span><strong>{value ?? '—'}</strong><small>{value === undefined ? 'Source unavailable' : source}</small></Link>; }
+function Metric({ label, value, source, href }: { label:string; value?:number; source:string; href?:string }) { const body=<><span>{label}</span><strong>{value ?? '—'}</strong><small>{value === undefined ? source : source}</small></>;return href?<Link className="crmws__metric" to={href}>{body}</Link>:<div className="crmws__metric">{body}</div>; }
 function PanelHead({ eyebrow,title }: { eyebrow:string; title:string }) { return <header className="crmws__panelHead"><span>{eyebrow}</span><h2>{title}</h2></header>; }
 function Empty({ copy }: { copy:string }) { return <p className="crmws__empty">{copy}</p>; }
 function StatePanel({ title,copy,tone }: { title:string; copy:string; tone?:string }) { return <section className={`crmws__state ${tone ?? ''}`} role={tone === 'error' ? 'alert' : 'status'}><h2>{title}</h2><p>{copy}</p></section>; }
@@ -170,3 +182,4 @@ function DetailGrid({ record }: { record:CrmRecord }) { return <RecordSection ti
 function RecordSection({ title,children,missing }: { title:string; children?:React.ReactNode; missing?:string }) { return <section className="crmws__recordSection"><h3>{title}</h3>{children ?? <Empty copy={missing ?? 'No supported facts are available.'} />}</section>; }
 function RecordLinks({ records,domain }: { records:readonly CrmRecord[]; domain?:string }) { if (!records.length) return null; return <ul className="crmws__recordLinks">{records.map((r) => <li key={r.id}>{domain ? <Link to={`../../${domain}/${r.id}`}>{r.title}</Link> : <strong>{r.title}</strong>}<span>{r.subtitle ?? r.badge ?? 'Classification unavailable'}</span></li>)}</ul>; }
 function Provenance({ record,auditCount }: { record:CrmRecord; auditCount:number }) { return <dl className="crmws__details"><div><dt>Source</dt><dd>Internal Dataverse CRM</dd></div><div><dt>Record ID</dt><dd>{record.id}</dd></div><div><dt>Audit events loaded</dt><dd>{auditCount}</dd></div><div><dt>Classification</dt><dd>User-entered or source-projected; not independently verified by this UI</dd></div></dl>; }
+function RoleOperatingPanel({data,role}:{data:CrmWorkspaceData;role:CopilotWorkspaceContext['workspaceRole']}){const view=deriveCrmRoleView(data,role);return <section className="crmws__panel"><PanelHead eyebrow={`${role.toUpperCase()} CRM VIEW`} title={view.scopeLabel}/><p>{view.coverageGapCount} deterministic relationship coverage gap(s); {view.activityCount ?? 'activity data unavailable'} recent activity event(s).</p><p>Unavailable until governed sources exist: {view.unavailable.join(', ')}.</p></section>}
