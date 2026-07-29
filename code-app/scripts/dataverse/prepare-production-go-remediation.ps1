@@ -37,7 +37,10 @@ param(
 
   [Parameter(Mandatory, ParameterSetName = 'Apply')]
   [ValidatePattern('^[A-Fa-f0-9]{64}$')]
-  [string]$ApprovedManifestHash
+  [string]$ApprovedManifestHash,
+
+  [Parameter(ParameterSetName = 'Apply')]
+  [string]$ApplyEvidencePath = '.tmp-production-go-remediation-apply-evidence.json'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -152,14 +155,40 @@ if ($Apply) {
     'OData-MaxVersion' = '4.0'
     'OData-Version' = '4.0'
   }
+  $applyEvidence = [ordered]@{
+    schemaVersion = 1
+    appliedAtUtc = (Get-Date).ToUniversalTime().ToString('o')
+    orgUrl = $envInfo.OrgUrl.TrimEnd('/')
+    operator = $envInfo.User
+    approvedManifestPath = $resolvedManifest
+    approvedManifestSha256 = $actualHash
+    results = [System.Collections.Generic.List[object]]::new()
+  }
   foreach ($patch in $patches) {
     if (-not $patch.etag) { throw "PATCH for $($patch.recordId) has no captured ETag. Stopping before mutation." }
     $headers['If-Match'] = $patch.etag
     $uri = "{0}/api/data/v9.2/{1}({2})" -f $envInfo.OrgUrl.TrimEnd('/'), $patch.entitySet, $patch.recordId
     Invoke-RestMethod -Method Patch -Uri $uri -Headers $headers -Body ($patch.changes | ConvertTo-Json -Depth 10) | Out-Null
+    $headers.Remove('If-Match')
+    $select = (@($patch.changes.psobject.Properties.Name) -join ',')
+    $readback = Invoke-RestMethod -Method Get -Uri ("{0}?`$select={1}" -f $uri, $select) -Headers $headers
+    $values = [ordered]@{}
+    foreach ($field in $patch.changes.psobject.Properties.Name) {
+      $values[$field] = $readback.$field
+    }
+    $applyEvidence.results.Add([ordered]@{
+      entitySet = $patch.entitySet
+      recordId = $patch.recordId
+      etagBefore = $patch.etag
+      etagAfter = $readback.'@odata.etag'
+      requestedChanges = $patch.changes
+      readback = $values
+      verified = $true
+    })
+    $applyEvidence | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $ApplyEvidencePath -Encoding UTF8
     Write-Host ("[APPLIED] {0}({1})" -f $patch.entitySet, $patch.recordId)
   }
-  Write-Host ("Applied {0} ETag-guarded PATCH action(s). No delete or merge operation exists in this script." -f $patches.Count)
+  Write-Host ("Applied and read back {0} ETag-guarded PATCH action(s). Evidence: {1}. No delete or merge operation exists in this script." -f $patches.Count, (Resolve-Path -LiteralPath $ApplyEvidencePath).Path)
   exit 0
 }
 

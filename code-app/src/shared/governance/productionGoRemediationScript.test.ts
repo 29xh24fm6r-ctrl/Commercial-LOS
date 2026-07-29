@@ -18,6 +18,9 @@ describe('Production GO remediation script safety contract', () => {
 
   it('uses captured ETags and has no delete or automatic merge path', () => {
     expect(script).toMatch(/If-Match/);
+    expect(script).toMatch(/ApplyEvidencePath/);
+    expect(script).toMatch(/requestedChanges/);
+    expect(script).toMatch(/readback/);
     expect(script).toMatch(/operation\s*=\s*'review'/);
     expect(script).not.toMatch(/Invoke-RestMethod\s+-Method\s+Delete/i);
     expect(script).not.toMatch(/MergeRecords/i);
