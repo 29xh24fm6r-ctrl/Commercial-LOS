@@ -11,6 +11,7 @@ $ErrorActionPreference = 'Stop'
 $repo = if ($RepoRoot) { (Resolve-Path -LiteralPath $RepoRoot).Path } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
 $m365Verifier = Join-Path $repo 'scripts\activation\verify-microsoft365-integration.ps1'
 $teamsPostVerifier = Join-Path $repo 'scripts\activation\verify-teams-channel-posting-boundary.ps1'
+$outlookEmailEvidence = Join-Path $repo 'docs\operator-evidence\OUTLOOK_LIVE_SEND_CERTIFICATION_2026-07-28.md'
 
 $blocked = $false
 
@@ -33,9 +34,33 @@ if (Test-Path -LiteralPath $teamsPostVerifier) {
 }
 
 $laneDefault = if ($blocked) { 'BLOCKED' } else { 'UNKNOWN' }
+$outlookEmail = $laneDefault
 
-Write-Host ("OUTLOOK_EMAIL={0}" -f $laneDefault)
+if (-not $blocked -and (Test-Path -LiteralPath $outlookEmailEvidence)) {
+  $evidence = Get-Content -Raw -LiteralPath $outlookEmailEvidence
+  $requiredOutlookFacts = @(
+    'internal diagnostic LIVE send path',
+    'Runtime binding observed',
+    '"dataSourceType"',
+    '"Connector"',
+    'Connector accepted the smoke message',
+    'Actual inbox receipt: confirmed',
+    'Connector acceptance was treated as transport acceptance only',
+    'Actual inbox receipt was separately confirmed',
+    'does **not** claim borrower delivery',
+    'read receipt'
+  )
+  $outlookEmail = 'PASS'
+  foreach ($fact in $requiredOutlookFacts) {
+    if ($evidence -notlike "*$fact*") { $outlookEmail = 'UNKNOWN' }
+  }
+  if ($evidence -notmatch '(?is)Final verdict.*CERTIFIED PASS') { $outlookEmail = 'UNKNOWN' }
+}
+
+Write-Host ("OUTLOOK_EMAIL={0}" -f $outlookEmail)
+Write-Host ("OUTLOOK_EMAIL_EVIDENCE={0}" -f $outlookEmailEvidence)
 Write-Host ("OUTLOOK_CALENDAR_READ={0}" -f $laneDefault)
+Write-Host ("OUTLOOK_AVAILABILITY={0}" -f $laneDefault)
 Write-Host ("OUTLOOK_CALENDAR_WRITE={0}" -f $laneDefault)
 Write-Host ("TEAMS_MEETING={0}" -f $laneDefault)
 Write-Host ("TEAMS_APP={0}" -f $laneDefault)

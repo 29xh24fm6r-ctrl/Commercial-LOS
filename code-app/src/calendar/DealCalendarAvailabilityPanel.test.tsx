@@ -152,13 +152,17 @@ describe('M365-2 DealCalendarAvailabilityPanel', () => {
   });
 
   it('renders upcoming meetings, attendee/location details, and availability from an injected read adapter', async () => {
+    const tomorrow = new Date();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const start = new Date(Date.UTC(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth(), tomorrow.getUTCDate(), 14, 30, 0)).toISOString();
+    const end = new Date(Date.UTC(tomorrow.getUTCFullYear(), tomorrow.getUTCMonth(), tomorrow.getUTCDate(), 15, 30, 0)).toISOString();
     setBankerCalendarReadAdapterForTest(
       createFixtureBankerCalendarReadAdapter([
         {
           id: 'evt-1',
           subject: 'Riverside underwriting call',
-          start: '2026-07-29T14:30:00Z',
-          end: '2026-07-29T15:30:00Z',
+          start,
+          end,
           timezone: 'UTC',
           organizer: 'banker@oldglorybank.com',
           attendees: ['borrower@example.com', 'credit@oldglorybank.com'],
