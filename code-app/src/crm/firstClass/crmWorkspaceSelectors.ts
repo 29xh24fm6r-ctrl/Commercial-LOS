@@ -124,5 +124,25 @@ export function relatedToPerson(data: CrmWorkspaceData, personId: string) {
     contactPoints: ready('contactPoints').filter((r) => r.personId === personId),
     preferences: ready('communicationPreferences').filter((r) => r.personId === personId),
     authorizations: ready('contactAuthorizations').filter((r) => r.personId === personId),
+    roles: ready('roleAssignments').filter((r) => r.personId === personId),
+    relationships: ready('relationships').filter((r) => r.personId === personId),
   };
+}
+
+export function explicitPersonClassifications(
+  person: CrmRecord,
+  roles: readonly CrmRecord[],
+  relationships: readonly CrmRecord[],
+): readonly string[] {
+  const text = [person.subtitle, ...roles.map((r) => r.title), ...relationships.flatMap((r) => [r.title, r.subtitle])]
+    .filter(Boolean).join(' ').toLocaleLowerCase();
+  const rules: readonly [string, RegExp][] = [
+    ['Owner', /\b(owner|ownership|member|shareholder)\b/],
+    ['Guarantor', /\bguarantor\b/],
+    ['Referral source', /\breferral\b/],
+    ['Professional adviser', /\b(accountant|attorney|advisor|adviser|insurance|cpa)\b/],
+    ['Internal bank user', /\b(internal bank|banker|relationship manager)\b/],
+    ['Employee / contact', /\b(employee|officer|controller|cfo|contact)\b/],
+  ];
+  return rules.filter(([, rule]) => rule.test(text)).map(([label]) => label);
 }

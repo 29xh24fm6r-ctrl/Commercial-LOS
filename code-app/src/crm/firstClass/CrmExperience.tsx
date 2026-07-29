@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { CrmDomainKey, CrmRecord, CrmWorkspaceData } from '../workspace/crmWorkspaceData';
 import { loadCrmWorkspaceData } from '../workspace/crmWorkspaceData';
 import { CrmWriteActions } from '../workspace/CrmWriteActions';
-import { deriveCrmHome, relatedToCompany, relatedToPerson, searchCrm } from './crmWorkspaceSelectors';
+import { deriveCrmHome, explicitPersonClassifications, relatedToCompany, relatedToPerson, searchCrm } from './crmWorkspaceSelectors';
 
 interface Props {
   readonly section: string;
@@ -118,11 +118,13 @@ function Company360({ data, id }: { data: CrmWorkspaceData; id: string }) {
 function Person360({ data, id }: { data: CrmWorkspaceData; id: string }) {
   const rel = relatedToPerson(data, id);
   if (!rel.person) return <StatePanel title="Person not found" copy="The record is absent or outside the authorized CRM result set." />;
+  const classifications = explicitPersonClassifications(rel.person, rel.roles, rel.relationships);
   return <Record360 kind="Person" record={rel.person}
     summary={[['Company', rel.company?.title], ['Last interaction', rel.activities[0]?.occurredAt ? new Date(rel.activities[0].occurredAt!).toLocaleDateString() : undefined], ['Contact points', String(rel.contactPoints.length)], ['Open tasks', undefined]]}>
     <DetailGrid record={rel.person} />
-    <RecordSection title="Affiliation and role"><RecordLinks records={rel.company ? [rel.company] : []} domain="companies" /></RecordSection>
+    <RecordSection title="Affiliation and explicit role evidence"><RecordLinks records={[...(rel.company ? [rel.company] : []), ...rel.roles, ...rel.relationships]} domain={rel.company ? 'companies' : undefined} />{classifications.length ? <p className="crmws__classifications">Classified from recorded role text: {classifications.join(', ')}</p> : <Empty copy="Employee, owner, guarantor, referral, adviser, and internal-user classifications are unavailable because no explicit role evidence matches." />}</RecordSection>
     <RecordSection title="Contact preferences and consent" missing="No communication-preference or authorization record is linked."><RecordLinks records={[...rel.contactPoints, ...rel.preferences, ...rel.authorizations]} /></RecordSection>
+    {rel.contactPoints.length === 0 && <div className="crmws__duplicate" role="status">Missing contact information: no governed phone, email, or other contact point is linked.</div>}
     <RecordSection title="Activity and commitments" missing="No linked activity is recorded."><CompactTimeline records={rel.activities} /></RecordSection>
     <RecordSection title="Duplicate and merge posture" missing="Duplicate detection is advisory. Merge remains unavailable until a merge-safe governed adapter is certified." />
   </Record360>;

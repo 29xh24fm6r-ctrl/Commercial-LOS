@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveCrmHome, searchCrm } from './crmWorkspaceSelectors';
+import { deriveCrmHome, explicitPersonClassifications, searchCrm } from './crmWorkspaceSelectors';
 import type { CrmWorkspaceData } from '../workspace/crmWorkspaceData';
 
 const ready = (records: never[] | readonly any[] = []) => ({ status: 'ready' as const, records });
@@ -26,5 +26,16 @@ describe('CRM-2 command center truth', () => {
   it('ranks exact title ahead of token matches deterministically', () => {
     const d = data({ organizations: ready([record('1','Atlas'),record('2','Atlas Holdings')]) });
     expect(searchCrm(d,'atlas').map((r) => r.record.id)).toEqual(['1','2']);
+  });
+});
+
+describe('CRM-4 person evidence classification', () => {
+  it('classifies only explicit role evidence and does not infer sentiment or personal facts', () => {
+    const person = record('p1', 'Jordan Lee', { subtitle: 'Chief Financial Officer' });
+    const classifications = explicitPersonClassifications(person as any, [record('r1', 'Guarantor') as any], []);
+    expect(classifications).toEqual(['Guarantor', 'Employee / contact']);
+  });
+  it('returns no classification when recorded evidence is absent', () => {
+    expect(explicitPersonClassifications(record('p1','Jordan') as any, [], [])).toEqual([]);
   });
 });
