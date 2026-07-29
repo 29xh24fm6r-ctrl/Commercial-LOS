@@ -3,8 +3,10 @@ import { useBootstrap } from '../../bootstrap/BootstrapContext';
 import { deriveWorkspaceLinks, useEntitledRoutes } from '../../bootstrap/workspaceEntitlements';
 import { WorkspaceSwitcher } from '../../bootstrap/WorkspaceSwitcher';
 import { WORKSPACE_ROUTES } from '../../bootstrap/workspaceRoutes';
-import { CrmHubWorkspace } from '../workspace/CrmHubWorkspace';
 import { CRM_SECTIONS } from './crmWorkspaceModel';
+import { CrmExperience } from './CrmExperience';
+import { useEffect, useState } from 'react';
+import { resolveCurrentSystemUserId } from '../../shared/governance/currentUserLookup';
 import './crmWorkspace.css';
 
 export function CrmWorkspace() {
@@ -15,6 +17,14 @@ export function CrmWorkspace() {
     currentRoute: WORKSPACE_ROUTES.crm,
     entitledRoutes: entitled.routes,
   });
+  const [systemUserId, setSystemUserId] = useState<string | undefined>();
+  useEffect(() => {
+    let cancelled = false;
+    resolveCurrentSystemUserId(bootstrap.entraObjectId).then((id) => {
+      if (!cancelled) setSystemUserId(id ?? undefined);
+    }).catch(() => { if (!cancelled) setSystemUserId(undefined); });
+    return () => { cancelled = true; };
+  }, [bootstrap.entraObjectId]);
 
   return (
     <div className="crmws" data-crm-workspace>
@@ -36,8 +46,12 @@ export function CrmWorkspace() {
       <main className="crmws__main">
         <Routes>
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<CrmHubWorkspace actorEmail={bootstrap.upn} writeDisabledReason="A governed CRM writer identity is required." />} />
-          <Route path="companies/*" element={<CrmHubWorkspace actorEmail={bootstrap.upn} writeDisabledReason="A governed CRM writer identity is required." />} />
+          {CRM_SECTIONS.map((section) => (
+            <Route key={section} path={`${section}/:recordId?`} element={
+              <CrmExperience section={section} actorEmail={bootstrap.upn} actorSystemUserId={systemUserId}
+                writeDisabledReason={systemUserId ? undefined : 'No Dataverse systemuser is resolved for this signed-in identity.'} />
+            } />
+          ))}
           <Route path="*" element={<CrmSectionBlocked />} />
         </Routes>
       </main>
