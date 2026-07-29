@@ -113,6 +113,10 @@ describe('Phase 125A — DonutChart', () => {
     expect(region.querySelector('[data-manager-chart-segment="Blocked"]')).not.toBeNull();
     expect(region.querySelector('[data-manager-chart-segment="At risk"]')).not.toBeNull();
     expect(region.querySelector('[data-manager-chart-segment="Clear"]')).not.toBeNull();
+    expect(region.querySelector('[data-manager-chart-segment="Unknown"]')?.textContent).toContain('0 (0%)');
+    const percentages = Array.from(region.querySelectorAll('[data-manager-chart-segment]'))
+      .map((row) => Number(row.textContent?.match(/\((\d+)%\)/)?.[1] ?? 0));
+    expect(percentages.reduce((sum, value) => sum + value, 0)).toBe(100);
     // SVG <text> shows total value in the middle.
     expect(region.querySelector('svg text')?.textContent).toBe('6');
   });

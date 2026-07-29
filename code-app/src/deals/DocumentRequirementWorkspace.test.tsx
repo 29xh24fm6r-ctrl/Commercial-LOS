@@ -77,12 +77,12 @@ describe('DocumentRequirementWorkspace', () => {
     expect(within(debtScheduleRow).getByText('Required — Reviewed')).toBeInTheDocument();
   });
 
-  it('D6 — discloses that checklist generation is disabled by default, so there is no undiscoverable button', async () => {
+  it('D6 — explains that requirements synchronize automatically, so there is no undiscoverable button', async () => {
     loadMock.mockResolvedValue({ kind: 'ready', rows: rowsFixture() });
     render(<DocumentRequirementWorkspace dealId="deal-1" deal={deal} banker={banker} />);
 
     await screen.findByText('Loan Application');
-    const notice = screen.getByText(/document checklist generation is disabled by default/i);
+    const notice = screen.getByText(/derived and synchronized automatically/i);
     expect(notice).toBeInTheDocument();
   });
 

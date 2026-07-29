@@ -9,7 +9,9 @@
  * edited without the others noticing, silently pulling two already-loosely-related document
  * taxonomies further apart.
  *
- * This module deliberately does NOT unify what each caller does WITH the normalized string.
+ * This module also owns the small, governed alias map needed to keep the
+ * workflow-stage vocabulary and derived-requirement vocabulary from producing
+ * duplicate checklist rows for the same commercial document.
  * `documentRequirementReconciliation.ts` / `documentRequirementBlockerMerge.ts` use it as an exact
  * map key (`normalizeDocumentName(a) === normalizeDocumentName(b)`); `loanWorkflowRequirementEngine.ts`
  * / `loanWorkflowRules.ts` use it for substring containment (`haystack.includes(needle)`) against a
@@ -24,5 +26,11 @@
  * unify the two taxonomies themselves, which remains open (see the doc above).
  */
 export function normalizeDocumentName(value: string): string {
-  return value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
+  const normalized = value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
+  return DOCUMENT_NAME_ALIASES[normalized] ?? normalized;
 }
+
+const DOCUMENT_NAME_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  'tax returns': 'business tax returns',
+  'business tax return': 'business tax returns',
+});

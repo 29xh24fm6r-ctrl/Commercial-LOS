@@ -148,6 +148,18 @@ describe('Phase 169B -- read-only queries', () => {
     expect(summary.userCount).toBe(1);
     expect(summary.entitlementCount).toBe(1);
   });
+
+  it('renders an exact duplicate entitlement identity only once', async () => {
+    const duplicate = {
+      cr664_entitlementname: 'ckingma@oldglorybank.com - Banker Workspace',
+      cr664_accesslevel: 788190002,
+      _cr664_losuserprofile_value: 'profile-1',
+      statecode: 0,
+    };
+    entGetAll.mockResolvedValue(ok([duplicate, { ...duplicate }]));
+    const rows = await loadAdminEntitlementRows();
+    expect(rows).toHaveLength(1);
+  });
 });
 
 describe('Phase 169B -- query module never writes', () => {

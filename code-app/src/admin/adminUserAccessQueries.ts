@@ -107,7 +107,7 @@ export async function loadAdminEntitlementRows(): Promise<readonly AdminEntitlem
       result.error?.message ?? 'Failed to load workspace entitlements.',
     );
   }
-  return (result.data ?? []).map(
+  const rows = (result.data ?? []).map(
     (r): AdminEntitlementRow => {
       const entitlementName = r.cr664_entitlementname;
       const accessLevel = r.cr664_accesslevel;
@@ -123,6 +123,16 @@ export async function loadAdminEntitlementRows(): Promise<readonly AdminEntitlem
       };
     },
   );
+  // The live table can contain duplicate physical rows with the same
+  // entitlement/profile/access identity. Render that logical entitlement once
+  // so operators do not mistake duplicate storage rows for additional access.
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = row.id.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**

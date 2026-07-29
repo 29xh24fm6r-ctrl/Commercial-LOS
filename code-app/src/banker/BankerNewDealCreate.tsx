@@ -69,6 +69,11 @@ import {
   type ExistingDealSignal,
 } from '../deals/newDealDuplicateDetection';
 import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
+import { isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
+
+function isOperationalClientOption(option: CrmLinkOption): boolean {
+  return !isTestOrSmokeDealName(option.name) && !/^\s*test\s+client(?:\b|\s*-)/i.test(option.name);
+}
 
 /**
  * Phase — CRM-first New Deal create.
@@ -210,7 +215,17 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
     // resolve them (no synchronous setState in the effect body).
     let alive = true;
     loadClientLinkTargetOptions()
-      .then((options) => alive && setClients({ kind: 'ready', options }))
+      .then(
+        (options) =>
+          alive &&
+          setClients({
+            kind: 'ready',
+            // New Deal is an operational origination surface. Controlled
+            // TEST/SMOKE/QA clients remain available to governed admin and CRM
+            // workflows, but must not contradict the production population.
+            options: options.filter(isOperationalClientOption),
+          }),
+      )
       .catch((err: unknown) =>
         alive && setClients({ kind: 'error', message: err instanceof Error ? err.message : String(err) }),
       );

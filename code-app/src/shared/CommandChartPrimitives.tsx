@@ -385,8 +385,26 @@ interface DonutChartProps {
   nextReviewStep?: string;
 }
 
+/** Integer percentages that always total 100 for a non-empty chart. */
+export function allocateDonutPercentages(segments: ReadonlyArray<DonutSegment>): number[] {
+  const total = segments.reduce((sum, segment) => sum + Math.max(0, segment.value), 0);
+  if (total === 0) return segments.map(() => 0);
+  const exact = segments.map((segment) => (Math.max(0, segment.value) / total) * 100);
+  const percentages = exact.map(Math.floor);
+  const remaining = 100 - percentages.reduce((sum, value) => sum + value, 0);
+  const order = exact
+    .map((value, index) => ({ index, remainder: value - percentages[index]! }))
+    .filter(({ index }) => segments[index]!.value > 0)
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  for (let i = 0; i < remaining && order.length > 0; i += 1) {
+    percentages[order[i % order.length]!.index]! += 1;
+  }
+  return percentages;
+}
+
 export function DonutChart({ title, subtitle, segments, drillThroughSurface, nextReviewStep }: DonutChartProps) {
   const total = segments.reduce((s, x) => s + x.value, 0);
+  const percentages = allocateDonutPercentages(segments);
   const empty = total === 0;
   const ariaSummary = `${title}: ${segments
     .map((s) => `${s.label} ${s.value}`)
@@ -403,7 +421,11 @@ export function DonutChart({ title, subtitle, segments, drillThroughSurface, nex
           ? buildChartDrillThrough({
               chartTitle: title,
               surface: drillThroughSurface,
-              segments: segments.map((s) => ({ label: s.label, value: s.value, secondary: total > 0 ? `${Math.round((s.value / total) * 100)}%` : undefined })),
+              segments: segments.map((s, index) => ({
+                label: s.label,
+                value: s.value,
+                secondary: total > 0 ? `${percentages[index]}%` : undefined,
+              })),
               nextReviewStep,
             })
           : undefined
@@ -412,9 +434,9 @@ export function DonutChart({ title, subtitle, segments, drillThroughSurface, nex
       <div style={chartStyles.donutBody}>
         <DonutSvg segments={segments} total={total} />
         <ul style={chartStyles.donutLegend} role="list">
-          {segments.map((s) => {
+          {segments.map((s, index) => {
             const color = severityPalette[s.tone].bar;
-            const pct = total === 0 ? 0 : Math.round((s.value / total) * 100);
+            const pct = percentages[index] ?? 0;
             return (
               <li
                 key={s.label}

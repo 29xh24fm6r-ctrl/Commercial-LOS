@@ -10,6 +10,7 @@ import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
 import { STALE_ACTIVITY_DAYS } from '../shared/analytics/bankerPersonalActivity';
 import { formatCalendarDate, parseCalendarDate, daysUntilCalendarDate, isPastCalendarDate } from '../shared/formatters';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 
 /**
  * Remediation 2026-07-22 (Workstream B) — the board's lanes are now built from the same
@@ -60,6 +61,7 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [stageFilter, setStageFilter] = useState<string>(ALL);
   const [statusFilter, setStatusFilter] = useState<string>(ALL);
+  const [showTestRecords, setShowTestRecords] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,11 +93,15 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
         statusOptions: [] as string[],
         visibleDeals: [] as PipelineDeal[],
         counts: emptyCounts(),
+        population: [] as PipelineDeal[],
       };
     }
-    const stages = uniqueSorted(state.deals.map((d) => d.stage));
-    const statuses = uniqueSorted(state.deals.map((d) => d.status));
-    const visible = state.deals.filter(
+    const population = showTestRecords
+      ? state.deals
+      : operationalDeals(state.deals);
+    const stages = uniqueSorted(population.map((d) => d.stage));
+    const statuses = uniqueSorted(population.map((d) => d.status));
+    const visible = population.filter(
       (d) =>
         (stageFilter === ALL || d.stage === stageFilter) &&
         (statusFilter === ALL || d.status === statusFilter),
@@ -104,9 +110,10 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
       stageOptions: stages,
       statusOptions: statuses,
       visibleDeals: visible,
-      counts: countSignals(state.deals),
+      counts: countSignals(population),
+      population,
     };
-  }, [state, stageFilter, statusFilter]);
+  }, [state, stageFilter, statusFilter, showTestRecords]);
 
   if (state.kind === 'loading') return <LoadingState message="Loading your pipeline…" />;
   if (state.kind === 'failed') {
@@ -119,11 +126,13 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
     );
   }
 
-  const total = state.deals.length;
+  const productionDeals = operationalDeals(state.deals);
+  const hiddenTestCount = state.deals.length - productionDeals.length;
+  const total = derived.population.length;
   const visibleCount = derived.visibleDeals.length;
   const filtersActive = stageFilter !== ALL || statusFilter !== ALL;
 
-  if (total === 0) {
+  if (total === 0 && hiddenTestCount === 0) {
     return (
       <Card>
         <CardHeader
@@ -147,8 +156,24 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
     <Card>
       <CardHeader title="Personal Pipeline" subtitle={subtitle} />
 
-      {(derived.stageOptions.length > 1 || derived.statusOptions.length > 1) && (
-        <div style={styles.filters} role="group" aria-label="Pipeline filters">
+      <div style={styles.filters} role="group" aria-label="Pipeline filters">
+        {hiddenTestCount > 0 && (
+          <label style={styles.testRecordToggle}>
+            <input
+              type="checkbox"
+              checked={showTestRecords}
+              onChange={(event) => {
+                setShowTestRecords(event.target.checked);
+                setStageFilter(ALL);
+                setStatusFilter(ALL);
+              }}
+              data-include-controlled-test-deals
+            />
+            Include {hiddenTestCount} controlled test record{hiddenTestCount === 1 ? '' : 's'}
+          </label>
+        )}
+        {(derived.stageOptions.length > 1 || derived.statusOptions.length > 1) && (
+          <>
           {derived.stageOptions.length > 1 && (
             <FilterField
               label="Stage"
@@ -167,8 +192,9 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
               allLabel="All statuses"
             />
           )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
       {visibleCount === 0 ? (
         <p style={styles.empty}>No deals match the current filters.</p>
@@ -481,7 +507,7 @@ function emptyCounts() {
   return { closingThisMonth: 0, pastTargetClose: 0 };
 }
 
-function countSignals(deals: PipelineDeal[]): {
+function countSignals(deals: readonly PipelineDeal[]): {
   closingThisMonth: number;
   pastTargetClose: number;
 } {
@@ -581,6 +607,17 @@ const styles: Record<string, React.CSSProperties> = {
     gap: spacing.md,
     flexWrap: 'wrap',
     alignItems: 'flex-end',
+  },
+  testRecordToggle: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    background: palette.surfaceAlt,
   },
   filterLabel: {
     display: 'flex',

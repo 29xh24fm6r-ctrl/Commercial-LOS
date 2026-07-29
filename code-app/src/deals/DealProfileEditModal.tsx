@@ -621,17 +621,22 @@ function IndustryField({
 
   let banner: React.ReactNode = null;
   if (derived) {
-    const source = `NAICS ${derived.naicsCode} · ${derived.sectorTitle}`;
+    const exactClassification = derived.naicsTitle?.trim() || derived.sectorTitle;
+    const source = `NAICS ${derived.naicsCode} · ${exactClassification} · ${derived.sectorTitle}`;
     if (current === derived.dealIndustry) {
       banner = (
         <div style={styles.industrySource} data-deal-industry-source="crm-naics">
-          Derived from CRM / NAICS: <strong>{derived.dealIndustry}</strong> ({source}).
+          CRM classification: <strong>{exactClassification}</strong> ({source}).
+          {' '}Deal reporting category: <strong>{derived.dealIndustry}</strong>.
         </div>
       );
     } else if (current.length === 0) {
       banner = (
         <div style={styles.industrySuggest} data-deal-industry-suggest>
-          <span>CRM / NAICS indicates <strong>{derived.dealIndustry}</strong> ({source}).</span>
+          <span>
+            CRM classification: <strong>{exactClassification}</strong> ({source}).
+            {' '}Suggested deal reporting category: <strong>{derived.dealIndustry}</strong>.
+          </span>
           {applyButton}
         </div>
       );
@@ -639,7 +644,8 @@ function IndustryField({
       banner = (
         <div style={styles.industryConflict} role="alert" data-deal-industry-conflict>
           <span>
-            CRM says <strong>{derived.dealIndustry}</strong> ({source}); deal says <strong>{current}</strong>.
+            CRM classification is <strong>{exactClassification}</strong> ({source}); its reporting
+            category is <strong>{derived.dealIndustry}</strong>, while the deal says <strong>{current}</strong>.
             Reconcile before proceeding.
           </span>
           {applyButton}

@@ -20,6 +20,10 @@ import { deriveDealBlockerModelForStage, type DealBlockerModel } from './dealBlo
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { dealMetricDeckTargets } from './dealCockpitDrillThrough';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
+import {
+  deriveRiskRatingRecordFromDeal,
+  deriveUnderwritingRecommendationRecordFromDeal,
+} from '../workflow/underwritingDeepFacts';
 
 /**
  * Phase 125E — Deal Metric Deck (recomposed).
@@ -89,6 +93,8 @@ export function DealMetricDeck() {
         documents: documents.kind === 'ready' ? documents.data : undefined,
         creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
         fundingAuthorization: fundingAuthorizationData,
+        riskRating: deriveRiskRatingRecordFromDeal(deal),
+        underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(deal),
       }),
     [deal, tasks, documents, creditMemo, fundingAuthorizationData],
   );

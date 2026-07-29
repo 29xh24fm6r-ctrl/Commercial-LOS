@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { PipelineDeal } from './dealQueries';
 
@@ -550,7 +550,7 @@ describe('D-01 — the known production test deal stays findable (labeled), not 
     expect(loadMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
   });
 
-  it('renders the known SYSTEM TEST deal on the board with a visible TEST badge, and its stage as a filter option', async () => {
+  it('hides the known SYSTEM TEST deal by default and reveals it through the explicit opt-in', async () => {
     loadMock.mockResolvedValue([
       deal({
         id: KNOWN_DEAL_ID,
@@ -565,6 +565,11 @@ describe('D-01 — the known production test deal stays findable (labeled), not 
     ]);
     renderShell();
 
+    await screen.findByText('Acme Expansion');
+    expect(screen.queryByRole('button', {
+      name: /Open deal SYSTEM TEST - Read Path Forensic Deal/i,
+    })).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Include 1 controlled test record/i }));
     const card = await screen.findByRole('button', {
       name: /Open deal SYSTEM TEST - Read Path Forensic Deal/i,
     });
