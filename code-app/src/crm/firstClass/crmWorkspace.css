@@ -23,3 +23,4 @@
 @media(max-width:1100px){.crmws__metrics,.crmws__unavailableGrid{grid-template-columns:repeat(2,1fr)}.crmws__twoCol{grid-template-columns:1fr}.crmws__command{flex-wrap:wrap}}@media(max-width:700px){.crmws__metrics,.crmws__unavailableGrid,.crmws__recordBody{grid-template-columns:1fr}.crmws__record360>header{flex-direction:column}.crmws__timeline li{grid-template-columns:1fr}.crmws__attention li{grid-template-columns:1fr}.crmws__summary{grid-template-columns:1fr 1fr}}
 .crmws__duplicate{grid-column:1/-1;padding:12px;color:var(--cc-at-risk-fg);background:var(--cc-at-risk-bg);border:1px solid var(--cc-at-risk);border-radius:7px}
 .crmws__classifications{margin:12px 0 0;color:var(--cc-text-muted);font-size:12px}
+.crmws__stageModel{display:flex;gap:7px;flex-wrap:wrap}.crmws__stageModel span{padding:7px 9px;color:var(--cc-text-muted);background:var(--cc-surface-subtle);border:1px solid var(--cc-border);border-radius:999px;font-size:11px}
