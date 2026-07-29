@@ -14,6 +14,8 @@ import {
   type GlobalCashFlowOutcome,
 } from './globalCashFlow';
 import {
+  deriveRiskRatingRecordFromDeal,
+  deriveUnderwritingRecommendationRecordFromDeal,
   parseRiskRatingFormState,
   parseUnderwritingRecommendationFormState,
   type UnderwritingRecommendationDecision,
@@ -609,6 +611,8 @@ function risksBlockers(
     tasks: ctx.tasks,
     documents: ctx.documents,
     creditMemo: ctx.existingMemos,
+    riskRating: deriveRiskRatingRecordFromDeal(ctx.deal),
+    underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(ctx.deal),
   });
   const stageExitSignals: BlockerSignal[] = (stageModel?.hardBlockers ?? []).map((b) => ({
     id: `stage-exit:${b.id}`,

@@ -54,17 +54,15 @@ export function NewDealResolverReadinessCard() {
   return (
     <div style={styles.wrap} data-admin-resolver-readiness="card">
       <div style={styles.titleRow}>
-        <div style={styles.title}>Resolver readiness (read-only smoke)</div>
+        <div style={styles.title}>New deal reference readiness</div>
         <Badge variant={badgeTone(state)} appearance="outline">
           {badgeLabel(state)}
         </Badge>
       </div>
       <Body state={state} />
       <p style={styles.footnote} data-admin-resolver-readiness-footnote>
-        Read-only check of the typed Stage/Status data sources. This is the
-        PUBLIC/admin create path only — it stays gated regardless of this
-        result. Authorized banker create is a separate, already-live path
-        (see the panel header above); this check does not gate it.
+        Read-only check that the required stage and status values are uniquely
+        available. This check does not create or change records.
       </p>
     </div>
   );

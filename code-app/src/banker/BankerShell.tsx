@@ -157,7 +157,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const reload = useCallback(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadBankerWorkQueueData(bankerId, { includeTestDeals: true })
+    loadBankerWorkQueueData(bankerId)
       .then((data) => {
         if (!cancelled) setState({ kind: 'ready', data });
       })
@@ -296,11 +296,8 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
     return state.data.tasks
       .slice()
       .sort((a, b) => {
-        const at = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
-        const bt = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
-        if (Number.isNaN(at) && Number.isNaN(bt)) return 0;
-        if (Number.isNaN(at)) return 1;
-        if (Number.isNaN(bt)) return -1;
+        const at = parseCalendarDate(a.dueDate)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const bt = parseCalendarDate(b.dueDate)?.getTime() ?? Number.POSITIVE_INFINITY;
         return at - bt;
       })
       .slice(0, 3);
@@ -369,6 +366,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   onNewDeal={openNewDeal}
                   crmIdentity={{ email, systemUserId, writeDisabledReason }}
                   kpis={kpis}
+                  workQueueData={state.kind === 'ready' ? state.data : null}
                   deals={state.kind === 'ready' ? state.data.deals : []}
                   loading={state.kind === 'loading'}
                   healthError={state.kind === 'failed' ? state.message : undefined}
@@ -476,6 +474,7 @@ function TabContent({
   onNewDeal,
   crmIdentity,
   kpis,
+  workQueueData,
   deals,
   loading,
   healthError,
@@ -490,6 +489,7 @@ function TabContent({
   onNewDeal: () => void;
   crmIdentity: { email: string | undefined; systemUserId: string | undefined; writeDisabledReason: string | undefined };
   kpis: ReturnType<typeof deriveBankerPersonalActivity> | null;
+  workQueueData: BankerWorkQueueData | null;
   deals: readonly import('./dealQueries').PipelineDeal[];
   loading: boolean;
   /** Set when loadBankerWorkQueueData failed — distinct from "still loading". */
@@ -542,7 +542,7 @@ function TabContent({
             healthError={healthError}
             onSelectTab={onSelectTab}
           />
-          <PersonalActivitySummary />
+          <PersonalActivitySummary sourceData={workQueueData} />
           <BankerMorningCatchUp />
         </div>
       );
@@ -754,15 +754,10 @@ function MyTasksRailPanel({
 }
 
 function formatTaskDue(iso: string | undefined): string {
-  if (!iso) return 'No due date';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'No due date';
-  const absolute = d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  const days = Math.round((d.getTime() - Date.now()) / 86_400_000);
+  if (!parseCalendarDate(iso)) return 'No due date';
+  const absolute = formatCalendarDate(iso);
+  const days = daysUntilCalendarDate(iso);
+  if (days === undefined) return 'No due date';
   if (days < 0) return `Overdue by ${Math.abs(days)}d (${absolute})`;
   if (days === 0) return `Due today (${absolute})`;
   if (days === 1) return `Due tomorrow (${absolute})`;

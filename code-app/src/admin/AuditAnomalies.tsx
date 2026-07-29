@@ -80,7 +80,7 @@ function Body({ data }: { data: AsyncResult<AuditAnomalyRow[]> }) {
         ))}
       </ul>
       <CardFooter>
-        <span>Sourced from cr664_AuditEvent where OutcomeStatus ne Succeeded.</span>
+        <span>Shows audit events whose recorded outcome was not successful.</span>
         {overflow > 0 && (
           <span>+ {overflow} more non-success event{overflow === 1 ? '' : 's'} not shown.</span>
         )}

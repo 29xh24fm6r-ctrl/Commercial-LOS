@@ -450,11 +450,12 @@ describe('Pre-create duplicate detection — real candidates, real warning (not 
       expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
     );
     const callArg = orchestrateMock.mock.calls[0]![0] as {
-      context: { existingDeals?: Array<{ dealId: string; dealName?: string }> };
+      context: { existingDeals?: Array<{ dealId: string; dealName?: string }>; exactDuplicateBlocks?: boolean };
     };
     expect(callArg.context.existingDeals).toEqual([
       expect.objectContaining({ dealId: 'deal-existing-1', dealName: 'Acme WC' }),
     ]);
+    expect(callArg.context.exactDuplicateBlocks).toBe(true);
   });
 
   it('a possible-duplicate warning from the orchestrator is surfaced to the banker, not silently dropped', async () => {

@@ -31,11 +31,26 @@ type State =
   | { kind: 'ready'; data: BankerWorkQueueData }
   | { kind: 'failed'; message: string };
 
-export function PersonalActivitySummary() {
+export function PersonalActivitySummary({
+  sourceData,
+}: {
+  /**
+   * The banker shell supplies its governed work-queue snapshot here so every
+   * dashboard count is derived from one population. Omit only when this card
+   * is intentionally mounted as a standalone surface.
+   */
+  sourceData?: BankerWorkQueueData | null;
+} = {}) {
   const { bankerId } = useBanker();
-  const [state, setState] = useState<State>({ kind: 'loading' });
+  const [state, setState] = useState<State>(
+    sourceData ? { kind: 'ready', data: sourceData } : { kind: 'loading' },
+  );
 
   const reload = useCallback(() => {
+    if (sourceData !== undefined) {
+      setState(sourceData ? { kind: 'ready', data: sourceData } : { kind: 'loading' });
+      return () => undefined;
+    }
     let cancelled = false;
     setState({ kind: 'loading' });
     loadBankerWorkQueueData(bankerId)
@@ -50,7 +65,7 @@ export function PersonalActivitySummary() {
     return () => {
       cancelled = true;
     };
-  }, [bankerId]);
+  }, [bankerId, sourceData]);
 
   useEffect(() => {
     const cleanup = reload();

@@ -51,7 +51,7 @@ describe('ManagerDataProvider', () => {
     loadManagerTeamMemoSectionsMock.mockResolvedValue([]);
   });
 
-  it('loads the manager pipeline with the same inclusive audit population as banker workbench views', async () => {
+  it('loads the manager pipeline with the same governed production population as banker dashboard views', async () => {
     render(
       <ManagerDataProvider>
         <div>child</div>
@@ -61,12 +61,11 @@ describe('ManagerDataProvider', () => {
     await waitFor(() => {
       expect(loadTeamPipelineMock).toHaveBeenCalledWith('team-1', {
         memberBankerIds: ['banker-1'],
-        includeTestDeals: true,
       });
     });
   });
 
-  it('keeps inclusive pipeline loading even when the banker roster fallback is used', async () => {
+  it('keeps the governed default pipeline when the banker roster fallback is used', async () => {
     loadTeamBankersMock.mockRejectedValueOnce(new Error('roster unavailable'));
 
     render(
@@ -76,9 +75,7 @@ describe('ManagerDataProvider', () => {
     );
 
     await waitFor(() => {
-      expect(loadTeamPipelineMock).toHaveBeenCalledWith('team-1', {
-        includeTestDeals: true,
-      });
+      expect(loadTeamPipelineMock).toHaveBeenCalledWith('team-1');
     });
   });
 });

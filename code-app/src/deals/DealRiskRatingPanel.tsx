@@ -134,9 +134,18 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
 
   const ratingSaving = ratingSave.kind === 'saving';
   const recommendationSaving = recommendationSave.kind === 'saving';
+  const ratingCompleteForSave = ratingStatus === 'draft' || ratingReadiness.met;
+  const recommendationCompleteForSave =
+    recommendationStatus === 'draft' ||
+    Boolean(
+      recommendationRecord?.rationale?.trim() &&
+      recommendationRecord.underwriterActor?.trim() &&
+      recommendationRecord.recordedAtIso?.trim() &&
+      recommendationRecord.dealId === dealId,
+    );
 
   async function onSaveRating() {
-    if (!authorized || !actorSystemUserId || ratingSaving) return;
+    if (!authorized || !actorSystemUserId || ratingSaving || !ratingCompleteForSave) return;
     setRatingSave({ kind: 'saving' });
     const draft = ratingDraftRef.current;
     const json = serializeRiskRatingFormState({
@@ -162,7 +171,7 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
   }
 
   async function onSaveRecommendation() {
-    if (!authorized || !actorSystemUserId || recommendationSaving) return;
+    if (!authorized || !actorSystemUserId || recommendationSaving || !recommendationCompleteForSave) return;
     setRecommendationSave({ kind: 'saving' });
     const draft = recommendationDraftRef.current;
     const json = serializeUnderwritingRecommendationFormState({
@@ -243,8 +252,8 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         <div style={styles.saveRow}>
           <button
             type="button"
-            style={authorized && !ratingSaving ? styles.saveBtn : styles.saveBtnDisabled}
-            disabled={!authorized || ratingSaving}
+            style={authorized && !ratingSaving && ratingCompleteForSave ? styles.saveBtn : styles.saveBtnDisabled}
+            disabled={!authorized || ratingSaving || !ratingCompleteForSave}
             onClick={onSaveRating}
             data-risk-rating-save="rating"
           >
@@ -298,8 +307,8 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         <div style={styles.saveRow}>
           <button
             type="button"
-            style={authorized && !recommendationSaving ? styles.saveBtn : styles.saveBtnDisabled}
-            disabled={!authorized || recommendationSaving}
+            style={authorized && !recommendationSaving && recommendationCompleteForSave ? styles.saveBtn : styles.saveBtnDisabled}
+            disabled={!authorized || recommendationSaving || !recommendationCompleteForSave}
             onClick={onSaveRecommendation}
             data-risk-rating-save="recommendation"
           >

@@ -126,7 +126,7 @@ function Body({
         ))}
       </ul>
       <CardFooter>
-        <span>Sourced from cr664_DataQualityFlag where ResolutionStatus = Open.</span>
+        <span>Shows data-quality flags that remain open.</span>
         {overflow > 0 && (
           <span>+ {overflow} more open flag{overflow === 1 ? '' : 's'} not shown.</span>
         )}

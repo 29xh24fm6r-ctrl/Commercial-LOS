@@ -194,7 +194,7 @@ function Body({
       </ul>
       <CardFooter>
         <span>
-          Sourced from cr664_AlertQueue where AlertStatus not in {'{Resolved, Closed}'}.
+          Shows active alert records that have not been resolved or closed.
         </span>
         {alerts.data.length > preview.length && (
           <span>+ {alerts.data.length - preview.length} more alert{alerts.data.length - preview.length === 1 ? '' : 's'} not shown.</span>

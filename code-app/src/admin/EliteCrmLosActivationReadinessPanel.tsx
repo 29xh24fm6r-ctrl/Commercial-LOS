@@ -22,7 +22,7 @@ export function EliteCrmLosActivationReadinessPanel() {
     >
       <header style={styles.header}>
         <div>
-          <div style={styles.eyebrow}>Phase 231</div>
+          <div style={styles.eyebrow}>Activation readiness</div>
           <h2 style={styles.title}>{vm.title}</h2>
         </div>
         <Badge state={vm.goLiveState}>{vm.goLiveState === 'ready' ? 'Go-live ready' : vm.goLiveState === 'gated' ? 'Gated readiness' : 'Blocked'}</Badge>

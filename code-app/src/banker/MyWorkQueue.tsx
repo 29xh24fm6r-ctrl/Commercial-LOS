@@ -591,6 +591,10 @@ function TaskRow({
           <span style={styles.metaLabel}>Deal: </span>
           {item.dealName}
         </span>
+        <span>
+          <span style={styles.metaLabel}>Ref: </span>
+          {shortDealReference(item.dealId)}
+        </span>
         {item.dateIso && (
           <span>
             <span style={styles.metaLabel}>Due: </span>
@@ -621,6 +625,11 @@ function TaskRow({
       )}
     </li>
   );
+}
+
+function shortDealReference(dealId: string): string {
+  const compact = dealId.replace(/[{}-]/g, '');
+  return compact.length > 8 ? compact.slice(-8).toUpperCase() : compact.toUpperCase();
 }
 
 function Row({

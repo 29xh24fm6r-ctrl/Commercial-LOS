@@ -573,6 +573,39 @@ describe('updateDealProfile — risk rating / underwriting recommendation inputs
     }
   });
 
+  it('rejects a non-draft risk rating without rationale at the write boundary', async () => {
+    const { deps, calls } = fakeDeps();
+    const json = JSON.stringify({
+      ratingValue: '5',
+      ratingScale: 'Internal 1-10',
+      rationale: '',
+      status: 'assigned',
+      dealId: 'deal-1',
+      assignedBy: 'Banker One',
+      assignedAtIso: '2026-07-29T12:00:00Z',
+    });
+    const out = await updateDealProfile(input({ riskRatingInputs: json }), deps);
+    expect(out).toMatchObject({ kind: 'invalid-input', field: 'riskRatingInputs' });
+    expect(out.kind === 'invalid-input' ? out.reason : '').toMatch(/rationale/i);
+    expect(calls.update).toBe(0);
+  });
+
+  it('rejects a recorded underwriting recommendation without rationale at the write boundary', async () => {
+    const { deps, calls } = fakeDeps();
+    const json = JSON.stringify({
+      decision: 'approve',
+      rationale: '',
+      status: 'recorded',
+      dealId: 'deal-1',
+      underwriterActor: 'Banker One',
+      recordedAtIso: '2026-07-29T12:00:00Z',
+    });
+    const out = await updateDealProfile(input({ underwritingRecommendationInputs: json }), deps);
+    expect(out).toMatchObject({ kind: 'invalid-input', field: 'underwritingRecommendationInputs' });
+    expect(out.kind === 'invalid-input' ? out.reason : '').toMatch(/rationale/i);
+    expect(calls.update).toBe(0);
+  });
+
   it('rejects a payload over the 1,048,576-char Memo ceiling on either field (no write)', async () => {
     const tooLong = 'A'.repeat(1_048_577);
     for (const field of ['riskRatingInputs', 'underwritingRecommendationInputs'] as const) {
