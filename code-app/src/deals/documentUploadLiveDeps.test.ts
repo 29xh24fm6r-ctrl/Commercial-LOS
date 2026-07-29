@@ -73,7 +73,7 @@ describe('buildLiveDocumentUploadDeps', () => {
   });
 
   describe('updateMetadata', () => {
-    it('sets the metadata fields, uploadstatus, and receiveddate, binding UploadedBy only when present', async () => {
+    it('sets receipt metadata and canonical status, binding the uploader as receiver when present', async () => {
       updateMock.mockResolvedValue({ success: true } as never);
       const deps = buildLiveDocumentUploadDeps();
       const result = await deps.updateMetadata({
@@ -89,7 +89,9 @@ describe('buildLiveDocumentUploadDeps', () => {
       const payload = updateMock.mock.calls[0]![1] as Record<string, unknown>;
       expect(payload.cr664_uploadstatus).toBe(true);
       expect(payload.cr664_receiveddate).toBe('2026-07-15T00:00:00Z');
+      expect(payload.cr664_requirementstatus).toBe(788190103);
       expect(payload['cr664_UploadedBy@odata.bind']).toBe('/cr664_users(u-1)');
+      expect(payload['cr664_ReceivedBy@odata.bind']).toBe('/cr664_users(u-1)');
     });
 
     it('omits the UploadedBy bind when unresolved — never fakes identity', async () => {
@@ -106,6 +108,7 @@ describe('buildLiveDocumentUploadDeps', () => {
       });
       const payload = updateMock.mock.calls[0]![1] as Record<string, unknown>;
       expect('cr664_UploadedBy@odata.bind' in payload).toBe(false);
+      expect('cr664_ReceivedBy@odata.bind' in payload).toBe(false);
     });
   });
 

@@ -20,6 +20,7 @@ import { newCorrelationId } from '../shared/governance/correlationId';
 import type { DocumentUploadDeps } from './documentUploadAction';
 import { DOCUMENT_UPLOAD_ENUMS, assertChangedByCoreUserBind } from './documentUploadAction';
 import { DOCUMENT_CHECKLIST_ENTITY_SET, DOCUMENT_CHECKLIST_FILE_COLUMN } from './documentUploadSchema';
+import { REQUIREMENT_STATUS_CODES } from './documentRequirementStatusCodes';
 
 const CHECKLIST_ENTITY_SET = DOCUMENT_CHECKLIST_ENTITY_SET;
 const CHECKLIST_FILE_COLUMN = DOCUMENT_CHECKLIST_FILE_COLUMN;
@@ -55,9 +56,13 @@ export function buildLiveDocumentUploadDeps(): DocumentUploadDeps {
           cr664_uploadedon: uploadedOnIso,
           cr664_uploadstatus: true,
           cr664_receiveddate: nowIso,
+          cr664_requirementstatus: REQUIREMENT_STATUS_CODES.under_review,
         };
         // Omitted (never bound) when the actor cannot resolve — no faked identity.
-        if (uploadedByBind) payload['cr664_UploadedBy@odata.bind'] = uploadedByBind;
+        if (uploadedByBind) {
+          payload['cr664_UploadedBy@odata.bind'] = uploadedByBind;
+          payload['cr664_ReceivedBy@odata.bind'] = uploadedByBind;
+        }
         const res = await Cr664_documentchecklistsService.update(
           documentId,
           payload as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1],

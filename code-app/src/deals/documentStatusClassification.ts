@@ -42,10 +42,8 @@ export function classifyLegacyDocumentStatus(opts: {
 /**
  * True once the Document Requirement workspace has Waived or marked this
  * row Not Applicable (documentRequirementActions.ts's `waive` /
- * `mark_not_applicable` actions). Reads the same stopgap fields
- * documentRequirementLiveReader.ts already reads (see
- * documentRequirementFields.ts) — no schema change, just recognizing what
- * those actions already persist.
+ * `mark_not_applicable` actions). Reads the same lifecycle projection as
+ * documentRequirementLiveReader.ts (see documentRequirementFields.ts).
  */
 export function isGovernedExcusedDocument(opts: {
   readonly waived?: boolean;

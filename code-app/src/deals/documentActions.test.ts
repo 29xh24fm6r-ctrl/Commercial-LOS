@@ -375,9 +375,7 @@ describe('markDocumentReceived', () => {
     expect(
       Number.isNaN(new Date(payload.cr664_receiveddate as string).getTime()),
     ).toBe(false);
-    // Live Dataverse does not have cr664_requirementstatus on cr664_documentchecklist.
-    // Status is derived from receiveddate/reviewer, so never send non-schema fields.
-    expect(payload.cr664_requirementstatus).toBeUndefined();
+    expect(payload.cr664_requirementstatus).toBe(788190103); // UnderReview
   });
 
   it('emits an audit event with Outstanding → Received state and the receiveddate fieldname', async () => {
@@ -588,7 +586,7 @@ describe('markDocumentReviewed', () => {
     expect(timelineCreate).toHaveBeenCalledTimes(1);
   });
 
-  it('writes cr664_reviewer only and preserves the received/upload/request fields', async () => {
+  it('writes reviewer facts and canonical Reviewed status while preserving receipt/upload/request fields', async () => {
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
@@ -600,9 +598,9 @@ describe('markDocumentReviewed', () => {
       expect.objectContaining({ cr664_reviewer: 'M. Paller' }),
     );
     const payload = docUpdate.mock.calls[0]![1] as Record<string, unknown>;
-    // Live Dataverse does not have cr664_requirementstatus on cr664_documentchecklist.
-    // The reviewed state is derived from cr664_reviewer, so the update stays schema-minimal.
-    expect(payload.cr664_requirementstatus).toBeUndefined();
+    expect(payload.cr664_requirementstatus).toBe(788190104); // Reviewed
+    expect(typeof payload.cr664_revieweddate).toBe('string');
+    expect(Number.isNaN(new Date(payload.cr664_revieweddate as string).getTime())).toBe(false);
     expect(payload.cr664_receiveddate).toBeUndefined();
     expect(payload.cr664_uploadstatus).toBeUndefined();
     expect(payload.cr664_requestdate).toBeUndefined();

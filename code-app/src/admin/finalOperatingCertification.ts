@@ -49,6 +49,13 @@ const CODE_COMPLETE: readonly FinalCertificationFinding[] = [
     capability: 'Origination-to-portfolio boarding and monitoring',
     evidence: 'Auto-boarding, Booking QC, servicing-owner assignment, originated-deal traceability, and portfolio monitoring surfaces are present in source.',
   },
+  {
+    id: 'code-binary-upload',
+    status: 'code-complete',
+    capability: 'Binary deal-document upload and authenticated download',
+    evidence:
+      'Dataverse File upload, durable byte readback, authenticated download, requirement reconciliation, audit, and timeline paths are implemented and production-verified.',
+  },
 ];
 
 const DUAL_USER_BLOCKS: readonly FinalCertificationFinding[] = [
@@ -76,12 +83,6 @@ const DUAL_USER_BLOCKS: readonly FinalCertificationFinding[] = [
 ];
 
 const INTENTIONALLY_DEFERRED: readonly FinalCertificationFinding[] = [
-  {
-    id: 'deferred-binary-upload',
-    status: 'intentionally-deferred',
-    capability: 'Binary deal-document upload',
-    evidence: 'Receipt metadata is governed; binary storage remains deferred until a live file column and regenerated datasource exist.',
-  },
   {
     id: 'deferred-borrower-portal',
     status: 'intentionally-deferred',
@@ -152,6 +153,13 @@ export function deriveFinalOperatingCertification(): FinalOperatingCertification
     status: 'live-smoke-tested',
     capability: 'New Deal create',
     evidence: 'The controlled banker pilot create has recorded production smoke and verified reference rows.',
+  });
+  findings.push({
+    id: 'smoke-binary-document',
+    status: 'live-smoke-tested',
+    capability: 'Binary deal-document upload and authenticated download',
+    evidence:
+      'The 2026-07-29 managed-Edge acceptance uploaded, durably read back, and downloaded 238 bytes with matching SHA-256; requirement, actor, audit, and timeline records reconciled.',
   });
   for (const [capability, report] of Object.entries(smoke)) {
     if (report?.accepted && report.confidence === 'HIGH') {

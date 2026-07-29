@@ -51,9 +51,11 @@ export interface DocumentRequirementWorkspaceProps {
   /** Fires after every (re)load so a caller can fold these rows into its own blocker
    *  computation — see documentRequirementBlockerMerge.ts. */
   readonly onRowsLoaded?: (rows: readonly DocumentRequirementRow[], definitions: readonly RequiredDocumentDefinition[]) => void;
+  /** Changes when a sibling operation mutates the shared checklist rows. */
+  readonly reloadToken?: number;
 }
 
-export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterAction, onRowsLoaded }: DocumentRequirementWorkspaceProps) {
+export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterAction, onRowsLoaded, reloadToken = 0 }: DocumentRequirementWorkspaceProps) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [pendingRowKey, setPendingRowKey] = useState<string | null>(null);
   const [waiveDraft, setWaiveDraft] = useState<{ key: string; reason: string } | null>(null);
@@ -84,7 +86,7 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
     // deal is a plain-value snapshot recomputed by the caller each render; comparing by
     // dealId alone (not the whole object) avoids a reload loop from a fresh object identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealId]);
+  }, [dealId, reloadToken]);
 
   async function runAction(row: DocumentRequirementRow, action: DocumentRequirementAction, extra?: { reviewerName?: string; waiverReason?: string }) {
     const rowKey = row.id ?? row.documentName;

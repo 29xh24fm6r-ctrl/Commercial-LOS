@@ -48,4 +48,15 @@ describe('Production GO remediation script safety contract', () => {
       expect(script).toContain(category);
     }
   });
+
+  it('uses the same controlled-name conventions as live operational surfaces', () => {
+    // Regression for the live 8-vs-13 discrepancy: the inventory used to miss
+    // bracketed smoke records, "WF-1A Test Deal", and versioned V1 smoke names.
+    expect(script).toContain(
+      String.raw`\[\s*(system\s*test|smoke\s*test|smoke|test|qa|demo|sandbox|do\s*not\s*use)`,
+    );
+    expect(script).toContain(String.raw`\btest\s*deal\b`);
+    expect(script).toContain(String.raw`\b(?:v\d+\s+)?[\w\s-]*\bsmoke\b`);
+    expect(script).toContain(String.raw`\bstage\s+advancement\s+smoke\b`);
+  });
 });

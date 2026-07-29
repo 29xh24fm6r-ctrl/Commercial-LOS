@@ -9,6 +9,16 @@ export const Cr664_documentchecklistscr664_documenttype = {
   788190003: 'Image'
 } as const;
 export type Cr664_documentchecklistscr664_documenttype = keyof typeof Cr664_documentchecklistscr664_documenttype;
+export const Cr664_documentchecklistscr664_requirementstatus = {
+  788190100: 'NotAssessed',
+  788190101: 'Outstanding',
+  788190102: 'Requested',
+  788190103: 'UnderReview',
+  788190104: 'Reviewed',
+  788190105: 'Waived',
+  788190106: 'NotApplicable'
+} as const;
+export type Cr664_documentchecklistscr664_requirementstatus = keyof typeof Cr664_documentchecklistscr664_requirementstatus;
 export const Cr664_documentchecklistsstatecode = {
   0: 'Active',
   1: 'Inactive'
@@ -21,6 +31,9 @@ export const Cr664_documentchecklistsstatuscode = {
 export type Cr664_documentchecklistsstatuscode = keyof typeof Cr664_documentchecklistsstatuscode;
 
 export interface Cr664_documentchecklistsBase {
+  cr664_acknowledged?: boolean;
+  "cr664_AcknowledgedBy@odata.bind"?: string;
+  cr664_acknowledgeddate?: string;
   "cr664_Deal@odata.bind"?: string;
   cr664_documentchecklistid: string;
   cr664_documentname: string;
@@ -29,12 +42,18 @@ export interface Cr664_documentchecklistsBase {
   cr664_filesizebytes?: number;
   cr664_mimetype?: string;
   cr664_originalfilename?: string;
+  "cr664_ReceivedBy@odata.bind"?: string;
   cr664_receiveddate?: string;
   cr664_requestdate?: string;
+  cr664_required?: boolean;
+  cr664_requirementstatus?: Cr664_documentchecklistscr664_requirementstatus;
+  cr664_revieweddate?: string;
   cr664_reviewer?: string;
   "cr664_UploadedBy@odata.bind"?: string;
   cr664_uploadedon?: string;
   cr664_uploadstatus?: boolean;
+  cr664_waived?: boolean;
+  cr664_waiverreason?: string;
   importsequencenumber?: number;
   overriddencreatedon?: string;
   ownerid: string;
@@ -46,12 +65,18 @@ export interface Cr664_documentchecklistsBase {
 }
 
 export interface Cr664_documentchecklists extends Cr664_documentchecklistsBase {
+  cr664_acknowledgedbyname?: string;
+  cr664_acknowledgedname?: string;
   cr664_dealname?: string;
   cr664_documentfile?: string;
   cr664_documentfile_name?: string;
   cr664_documenttypename?: string;
+  cr664_receivedbyname?: string;
+  cr664_requiredname?: string;
+  cr664_requirementstatusname?: string;
   cr664_uploadedbyname?: string;
   cr664_uploadstatusname?: string;
+  cr664_waivedname?: string;
   createdbyname?: string;
   createdbyyominame: string;
   createdon?: string;
@@ -68,8 +93,12 @@ export interface Cr664_documentchecklists extends Cr664_documentchecklistsBase {
   statecodename?: string;
   statuscodename?: string;
   versionnumber?: number;
+  cr664_acknowledgedby?: object;
+  _cr664_acknowledgedby_value?: string;
   cr664_deal?: object;
   _cr664_deal_value?: string;
+  cr664_receivedby?: object;
+  _cr664_receivedby_value?: string;
   cr664_uploadedby?: object;
   _cr664_uploadedby_value?: string;
   createdby?: object;

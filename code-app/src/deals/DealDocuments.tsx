@@ -94,6 +94,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   // blocker computation can union in dynamically-derived requirements (see below).
   const [requirementRows, setRequirementRows] = useState<readonly DocumentRequirementRow[]>([]);
   const [requirementDefinitions, setRequirementDefinitions] = useState<readonly RequiredDocumentDefinition[]>([]);
+  const [requirementReloadToken, setRequirementReloadToken] = useState(0);
 
   async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
     if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
@@ -111,6 +112,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       requestNote: note,
     });
     refresh('after-document-request');
+    setRequirementReloadToken((token) => token + 1);
     return outcome;
   }
 
@@ -182,6 +184,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       receiveNote: note,
     });
     refresh('after-document-receive');
+    setRequirementReloadToken((token) => token + 1);
     return outcome;
   }
 
@@ -235,6 +238,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       buildLiveDocumentUploadDeps(),
     );
     refresh('after-document-receive');
+    setRequirementReloadToken((token) => token + 1);
     return outcome;
   }
 
@@ -255,6 +259,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       receivedByCoreUserId: pendingReviewDoc.receivedByCoreUserId,
     });
     refresh('after-document-review');
+    setRequirementReloadToken((token) => token + 1);
     return outcome;
   }
 
@@ -295,6 +300,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     });
     // Reload documents (+ activity) so the requirement clears and the new row survives refresh.
     refresh('after-document-receive');
+    setRequirementReloadToken((token) => token + 1);
     return outcome;
   }
 
@@ -437,6 +443,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
             stage: deal.stage,
           }}
           banker={{ systemUserId: banker.systemUserId, email: banker.email, fullName: banker.fullName }}
+          reloadToken={requirementReloadToken}
           onAfterAction={() => refresh('documents')}
           onRowsLoaded={(rows, definitions) => {
             setRequirementRows(rows);
