@@ -1,5 +1,5 @@
 /**
- * Document requirement lifecycle — STOPGAP type augmentation.
+ * Document requirement lifecycle compatibility projection.
  *
  * `cr664_documentchecklist` gets nine new columns via
  * scripts/dataverse/create-document-requirement-lifecycle-fields.ps1:
@@ -8,17 +8,10 @@
  * cr664_user), `cr664_acknowledgeddate` (DateTime), `cr664_receivedby`
  * (Lookup -> cr664_user, Production Remediation Factory Arc Phase 1 / N-16 —
  * the segregation-of-duties fact `review` checks against), `cr664_revieweddate`
- * (DateTime), `cr664_waived` (Boolean), `cr664_waiverreason` (String). None of
- * these are yet part of the generated `Cr664_documentchecklistsModel.ts` —
- * same stopgap situation as `documentChecklistFileFields.ts`, which this
- * mirrors exactly (see that file's header for why a hand-written bridge type
- * is safe here: `getAll()`/`.get()` fetch full records with no `$select`
- * today, so these fields already come back in the raw Dataverse JSON once the
- * columns exist, regardless of what the generated TS model declares).
- *
- * DELETE THIS FILE once a real SDK regeneration makes these fields part of
- * `Cr664_documentchecklistsModel.ts` directly, and read them from the
- * generated type instead.
+ * (DateTime), `cr664_waived` (Boolean), `cr664_waiverreason` (String).
+ * The fields are now present in the regenerated SDK model. This narrow,
+ * readonly projection remains so query modules share one lifecycle view
+ * without coupling their raw-record narrowing to the complete SDK model.
  */
 export interface DocumentRequirementFields {
   /** Raw persisted cr664_requirementstatus option-set value (see REQUIREMENT_STATUS_CODES). */

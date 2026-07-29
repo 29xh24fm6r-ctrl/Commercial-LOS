@@ -13,6 +13,7 @@ import {
 import { timelineEventByBind } from './timelineActorBind';
 import { extractCoreUserId, isSameCoreUser, SEGREGATION_OF_DUTIES_BLOCK_REASON } from './documentReviewSegregationOfDuties';
 import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
+import { REQUIREMENT_STATUS_CODES } from './documentRequirementStatusCodes';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -79,7 +80,7 @@ const TIMELINE_SUBTYPE_DOCUMENT_REVIEWED = 'documentchecklist:reviewed';
 // reads. Previously these actions wrote only the fact fields (requestdate / receiveddate / reviewer)
 // and left cr664_requirementstatus unset, so the two panels could disagree (Documents showed
 // "Received/Reviewed" while Requirements inferred a different lifecycle state). (Defect 8.)
-const REQUIREMENT_STATUS_REQUESTED = 788190102;
+const REQUIREMENT_STATUS_REQUESTED = REQUIREMENT_STATUS_CODES.requested;
 function beforeStateForRequest(prior: string | undefined): string {
   if (!prior) return 'Not yet requested';
   return `Previously requested (${prior})`;
@@ -426,6 +427,7 @@ export async function markDocumentReceived(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_receiveddate: nowIso,
+      cr664_requirementstatus: REQUIREMENT_STATUS_CODES.under_review,
       ...(actor.ok && actor.changedByBind ? { 'cr664_ReceivedBy@odata.bind': actor.changedByBind } : {}),
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
@@ -692,6 +694,8 @@ export async function markDocumentReviewed(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_reviewer: reviewerName,
+      cr664_revieweddate: nowIso,
+      cr664_requirementstatus: REQUIREMENT_STATUS_CODES.reviewed,
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
       void emitAuditEventForReview({
