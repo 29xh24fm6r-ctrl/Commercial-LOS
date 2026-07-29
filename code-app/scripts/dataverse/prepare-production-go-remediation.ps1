@@ -56,7 +56,27 @@ function Normalize-BusinessName([object]$Value) {
 function Test-ControlledName([object]$Value) {
   $name = ([string]$Value).Trim()
   if (-not $name) { return $false }
-  return $name -match '(?i)^(?:system\s+test|test(?:\s*[—-]|\s+)|smoke(?:\s+test)?|stage\s+advancement\s+smoke|ogb\s+full\s+workflow\s+test|.*\bfull\s+e2e\b)'
+  # Keep the certification inventory in parity with
+  # src/shared/deals/testDealClassification.ts. A narrower inventory pattern
+  # previously mislabeled bracketed smoke records, "Test Deal" names, and
+  # versioned smoke records as operational even though every live workspace
+  # correctly excluded them.
+  $patterns = @(
+    '\[\s*(system\s*test|smoke\s*test|smoke|test|qa|demo|sandbox|do\s*not\s*use)\b[^\]]*\]',
+    '\bsmoke\s*test\b',
+    '\bqa\s*test\b',
+    '\btest\s*deal\b',
+    '\bdo\s*not\s*use\b',
+    '^\s*(?:system\s*test|test|qa|smoke)\s*(?:[-\u2013\u2014:]|\b)',
+    '^\s*ogb\s+full\s+workflow\s+test\b',
+    '\bstage\s+advancement\s+smoke\b',
+    '\bfull\s+e2e\b',
+    '\b(?:v\d+\s+)?[\w\s-]*\bsmoke\b'
+  )
+  foreach ($pattern in $patterns) {
+    if ($name -match $pattern) { return $true }
+  }
+  return $false
 }
 
 function Normalize-DocumentName([object]$Value) {
