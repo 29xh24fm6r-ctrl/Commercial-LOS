@@ -82,14 +82,12 @@ function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
   return {
     id: d.cr664_loandealid,
     name: d.cr664_dealname,
-    // N-17 remediation (Production Remediation Factory Arc Phase 11) — cr664_istestrecord is a
-    // PR142-provisioned, additive Boolean column; not yet declared on the generated model (same
-    // convention as other raw-only fields on this record — see getFormattedValue above). Undefined
-    // on every deal until an admin explicitly classifies it, in which case isTestOrSmokeDeal falls
-    // back to the pre-existing name-convention match unchanged.
+    // Production GO live retest — use the regenerated governed Boolean directly.
+    // Before the SDK regeneration the app could not see true flags on records whose
+    // names lacked a controlled marker, so they contaminated operational totals.
     isTestRecord: isTestOrSmokeDeal({
       name: d.cr664_dealname,
-      isTestRecord: raw['cr664_istestrecord'] as boolean | undefined,
+      isTestRecord: d.cr664_istestrecord,
     }),
     clientName: d.cr664_clientname,
     // Phase 170L — formatted-value-first hydration parity with the deal

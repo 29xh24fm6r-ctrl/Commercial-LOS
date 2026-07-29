@@ -80,9 +80,11 @@ export interface Cr664_loandealsBase {
   cr664_closemonth?: string;
   cr664_collateralsummary?: string;
   cr664_covenantpackagetype?: string;
+  cr664_crmindustryprojection?: string;
   cr664_customertype?: Cr664_loandealscr664_customertype;
   cr664_dealname: string;
   cr664_depositopportunityamount?: number;
+  cr664_financialspreadinputs?: string;
   cr664_forecastmonthderived?: string;
   cr664_forecastquarter?: number;
   cr664_forecastyear?: number;
@@ -91,11 +93,15 @@ export interface Cr664_loandealsBase {
   cr664_interestonlyperiodmonths?: number;
   cr664_isinflightstatus?: boolean;
   cr664_isterminalstatus?: boolean;
+  cr664_istestrecord?: boolean;
   cr664_loandealid: string;
+  cr664_loanpurpose?: string;
   cr664_loansizeband?: Cr664_loandealscr664_loansizeband;
   "cr664_LoanStructureTypeReference@odata.bind"?: string;
+  cr664_loantermmonths?: number;
   "cr664_LossReason@odata.bind"?: string;
   cr664_nextfollowupdate?: string;
+  cr664_ownershipstructure?: string;
   "cr664_PolicyExceptionIndicator@odata.bind"?: string;
   "cr664_PricingTypeReference@odata.bind"?: string;
   "cr664_ProductFamilyReference@odata.bind"?: string;
@@ -105,6 +111,7 @@ export interface Cr664_loandealsBase {
   cr664_relationshipexpansionopportunitytags?: Cr664_loandealscr664_relationshipexpansionopportunitytags[];
   cr664_relationshipnotes?: string;
   "cr664_RiskLevelReference@odata.bind"?: string;
+  cr664_riskratinginputs?: string;
   cr664_sbaauthorizationdate?: string;
   cr664_sbaauthorizationstatus?: Cr664_loandealscr664_sbaauthorizationstatus;
   cr664_sbaclosingauthorizationreceivedflag?: boolean;
@@ -121,6 +128,7 @@ export interface Cr664_loandealsBase {
   "cr664_StrategicRelationshipFlag@odata.bind"?: string;
   cr664_targetclosedate?: string;
   "cr664_Team@odata.bind"?: string;
+  cr664_underwritingrecommendationinputs?: string;
   "cr664_Urgency@odata.bind"?: string;
   importsequencenumber?: number;
   overriddencreatedon?: string;
@@ -145,6 +153,7 @@ export interface Cr664_loandeals extends Cr664_loandealsBase {
   cr664_industryname?: string;
   cr664_isinflightstatusname?: string;
   cr664_isterminalstatusname?: string;
+  cr664_istestrecordname?: string;
   cr664_loansizebandname?: string;
   cr664_loanstructuretypereferencename?: string;
   cr664_lossreasonname?: string;

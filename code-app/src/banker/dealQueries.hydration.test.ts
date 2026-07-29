@@ -269,14 +269,28 @@ describe('N-17 remediation (Production Remediation Factory Arc Phase 11) — gov
     expect(included[0]!.isTestRecord).toBe(true);
   });
 
-  it('a name matching the test convention explicitly flagged cr664_istestrecord: false is treated as real', async () => {
+  it('a name matching the test convention explicitly flagged false is excluded fail-safe as a conflict', async () => {
     getAllMock.mockResolvedValue({
       success: true,
       data: [dealRow({ cr664_loandealid: 'governed-2', cr664_istestrecord: false })],
     });
     const out = await loadBankerPipeline('banker-1');
-    expect(out).toHaveLength(1);
-    expect(out[0]!.isTestRecord).toBe(false);
+    expect(out).toHaveLength(0);
+  });
+
+  it('uses the regenerated field to exclude an ordinary-looking governed test record', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        dealRow({
+          cr664_loandealid: 'governed-ordinary-name',
+          cr664_dealname: 'V1 Banker Create Proof - 2026-06-16',
+          cr664_istestrecord: true,
+        }),
+      ],
+    });
+    const out = await loadBankerPipeline('banker-1');
+    expect(out).toHaveLength(0);
   });
 
   it('an unset cr664_istestrecord (the pre-migration default for every existing deal) falls back to name matching unchanged', async () => {
@@ -286,5 +300,16 @@ describe('N-17 remediation (Production Remediation Factory Arc Phase 11) — gov
     });
     const out = await loadBankerPipeline('banker-1');
     expect(out).toHaveLength(0); // still excluded — the [SMOKE TEST ...] name convention still applies
+  });
+});
+
+describe('Production GO — regenerated Loan Deal SDK exposes governed classification', () => {
+  const MODEL = readFileSync(
+    resolve(__dirname, '../generated/models/Cr664_loandealsModel.ts'),
+    'utf8',
+  );
+
+  it('declares cr664_istestrecord as a Boolean field', () => {
+    expect(MODEL).toMatch(/\bcr664_istestrecord\?:\s*boolean;/);
   });
 });
