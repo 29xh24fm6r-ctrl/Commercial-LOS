@@ -41,6 +41,7 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
   const navigate = useNavigate();
   const { recordId } = useParams();
   const [query, setQuery] = useState('');
+  const [recentSearches, setRecentSearches] = useState<readonly string[]>([]);
   const results = useMemo(() => searchCrm(data, query), [data, query]);
   const companyOptions = data.organizations.records.map((r) => ({ id: r.id, label: r.title }));
   const personOptions = data.people.records.map((r) => ({ id: r.id, label: r.title }));
@@ -58,7 +59,11 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
         <div className="crmws__search">
           <label htmlFor="crm-global-search">Search the relationship book</label>
           <input id="crm-global-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Company, person, relationship, activity…" />
-          {query && <SearchResults results={results} onOpen={(domain, id) => navigate(domain === 'organizations' ? `../companies/${id}` : domain === 'people' ? `../people/${id}` : `../${section}`)} />}
+          {query && <SearchResults results={results} onOpen={(domain, id) => {
+            setRecentSearches((current) => [query.trim(), ...current.filter((item) => item !== query.trim())].slice(0, 5));
+            navigate(domain === 'organizations' ? `../companies/${id}` : domain === 'people' ? `../people/${id}` : `../${section}`);
+          }} />}
+          {!query && recentSearches.length > 0 && <div className="crmws__recent" aria-label="Recent CRM searches">{recentSearches.map((item) => <button key={item} onClick={() => setQuery(item)}>{item}</button>)}</div>}
         </div>
         <CrmWriteActions authorized={authorized} actorEmail={actorEmail} actorSystemUserId={actorSystemUserId}
           disabledReason={writeDisabledReason ?? 'A governed CRM writer identity is required.'}
