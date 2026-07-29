@@ -7,7 +7,7 @@ import { CrmExperience } from './CrmExperience';
 import { useEffect, useState } from 'react';
 import { resolveCurrentSystemUserId } from '../../shared/governance/currentUserLookup';
 import { LendingOSLayout } from '../../banker/LendingOSLayout';
-import { crmSidebarDestination } from './crmShellNavigation';
+import { crmSectionPath, crmSidebarDestination } from './crmShellNavigation';
 import './crmWorkspace.css';
 
 export function CrmWorkspace() {
@@ -53,7 +53,7 @@ export function CrmWorkspace() {
         </header>
         <nav className="crmws__nav" aria-label="CRM sections">
           {CRM_SECTIONS.map((section) => (
-            <NavLink key={section} to={section} className={({ isActive }) => isActive ? 'is-active' : undefined}>
+            <NavLink key={section} to={crmSectionPath(section)} className={({ isActive }) => isActive ? 'is-active' : undefined}>
               {section[0].toUpperCase() + section.slice(1)}
             </NavLink>
           ))}

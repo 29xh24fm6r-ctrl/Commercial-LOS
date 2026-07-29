@@ -1,5 +1,6 @@
 import type { LendingOSNavKey } from '../../banker/LendingOSLayout';
 import { WORKSPACE_ROUTES } from '../../bootstrap/workspaceRoutes';
+import type { CrmSection } from './crmWorkspaceModel';
 
 export interface CrmSidebarDestination {
   readonly route: string;
@@ -19,4 +20,8 @@ export function crmSidebarDestination(
   if (navKey === 'activity') return { route: `${WORKSPACE_ROUTES.crm}/activities` };
   if (navKey === 'relationships') return { route: `${WORKSPACE_ROUTES.crm}/relationships` };
   return { route: primaryWorkspaceRoute, state: { initialTab: navKey } };
+}
+
+export function crmSectionPath(section: CrmSection): string {
+  return `${WORKSPACE_ROUTES.crm}/${section}`;
 }
