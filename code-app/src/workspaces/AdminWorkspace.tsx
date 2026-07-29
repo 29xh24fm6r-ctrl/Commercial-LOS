@@ -22,6 +22,12 @@ import { AdminDurableRecordCapabilityPanel } from '../admin/AdminDurableRecordCa
 import { AdminDataQualityDetectionPanel } from '../admin/AdminDataQualityDetectionPanel';
 import { TestDataView } from '../admin/TestDataView';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
+import { useBootstrap } from '../bootstrap/BootstrapContext';
+import {
+  deriveWorkspaceLinks,
+  useEntitledRoutes,
+} from '../bootstrap/workspaceEntitlements';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function AdminWorkspace() {
@@ -36,6 +42,21 @@ export function AdminWorkspace() {
 
 function AdminWorkspaceContent() {
   const { fullName, upn } = useAdmin();
+  const bootstrap = useBootstrap();
+  const entitled = useEntitledRoutes();
+  const managerEntitled =
+    bootstrap.route === WORKSPACE_ROUTES.manager ||
+    entitled.routes.includes(WORKSPACE_ROUTES.manager);
+  // Admin is a control-center surface, not a smaller workspace universe. Keep
+  // the same entitlement-derived workspace switcher visible here that the
+  // banker/team/manager shells render, without inventing access a user does
+  // not already have.
+  const workspaceLinks = deriveWorkspaceLinks({
+    bootstrapRoute: bootstrap.route,
+    currentRoute: WORKSPACE_ROUTES.admin,
+    entitledRoutes: entitled.routes,
+    includePortfolioSurface: managerEntitled,
+  });
   return (
     // Phase 257 — admin shares the same Lending OS left-sidebar shell as the
     // banker/manager/executive/team workspaces so the admin route keeps the
@@ -48,6 +69,7 @@ function AdminWorkspaceContent() {
       fullName={fullName}
       email={upn}
       workspaceName="Admin Control Center"
+      workspaceLinks={workspaceLinks}
     >
       <div style={styles.page} data-admin-workspace-shell="lending-os">
       <header style={styles.header}>
