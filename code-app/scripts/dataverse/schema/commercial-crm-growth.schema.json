@@ -1,0 +1,83 @@
+{
+  "version": "2026-07-29",
+  "publisherPrefix": "cr664",
+  "operatorRun": true,
+  "tables": [
+    {
+      "logicalName": "cr664_crmopportunities",
+      "primaryName": "cr664_name",
+      "columns": {
+        "cr664_opportunityidtext": "Text(100):required:alternate-key",
+        "cr664_productneed": "Text(300):required",
+        "cr664_estimatedamount": "Currency:optional",
+        "cr664_purpose": "MultilineText(4000):optional",
+        "cr664_source": "Text(200):optional",
+        "cr664_stage": "Choice:required:Identified|Contacted|Discovery|Qualified|Structuring|Application Expected|Converted to Deal|Won/Booked|Lost|Deferred",
+        "cr664_expectedclosedate": "DateOnly:optional",
+        "cr664_policyprobability": "Decimal(5,2):optional:0-100",
+        "cr664_nextaction": "Text(500):optional",
+        "cr664_nextactionduedate": "DateTime:optional",
+        "cr664_competitors": "MultilineText(2000):optional",
+        "cr664_outcome": "Text(200):optional",
+        "cr664_outcomereason": "MultilineText(2000):optional",
+        "cr664_correlationid": "Text(100):required:alternate-key",
+        "cr664_createdat": "DateTime:required",
+        "cr664_updatedat": "DateTime:required"
+      },
+      "lookups": {
+        "cr664_organization": "cr664_crmorganizations:required",
+        "cr664_primarycontact": "cr664_crmpersons:optional",
+        "cr664_assignedbanker": "cr664_bankers:required",
+        "cr664_referral": "cr664_crmreferrals:optional",
+        "cr664_linkeddeal": "cr664_loandeals:optional"
+      }
+    },
+    {
+      "logicalName": "cr664_crmreferrals",
+      "primaryName": "cr664_name",
+      "columns": {
+        "cr664_referralidtext": "Text(100):required:alternate-key",
+        "cr664_direction": "Choice:required:Incoming|Outgoing",
+        "cr664_status": "Choice:required:Received|Accepted|In progress|Completed|Declined",
+        "cr664_followupdate": "DateTime:optional",
+        "cr664_outcome": "MultilineText(2000):optional",
+        "cr664_attribution": "Text(300):optional",
+        "cr664_correlationid": "Text(100):required:alternate-key",
+        "cr664_createdat": "DateTime:required",
+        "cr664_updatedat": "DateTime:required"
+      },
+      "lookups": {
+        "cr664_sourcecontact": "cr664_crmpersons:required",
+        "cr664_organization": "cr664_crmorganizations:optional",
+        "cr664_opportunity": "cr664_crmopportunities:optional",
+        "cr664_assignedbanker": "cr664_bankers:required"
+      },
+      "policyExcluded": ["fee", "compensation"]
+    },
+    {
+      "logicalName": "cr664_crmtasks",
+      "primaryName": "cr664_name",
+      "columns": {
+        "cr664_taskidtext": "Text(100):required:alternate-key",
+        "cr664_tasktype": "Choice:required:Task|Follow-up|Relationship review|Service issue|Other",
+        "cr664_status": "Choice:required:Open|Completed|Cancelled",
+        "cr664_priority": "Choice:required:Low|Normal|High|Urgent",
+        "cr664_duedate": "DateTime:optional",
+        "cr664_completedat": "DateTime:optional",
+        "cr664_outcome": "MultilineText(2000):optional",
+        "cr664_correlationid": "Text(100):required:alternate-key",
+        "cr664_createdat": "DateTime:required",
+        "cr664_updatedat": "DateTime:required"
+      },
+      "lookups": {
+        "cr664_organization": "cr664_crmorganizations:optional",
+        "cr664_person": "cr664_crmpersons:optional",
+        "cr664_opportunity": "cr664_crmopportunities:optional",
+        "cr664_linkeddeal": "cr664_loandeals:optional",
+        "cr664_ownerbanker": "cr664_bankers:required"
+      }
+    }
+  ],
+  "requiredSideEffects": ["cr664_crmauditentries", "cr664_crmtimelineevents"],
+  "activationGate": "All tables, columns, alternate keys, lookups, create/readback, audit, and timeline verification PASS"
+}
