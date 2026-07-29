@@ -101,6 +101,8 @@ public sealed class FakeOrganizationService : IOrganizationService
         if (actual is bool ab && expected is bool eb) return ab == eb;
         if (actual is string astr && expected is string estr) return string.Equals(astr, estr, StringComparison.Ordinal);
         if (actual is Guid ag && expected is Guid eg) return ag == eg;
+        if (actual is EntityReference ar && expected is Guid er) return ar.Id == er;
+        if (actual is OptionSetValue aos && expected is int eos) return aos.Value == eos;
         return Equals(actual, expected);
     }
 

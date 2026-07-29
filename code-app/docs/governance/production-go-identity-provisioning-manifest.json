@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "organizationUrl": "https://org3a57b8d4.crm.dynamics.com",
+  "applicationId": "63858e09-3d0b-47c9-b1d2-65cef742fda4",
+  "requestedByUpn": "mpaller@oldglorybank.com",
+  "identities": [
+    {
+      "key": "credit-approver",
+      "upn": null,
+      "requiredCustomPlatformRole": "Credit Approver",
+      "requiredCoreUserRole": "Credit Approver",
+      "requiredPrimaryWorkspace": "Team Workspace",
+      "requiredPrimaryPlatformWorkspaceId": "3acb2366-10b2-459a-86bd-a66d86b19c9f",
+      "requiredEntitlementWorkspaceType": "Team Workspace",
+      "requiredDataverseSecurityRoles": [
+        "Basic User",
+        "OGL LOS Credit Approver"
+      ],
+      "requiresBankerAuthority": true,
+      "bankerAuthorityRequirements": {
+        "active": true,
+        "linkedToSameCoreUser": true,
+        "minimumApprovalLimit": "controlled-test-deal amount",
+        "creditCommitteeMember": true,
+        "approvalOverrideAuthority": false
+      },
+      "mustBeDistinctFrom": [
+        "requestedByUpn",
+        "originating banker"
+      ]
+    },
+    {
+      "key": "funding-approver-1",
+      "upn": null,
+      "requiredCustomPlatformRole": "Funding Approver",
+      "requiredCoreUserRole": "Funding Approver",
+      "requiredPrimaryWorkspace": "Team Workspace",
+      "requiredPrimaryPlatformWorkspaceId": "3acb2366-10b2-459a-86bd-a66d86b19c9f",
+      "requiredEntitlementWorkspaceType": "Team Workspace",
+      "requiredDataverseSecurityRoles": [
+        "Basic User",
+        "OGL LOS Funding Approver"
+      ],
+      "requiresBankerAuthority": false,
+      "mustBeDistinctFrom": [
+        "requestedByUpn",
+        "funding-approver-2",
+        "funding confirmer"
+      ]
+    },
+    {
+      "key": "funding-approver-2",
+      "upn": null,
+      "requiredCustomPlatformRole": "Funding Approver",
+      "requiredCoreUserRole": "Funding Approver",
+      "requiredPrimaryWorkspace": "Team Workspace",
+      "requiredPrimaryPlatformWorkspaceId": "3acb2366-10b2-459a-86bd-a66d86b19c9f",
+      "requiredEntitlementWorkspaceType": "Team Workspace",
+      "requiredDataverseSecurityRoles": [
+        "Basic User",
+        "OGL LOS Funding Approver"
+      ],
+      "requiresBankerAuthority": false,
+      "mustBeDistinctFrom": [
+        "requestedByUpn",
+        "funding-approver-1",
+        "funding confirmer"
+      ]
+    },
+    {
+      "key": "boarding-servicing-operator",
+      "upn": null,
+      "requiredCustomPlatformRole": "Boarding Servicing Operator",
+      "requiredCoreUserRole": "Boarding Servicing Operator",
+      "requiredPrimaryWorkspace": "Portfolio Management",
+      "requiredPrimaryPlatformWorkspaceId": "cc79727e-9ec6-429a-85d2-af6f44f98a4b",
+      "requiredEntitlementWorkspaceType": "Portfolio Management",
+      "requiredDataverseSecurityRoles": [
+        "Basic User",
+        "OGL LOS Boarding Servicing Operator"
+      ],
+      "requiresBankerAuthority": true,
+      "bankerAuthorityRequirements": {
+        "active": true,
+        "linkedToSameCoreUser": true,
+        "creditCommitteeMember": false,
+        "approvalOverrideAuthority": false
+      },
+      "mustBeDistinctFrom": [
+        "requestedByUpn",
+        "originating banker",
+        "credit-approver"
+      ]
+    }
+  ],
+  "currentCatalog": {
+    "capturedAtUtc": "2026-07-29",
+    "platformRoles": {
+      "Admin": "64c4da79-e1ed-454b-831c-03651a89ce39",
+      "Banker": "76d0fe4a-a48e-48d3-9c6b-78526e1d6d66",
+      "Manager": "ca34f792-16bc-49f3-8c69-ac166402b684",
+      "Super Admin": "0fe822e1-55fb-4083-9621-f07d7a948c33",
+      "Credit Approver": "3feefcd4-a38b-f111-ab10-70a8a59b1fe2",
+      "Funding Approver": "41eefcd4-a38b-f111-ab10-70a8a59b1fe2",
+      "Boarding Servicing Operator": "43eefcd4-a38b-f111-ab10-70a8a59b1fe2"
+    },
+    "coreUserRoles": {
+      "Banker": "930a202e-756a-f111-ab0c-70a8a59be491",
+      "System Super Admin": "5595e063-8d55-4068-95b8-ac2a979c2ae9",
+      "Credit Approver": "40eefcd4-a38b-f111-ab10-70a8a59b1fe2",
+      "Funding Approver": "42eefcd4-a38b-f111-ab10-70a8a59b1fe2",
+      "Boarding Servicing Operator": "44eefcd4-a38b-f111-ab10-70a8a59b1fe2"
+    },
+      "workspaceTypes": {
+        "Banker Workspace": "920a202e-756a-f111-ab0c-70a8a59be491",
+        "Team Workspace": "45eefcd4-a38b-f111-ab10-70a8a59b1fe2",
+        "Portfolio Management": "46eefcd4-a38b-f111-ab10-70a8a59b1fe2"
+      },
+      "platformWorkspaces": {
+        "Banker Workspace": "13433690-3b7f-4eb1-ac56-37e18fdaa86e",
+        "Manager Command Center": "ff7b4e0c-b651-44f4-8cf4-571f57722823",
+        "Executive Dashboard": "d1f9644f-fd87-43e2-b5bf-5a56677ee7f6",
+        "Team Workspace": "3acb2366-10b2-459a-86bd-a66d86b19c9f",
+        "Portfolio Management": "cc79727e-9ec6-429a-85d2-af6f44f98a4b",
+        "Admin Control Center": "2dacd9f9-0aa1-4795-b364-cc3063a46b6a"
+      },
+    "blockingCatalogGaps": [
+      "No least-privilege OGL LOS Dataverse security roles were proven in the live inventory."
+    ],
+    "catalogProvisioning": {
+      "status": "APPLIED_AND_READ_BACK_BY_CREATE_RESPONSE",
+      "timestamp": "2026-07-29T19:18:43-04:00",
+      "existingRowsUpdated": 0,
+      "rowsDeleted": 0
+    }
+  }
+}
