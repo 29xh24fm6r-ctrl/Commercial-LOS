@@ -4,7 +4,6 @@ import { Badge } from '../shared/Badge';
 import { Card, CardFooter, CardHeader } from '../shared/Card';
 import { palette, severityPalette, spacing, typography } from '../shared/theme';
 import { deriveLoanWorkflowState } from './deriveLoanWorkflowState';
-import { GenerateWorkflowChecklistButton } from './GenerateWorkflowChecklistButton';
 import { GenerateWorkflowTasksButton } from './GenerateWorkflowTasksButton';
 import { AdvanceWorkflowStageButton } from './AdvanceWorkflowStageButton';
 
@@ -64,7 +63,9 @@ export function LoanWorkflowCommandCenter() {
       <Section title="Required documents" items={workflow.readiness.missingDocuments.map((item) => item.label)} empty="No required documents missing for this stage." />
       <Section title="Required tasks" items={workflow.readiness.missingTasks.map((item) => item.label)} empty="No required tasks missing for this stage." />
       <div style={styles.actions} aria-label="Workflow explicit actions">
-        <GenerateWorkflowChecklistButton workflow={workflow} dealId={deal.id} />
+        <span style={styles.muted} data-checklist-derivation="automatic">
+          Document requirements are synchronized automatically from the governed deal facts.
+        </span>
         <GenerateWorkflowTasksButton workflow={workflow} />
         <AdvanceWorkflowStageButton workflow={workflow} />
       </div>

@@ -56,16 +56,9 @@ const QUEUE: readonly QueueSpec[] = [
   { key: 'boarding', label: 'Portfolio Boarding', tone: 'neutral' },
 ];
 
-/**
- * D-01 fix — the workbench's own quick-search box + section-browsing already
- * let a banker find an exact record, so (unlike the dashboard's default
- * loadBankerWorkQueueData(bankerId) call in BankerShell.tsx, which stays
- * test-excluded for its own KPI tiles) this surface asks for classified
- * test/smoke deals too. loanWorkbenchModel.ts still excludes them from the
- * queue-card COUNT tallies — only the underlying rows include them.
- */
+/** Loan Workflow uses the same governed operational population as every banker default. */
 function loadWorkbenchData(bankerId: string): Promise<BankerWorkQueueData> {
-  return loadBankerWorkQueueData(bankerId, { includeTestDeals: true });
+  return loadBankerWorkQueueData(bankerId);
 }
 
 export function BankerLoanWorkflowWorkbench({
@@ -119,11 +112,6 @@ export function BankerLoanWorkflowWorkbench({
     const diligence = model ? model.rows.filter((r) => diligenceDealIds.has(r.id)).length : 0;
     return { ...base, diligence };
   }, [model, diligenceDealIds]);
-
-  // N-02/N-19 disclosure: how many of each queue-card count are classified test/smoke
-  // records, so a banker sees the split rather than a bare number they'd have to
-  // cross-check against the table to understand.
-  const testRecordCounts = model?.testRecordCounts;
 
   const visibleRows = useMemo(() => {
     if (!model) return [];
@@ -201,14 +189,7 @@ export function BankerLoanWorkflowWorkbench({
               ) : state.kind === 'loading' ? (
                 <span style={styles.queueSkeleton} aria-hidden="true" />
               ) : (
-                <>
-                  <span style={styles.queueValue}>{value ?? 0}</span>
-                  {testRecordCounts && q.key in testRecordCounts && testRecordCounts[q.key as keyof typeof testRecordCounts] > 0 && (
-                    <span style={styles.queueTestDisclosure} data-loan-queue-test-count={q.key}>
-                      incl. {testRecordCounts[q.key as keyof typeof testRecordCounts]} test/smoke
-                    </span>
-                  )}
-                </>
+                <span style={styles.queueValue}>{value ?? 0}</span>
               )}
             </button>
           );

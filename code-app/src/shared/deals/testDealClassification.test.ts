@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isTestOrSmokeDealName,
   isTestOrSmokeDeal,
+  classifyDealRecord,
   partitionDealsByTestClassification,
   operationalDeals,
 } from './testDealClassification';
@@ -17,6 +18,11 @@ describe('P1-11 — test/smoke deal classification', () => {
       'QA test loan',
       'Test Deal 42',
       'DO NOT USE - migration artifact',
+      'TEST — Deal Phase 121',
+      'STAGE ADVANCEMENT SMOKE',
+      'V1 Banker Create Proof Smoke',
+      'OGB Full Workflow Test 07172026',
+      'SYSTEM TEST - FULL E2E - 2026-07-25',
     ]) {
       expect(isTestOrSmokeDealName(name)).toBe(true);
     }
@@ -62,10 +68,17 @@ describe('P1-11 — test/smoke deal classification', () => {
       expect(isTestOrSmokeDeal({ name: 'Acme Expansion', isTestRecord: true })).toBe(true);
     });
 
-    it('an explicit isTestRecord: false wins even for a name matching the test convention', () => {
-      // e.g. a real borrower legitimately named with a word the pattern would otherwise catch —
-      // an admin's explicit classification overrides the name heuristic either direction.
-      expect(isTestOrSmokeDeal({ name: '[QA] Regression deal', isTestRecord: false })).toBe(false);
+    it('an explicit false plus a governed controlled name fails safe as a classification conflict', () => {
+      const row = { name: '[QA] Regression deal', isTestRecord: false };
+      expect(isTestOrSmokeDeal(row)).toBe(true);
+      expect(classifyDealRecord(row)).toMatchObject({
+        kind: 'classification-conflict',
+        reason: 'explicit-false-conflicts-with-governed-name',
+      });
+    });
+
+    it('an explicit false remains operational when the name has no controlled-record evidence', () => {
+      expect(isTestOrSmokeDeal({ name: 'Acme Expansion', isTestRecord: false })).toBe(false);
     });
 
     it('undefined/null isTestRecord falls back to name matching exactly as before', () => {
@@ -85,6 +98,17 @@ describe('P1-11 — test/smoke deal classification', () => {
     });
   });
 
+  it('keeps legitimate testing-related borrower names operational', () => {
+    for (const name of [
+      'Northwest Testing Labs Term Loan',
+      'System Solutions Testing Corp',
+      'Contest Holdings LLC',
+      'Smokestack Manufacturing Expansion',
+    ]) {
+      expect(isTestOrSmokeDealName(name)).toBe(false);
+    }
+  });
+
   it('partitions a mixed list, preserving order and never dropping records', () => {
     const deals = [
       { name: 'Acme Expansion', id: 1 },
@@ -92,11 +116,20 @@ describe('P1-11 — test/smoke deal classification', () => {
       { name: 'Globex Term Loan', id: 3 },
       { name: 'Test Deal 9', id: 4 },
     ];
-    const { operational, test } = partitionDealsByTestClassification(deals);
+    const { operational, test, conflicts } = partitionDealsByTestClassification(deals);
     expect(operational.map((d) => d.id)).toEqual([1, 3]);
     expect(test.map((d) => d.id)).toEqual([2, 4]);
     // Nothing is deleted — the two partitions cover the whole input.
     expect(operational.length + test.length).toBe(deals.length);
+    expect(conflicts).toHaveLength(0);
+  });
+
+  it('partitions explicit-false/name conflicts out of operational while preserving them in investigation', () => {
+    const conflict = { name: 'SYSTEM TEST - controlled', isTestRecord: false, id: 1 };
+    const result = partitionDealsByTestClassification([conflict, { name: 'Acme', id: 2 }]);
+    expect(result.operational.map((d) => d.id)).toEqual([2]);
+    expect(result.test.map((d) => d.id)).toEqual([1]);
+    expect(result.conflicts.map((d) => d.id)).toEqual([1]);
   });
 
   it('operationalDeals excludes test/smoke by default, and includes them under the admin opt-in', () => {

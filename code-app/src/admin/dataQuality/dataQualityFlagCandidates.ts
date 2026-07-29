@@ -49,6 +49,10 @@ import {
   type BoardingHandoffEvidence,
 } from '../../workflow/boardingHandoffReadiness';
 import type { DataQualityFlagRow } from '../adminDiagnosticsQueries';
+import {
+  classifyDealRecord,
+  isTestOrSmokeDeal,
+} from '../../shared/deals/testDealClassification';
 
 export type DataQualityFlagCategory =
   | 'duplicate-organization'
@@ -56,7 +60,10 @@ export type DataQualityFlagCategory =
   | 'suspicious-active-deal'
   | 'zero-amount-deal'
   | 'duplicate-entitlement'
-  | 'inconsistent-boarding-linkage';
+  | 'inconsistent-boarding-linkage'
+  | 'duplicate-boarding-link'
+  | 'incomplete-boarded-loan'
+  | 'controlled-classification-conflict';
 
 export interface DataQualityFlagCandidate {
   readonly category: DataQualityFlagCategory;
@@ -99,6 +106,30 @@ export interface DealScanRow {
   readonly clientName?: string;
   readonly amount?: number;
   readonly stage?: string;
+  readonly isTestRecord?: boolean | null;
+}
+
+export function detectControlledClassificationConflictFlags(
+  deals: readonly DealScanRow[],
+): readonly DataQualityFlagCandidate[] {
+  return deals
+    .filter(
+      (deal) =>
+        classifyDealRecord({
+          name: deal.dealName,
+          isTestRecord: deal.isTestRecord,
+        }).kind === 'classification-conflict',
+    )
+    .map((deal) => ({
+      category: 'controlled-classification-conflict' as const,
+      flagName: 'Controlled-record classification conflict',
+      flagDescription:
+        `Deal "${deal.dealName ?? deal.dealId}" has cr664_istestrecord=false but its ` +
+        'governed name identifies a controlled test/smoke record. It is quarantined from ' +
+        'operational totals until an approved record-level correction is applied.',
+      sourceTable: 'cr664_loandeal',
+      sourceRecordId: deal.dealId,
+    }));
 }
 
 export interface DuplicateDealCluster {
@@ -278,6 +309,80 @@ export interface BoardedLoanLinkRow {
   readonly originatedLoanDealId: string | undefined;
   readonly assignedServicingOwnerId: string | undefined;
   readonly active: boolean;
+  readonly loanNumber?: string;
+  readonly borrowerLegalName?: string;
+  readonly loanStatus?: string;
+  readonly currentOutstandingPrincipal?: number;
+  readonly currentRiskRating?: string;
+  readonly maturityDate?: string;
+  readonly originalCommitmentAmount?: number;
+  readonly bookingDate?: string;
+}
+
+export function detectDuplicateBoardingLinkFlags(
+  boardedLoans: readonly BoardedLoanLinkRow[],
+): readonly DataQualityFlagCandidate[] {
+  const byDeal = new Map<string, string[]>();
+  for (const loan of boardedLoans) {
+    if (!loan.active || !loan.originatedLoanDealId) continue;
+    const ids = byDeal.get(loan.originatedLoanDealId) ?? [];
+    ids.push(loan.portfolioBoardedLoanId);
+    byDeal.set(loan.originatedLoanDealId, ids);
+  }
+  return [...byDeal.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([dealId, ids]) => ({
+      category: 'duplicate-boarding-link' as const,
+      flagName: 'Multiple active boarded loans reference one originated deal',
+      flagDescription:
+        `${ids.length} active boarded-loan records reference deal ${dealId}: ${ids.join(', ')}. ` +
+        'Do not create another boarding record; review and deactivate only through an approved disposition.',
+      sourceTable: 'cr664_portfolioboardedloans',
+      sourceRecordId: ids[0]!,
+    }));
+}
+
+const BOARDED_COMPLETENESS_FIELDS: ReadonlyArray<{
+  key: keyof BoardedLoanLinkRow;
+  label: string;
+}> = [
+  { key: 'originatedLoanDealId', label: 'originated deal' },
+  { key: 'assignedServicingOwnerId', label: 'servicing owner' },
+  { key: 'loanNumber', label: 'loan number' },
+  { key: 'borrowerLegalName', label: 'borrower legal name' },
+  { key: 'loanStatus', label: 'loan status' },
+  { key: 'currentOutstandingPrincipal', label: 'outstanding principal' },
+  { key: 'currentRiskRating', label: 'risk rating' },
+  { key: 'maturityDate', label: 'maturity date' },
+  { key: 'originalCommitmentAmount', label: 'original commitment' },
+  { key: 'bookingDate', label: 'booking date' },
+];
+
+function missingBoardedValue(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && value.trim().length === 0);
+}
+
+export function detectIncompleteBoardedLoanFlags(
+  boardedLoans: readonly BoardedLoanLinkRow[],
+): readonly DataQualityFlagCandidate[] {
+  return boardedLoans
+    .filter((loan) => loan.active)
+    .map((loan) => ({
+      loan,
+      missing: BOARDED_COMPLETENESS_FIELDS
+        .filter((field) => missingBoardedValue(loan[field.key]))
+        .map((field) => field.label),
+    }))
+    .filter(({ missing }) => missing.length > 0)
+    .map(({ loan, missing }) => ({
+      category: 'incomplete-boarded-loan' as const,
+      flagName: 'Active boarded loan is incomplete',
+      flagDescription:
+        `Boarded-loan record ${loan.portfolioBoardedLoanId} is missing: ${missing.join(', ')}. ` +
+        'Repair only from an authoritative source; do not synthesize Unknown or Unmapped values.',
+      sourceTable: 'cr664_portfolioboardedloans',
+      sourceRecordId: loan.portfolioBoardedLoanId,
+    }));
 }
 
 /**
@@ -342,12 +447,25 @@ export interface DataQualityScanInputs {
 export function buildDataQualityFlagCandidates(
   input: DataQualityScanInputs,
 ): readonly DataQualityFlagCandidate[] {
+  const operationalDeals = input.deals.filter(
+    (deal) =>
+      !isTestOrSmokeDeal({
+        name: deal.dealName,
+        isTestRecord: deal.isTestRecord,
+      }),
+  );
   return [
     ...detectDuplicateOrganizationFlags(input.organizations),
-    ...detectDuplicateDealFlags(input.deals),
-    ...detectZeroAmountDealFlags(input.deals),
+    ...detectControlledClassificationConflictFlags(input.deals),
+    ...detectDuplicateDealFlags(operationalDeals),
+    ...detectZeroAmountDealFlags(operationalDeals),
     ...detectDuplicateEntitlementFlags(input.entitlements),
-    ...detectInconsistentBoardingLinkageFlags(input.deals, input.boardedLoans),
+    ...detectInconsistentBoardingLinkageFlags(
+      operationalDeals,
+      input.boardedLoans,
+    ),
+    ...detectDuplicateBoardingLinkFlags(input.boardedLoans),
+    ...detectIncompleteBoardedLoanFlags(input.boardedLoans),
   ];
 }
 

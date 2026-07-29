@@ -7,6 +7,7 @@ import {
   parseAdminEntitlementIdentity,
   detectDuplicateEntitlementFlags,
   detectInconsistentBoardingLinkageFlags,
+  detectControlledClassificationConflictFlags,
   buildDataQualityFlagCandidates,
   excludeAlreadyFlagged,
   type DealScanRow,
@@ -61,6 +62,40 @@ describe('Workstream O — findDuplicateDealClusters', () => {
   it('never clusters a lone deal', () => {
     const clusters = findDuplicateDealClusters([{ dealId: 'solo', dealName: 'Solo Deal' }]);
     expect(clusters).toHaveLength(0);
+  });
+});
+
+describe('Production GO — controlled-record classification conflicts', () => {
+  it('flags explicit false plus a governed controlled-record name', () => {
+    const flags = detectControlledClassificationConflictFlags([
+      {
+        dealId: 'd-test',
+        dealName: 'SYSTEM TEST - Working Capital',
+        isTestRecord: false,
+      },
+      {
+        dealId: 'd-real',
+        dealName: 'Acme Working Capital',
+        isTestRecord: false,
+      },
+    ]);
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      category: 'controlled-classification-conflict',
+      sourceRecordId: 'd-test',
+    });
+  });
+
+  it('does not report an already governed controlled record as a conflict', () => {
+    expect(
+      detectControlledClassificationConflictFlags([
+        {
+          dealId: 'd-test',
+          dealName: 'SYSTEM TEST - Working Capital',
+          isTestRecord: true,
+        },
+      ]),
+    ).toHaveLength(0);
   });
 });
 
@@ -207,6 +242,31 @@ describe('Workstream O — buildDataQualityFlagCandidates composes all five dete
     expect(categories.has('zero-amount-deal')).toBe(true);
     expect(categories.has('duplicate-entitlement')).toBe(true);
     expect(categories.has('inconsistent-boarding-linkage')).toBe(true);
+  });
+
+  it('quarantines classification conflicts from operational detectors', () => {
+    const candidates = buildDataQualityFlagCandidates({
+      organizations: [],
+      deals: [
+        {
+          dealId: 'd-test',
+          dealName: 'SYSTEM TEST - duplicate',
+          amount: 0,
+          isTestRecord: false,
+        },
+        {
+          dealId: 'd-test-2',
+          dealName: 'SYSTEM TEST - duplicate',
+          amount: 0,
+          isTestRecord: true,
+        },
+      ],
+      entitlements: [],
+      boardedLoans: [],
+    });
+    expect(candidates.map((candidate) => candidate.category)).toEqual([
+      'controlled-classification-conflict',
+    ]);
   });
 });
 

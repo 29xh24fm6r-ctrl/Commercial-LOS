@@ -133,7 +133,7 @@ export function dealMetricDeckTargets(input: DealMetricDeckDrillInput): Record<s
       subtitle: 'Deal metric',
       surface: SURFACE,
       entityKind: 'metric',
-      summary: `${input.docOutstandingCount} outstanding; ${input.docReceivedCount} received, ${input.docReviewedCount} reviewed.`,
+      summary: `${input.docOutstandingCount} awaiting receipt; ${input.docReceivedCount} awaiting review; ${input.docReviewedCount} reviewed.`,
       sourceCounts: [
         { label: 'Outstanding', count: input.docOutstandingCount },
         { label: 'Received', count: input.docReceivedCount },

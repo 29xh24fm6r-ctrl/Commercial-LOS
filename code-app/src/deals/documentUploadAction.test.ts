@@ -24,7 +24,11 @@ function makeDeps(overrides: Partial<DocumentUploadDeps> = {}): DocumentUploadDe
   return {
     uploadFile: vi.fn().mockResolvedValue({ ok: true }),
     updateMetadata: vi.fn().mockResolvedValue({ ok: true }),
-    readback: vi.fn().mockResolvedValue({ ok: true, originalFileName: 'tax-returns.pdf' }),
+    readbackBytes: vi.fn().mockResolvedValue({
+      ok: true,
+      content: new Uint8Array([1, 2, 3]),
+    }),
+    readbackMetadata: vi.fn().mockResolvedValue({ ok: true, originalFileName: 'tax-returns.pdf' }),
     resolveActorChangedBy: vi.fn().mockResolvedValue(resolvedActor),
     emitAudit: vi.fn().mockResolvedValue({ ok: true }),
     emitTimeline: vi.fn().mockResolvedValue({ ok: true }),
@@ -79,8 +83,10 @@ describe('uploadDocumentFile', () => {
     });
 
     it('accepts a file exactly at the size limit', async () => {
-      const deps = makeDeps();
       const atLimit = new Uint8Array(MAX_UPLOAD_BYTES);
+      const deps = makeDeps({
+        readbackBytes: vi.fn().mockResolvedValue({ ok: true, content: atLimit }),
+      });
       const outcome = await uploadDocumentFile(baseInput({ content: atLimit }), deps);
       expect(outcome.kind).toBe('success');
     });
@@ -91,6 +97,7 @@ describe('uploadDocumentFile', () => {
     const outcome = await uploadDocumentFile(baseInput(), deps);
     expect(outcome).toEqual({ kind: 'success' });
     expect(deps.uploadFile).toHaveBeenCalledWith({ documentId: 'doc-1', fileName: 'tax-returns.pdf', content: expect.any(Uint8Array) });
+    expect(deps.readbackBytes).toHaveBeenCalledWith('doc-1');
     expect(deps.updateMetadata).toHaveBeenCalledWith(
       expect.objectContaining({
         documentId: 'doc-1',
@@ -100,7 +107,7 @@ describe('uploadDocumentFile', () => {
         uploadedByBind: '/cr664_users(u-1)',
       }),
     );
-    expect(deps.readback).toHaveBeenCalledWith('doc-1');
+    expect(deps.readbackMetadata).toHaveBeenCalledWith('doc-1');
     expect(deps.emitAudit).toHaveBeenCalled();
     expect(deps.emitTimeline).toHaveBeenCalled();
   });
@@ -123,21 +130,34 @@ describe('uploadDocumentFile', () => {
     const deps = makeDeps({ updateMetadata: vi.fn().mockResolvedValue({ ok: false, error: 'update rejected' }) });
     const outcome = await uploadDocumentFile(baseInput(), deps);
     expect(outcome).toEqual({ kind: 'upload-failed', error: 'update rejected' });
-    expect(deps.readback).not.toHaveBeenCalled();
+    expect(deps.readbackMetadata).not.toHaveBeenCalled();
   });
 
-  it('reports readback-mismatch when the readback filename does not match what was uploaded', async () => {
-    const deps = makeDeps({ readback: vi.fn().mockResolvedValue({ ok: true, originalFileName: 'wrong-name.pdf' }) });
+  it('reports readback-mismatch before metadata when downloaded bytes differ', async () => {
+    const deps = makeDeps({
+      readbackBytes: vi.fn().mockResolvedValue({
+        ok: true,
+        content: new Uint8Array([9, 9, 9]),
+      }),
+    });
+    const outcome = await uploadDocumentFile(baseInput(), deps);
+    expect(outcome.kind).toBe('readback-mismatch');
+    expect(deps.updateMetadata).not.toHaveBeenCalled();
+  });
+
+  it('reports readback-mismatch when the metadata filename does not match what was uploaded', async () => {
+    const deps = makeDeps({ readbackMetadata: vi.fn().mockResolvedValue({ ok: true, originalFileName: 'wrong-name.pdf' }) });
     const outcome = await uploadDocumentFile(baseInput(), deps);
     expect(outcome.kind).toBe('readback-mismatch');
     expect(deps.emitAudit).not.toHaveBeenCalled();
   });
 
-  it('reports readback-mismatch when the readback itself is unavailable', async () => {
-    const deps = makeDeps({ readback: vi.fn().mockResolvedValue({ ok: false }) });
+  it('reports readback-mismatch when byte readback is unavailable', async () => {
+    const deps = makeDeps({ readbackBytes: vi.fn().mockResolvedValue({ ok: false }) });
     const outcome = await uploadDocumentFile(baseInput(), deps);
     expect(outcome.kind).toBe('readback-mismatch');
     if (outcome.kind === 'readback-mismatch') expect(outcome.detail).toMatch(/unavailable/i);
+    expect(deps.updateMetadata).not.toHaveBeenCalled();
   });
 
   it('reports governance-partial when the audit write fails after a verified upload', async () => {

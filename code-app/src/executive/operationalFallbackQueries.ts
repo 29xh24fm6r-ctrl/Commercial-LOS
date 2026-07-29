@@ -1,5 +1,5 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
-import { isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
+import { isTestOrSmokeDeal } from '../shared/deals/testDealClassification';
 import { ACTIVE_DEAL_ODATA_PREDICATE } from '../shared/deals/dealVisibilityScopes';
 import { parseCalendarDate } from '../shared/formatters';
 
@@ -76,7 +76,11 @@ export async function loadPipelineByStageFallback(): Promise<StageAggregate[]> {
     // Remediation 2026-07-22 (Workstream A/N) — org-wide scope is intentional (SPEC W2), but test
     // deals must still be excluded, matching the Banker/Manager/Team pipelines, or Executive's
     // aggregate count/total disagrees with theirs by exactly the population of test deals.
-    if (isTestOrSmokeDealName(d.cr664_dealname)) continue;
+    const raw = d as unknown as Record<string, unknown>;
+    if (isTestOrSmokeDeal({
+      name: d.cr664_dealname,
+      isTestRecord: typeof raw.cr664_istestrecord === 'boolean' ? raw.cr664_istestrecord : undefined,
+    })) continue;
     const key = d.cr664_stagereferencename ?? UNKNOWN_STAGE;
     const existing = map.get(key);
     if (existing) {
@@ -112,7 +116,11 @@ export async function loadClosingForecastFallback(
   const buckets = new Map<string, MonthBucketAggregate>();
 
   for (const d of result.data ?? []) {
-    if (isTestOrSmokeDealName(d.cr664_dealname)) continue;
+    const raw = d as unknown as Record<string, unknown>;
+    if (isTestOrSmokeDeal({
+      name: d.cr664_dealname,
+      isTestRecord: typeof raw.cr664_istestrecord === 'boolean' ? raw.cr664_istestrecord : undefined,
+    })) continue;
     const amount = d.cr664_amount ?? 0;
     let key: string;
     let label: string;

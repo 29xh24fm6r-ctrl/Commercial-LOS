@@ -32,14 +32,9 @@ import { palette, radius, spacing, typography } from '../shared/theme';
  *
  * No new Dataverse query. No governed write. No email-lane import.
  *
- * N-20 remediation (Production Remediation Factory Arc Phase 2) — this view is a
- * findable work LIST a banker must act on (same category as Tasks & Actions /
- * Loan Workflow), not an aggregate KPI tile, so it now requests classified
- * test/smoke deals too (includeTestDeals: true). Before this fix, a controlled
- * test deal's own unreviewed documents were silently excluded from this page's
- * "N pending review" total while the SAME deal's per-deal Documents card (which
- * is not scoped by this exclusion) showed them — "page says 0 pending review"
- * despite 5 unreviewed records existing on that exact deal.
+ * The default view uses the same governed operational parent-deal population as
+ * every banker count and work queue. Controlled records remain available only
+ * through explicit authorized investigation, never mixed into production work.
  */
 
 type State =
@@ -55,7 +50,7 @@ export function BankerDueDiligenceView() {
   useEffect(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadBankerWorkQueueData(bankerId, { includeTestDeals: true })
+    loadBankerWorkQueueData(bankerId)
       .then((data) => {
         if (!cancelled) setState({ kind: 'ready', data });
       })

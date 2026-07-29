@@ -20,7 +20,6 @@
  */
 
 import { ACTIVE_DEAL_ODATA_PREDICATE } from '../../shared/deals/dealVisibilityScopes';
-import { isTestOrSmokeDealName } from '../../shared/deals/testDealClassification';
 import { listAdminEntitlementRows } from '../adminAccessGrantLookup';
 import type { ExistingOrganizationSignal } from '../../crm/write/crmDuplicateDetection';
 import type {
@@ -51,15 +50,20 @@ async function loadScanDeals(): Promise<{
     if (!result.success) {
       return { rows: [], error: result.error?.message ?? 'Failed to load deals' };
     }
-    const rows: DealScanRow[] = (result.data ?? [])
-      .filter((d) => !isTestOrSmokeDealName(d.cr664_dealname))
-      .map((d) => ({
+    const rows: DealScanRow[] = (result.data ?? []).map((d) => {
+      const raw = d as unknown as Record<string, unknown>;
+      return {
         dealId: d.cr664_loandealid,
         dealName: d.cr664_dealname,
         clientName: d.cr664_clientname,
         amount: d.cr664_amount,
         stage: d.cr664_stagereferencename,
-      }));
+        isTestRecord:
+          typeof raw['cr664_istestrecord'] === 'boolean'
+            ? (raw['cr664_istestrecord'] as boolean)
+            : undefined,
+      };
+    });
     return { rows };
   } catch (err: unknown) {
     return { rows: [], error: err instanceof Error ? err.message : String(err) };
@@ -110,6 +114,14 @@ async function loadScanBoardedLoanLinks(): Promise<{
       originatedLoanDealId: b._cr664_originatedloandeal_value,
       assignedServicingOwnerId: b._cr664_assignedservicingowner_value,
       active: b.statecode === 0,
+      loanNumber: b.cr664_loannumber,
+      borrowerLegalName: b.cr664_borrowerlegalname,
+      loanStatus: b.cr664_loanstatus,
+      currentOutstandingPrincipal: b.cr664_currentoutstandingprincipal,
+      currentRiskRating: b.cr664_currentriskrating,
+      maturityDate: b.cr664_maturitydate,
+      originalCommitmentAmount: b.cr664_originalcommitmentamount,
+      bookingDate: b.cr664_bookingdate,
     }));
     return { rows };
   } catch (err: unknown) {
