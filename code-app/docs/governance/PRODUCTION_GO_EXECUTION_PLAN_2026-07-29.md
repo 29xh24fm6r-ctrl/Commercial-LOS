@@ -395,3 +395,21 @@ facts require an authoritative servicing/core source, and the two inconsistent
 historical final memos are controlled-test artifacts that must not be silently
 rewritten. Deployment and all live certification gates remain pending, so the
 verdict remains **NO-GO**.
+
+## Deployment checkpoint — 2026-07-29
+
+Matthew explicitly approved release
+`8ea09ed085927b80ad0257c18eb2d2037abfcdaa` for environment
+`5f2d77a5-de50-edeb-9d74-5b2400a2320d`. After 188/188 changed-surface tests,
+TypeScript, and the production build passed, `pac code push` completed
+successfully for solution `CommercialLendingLOS`.
+
+The immediate read-only post-deployment schema check passed all six required
+Dataverse File columns, and the production inventory retained the expected
+seven governed findings without mutation. See
+`PRODUCTION_DEPLOYMENT_EVIDENCE_2026-07-29.md`.
+
+The deployment gate is closed. Managed-Edge acceptance, live byte-level file
+proof, final memo readback, authoritative boarded-loan completion, tenant
+retention confirmation, and distinct-user segregation-of-duties certification
+remain open. The verdict remains **NO-GO**.
