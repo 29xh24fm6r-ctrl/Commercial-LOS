@@ -7,15 +7,14 @@ import { deriveCrmHome, explicitPersonClassifications, relatedToCompany, related
 import { CRM_GROWTH_SCHEMA_DEPENDENCY, CRM_OPPORTUNITY_STAGES } from './crmGrowthModel';
 import { CrmEngagementCenter } from './CrmEngagementCenter';
 import { CrmCopilotSurface } from './CrmCopilotSurface';
-import type { CopilotWorkspaceContext } from '../../copilot/copilotAssistantAdapter';
-import { canOpenCrmRecord, deriveCrmRoleView } from './crmRoleViews';
+import { canOpenCrmRecord, deriveCrmRoleView, type CrmOperatingRole } from './crmRoleViews';
 
 interface Props {
   readonly section: string;
   readonly actorEmail: string;
   readonly actorSystemUserId?: string;
   readonly writeDisabledReason?: string;
-  readonly copilotRole: CopilotWorkspaceContext['workspaceRole'];
+  readonly copilotRole: CrmOperatingRole;
   readonly userName: string;
 }
 
@@ -70,13 +69,14 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
           companyOptions={companyOptions} personOptions={personOptions} onWritten={refresh} />
         <Link className="crmws__dealLink" to="/workspaces/banker" state={{ initialTab: 'active-deals' }}>Start governed loan deal</Link>
       </section>
+      <CrmCopilotSurface data={data} role="crm" userName={userName} />
       {section === 'home' && <Home data={data} role={copilotRole} />}
       {section === 'companies' && <RecordIndex title="Companies" domain="organizations" records={data.organizations.records} status={data.organizations.status} />}
       {section === 'people' && <RecordIndex title="People" domain="people" records={data.people.records} status={data.people.status} />}
       {section === 'relationships' && <RecordIndex title="Relationships" domain="relationships" records={data.relationships.records} status={data.relationships.status} />}
       {section === 'activities' && <Timeline title="Activity center" records={data.timelineEvents.records} status={data.timelineEvents.status} />}
       {section === 'tasks' && <TaskCenter data={data} />}
-      {section === 'insights' && <><Insights data={data} /><CrmCopilotSurface data={data} role={copilotRole} userName={userName} /></>}
+      {section === 'insights' && <Insights data={data} />}
       {section === 'reports' && <Reports data={data} />}
       {['opportunities','referrals'].includes(section) && <GrowthDependency section={section} />}
       {section === 'calendar' && <CrmEngagementCenter bankerEmail={actorEmail} />}
@@ -84,7 +84,7 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
   );
 }
 
-function Home({ data, role }: { data: CrmWorkspaceData; role: CopilotWorkspaceContext['workspaceRole'] }) {
+function Home({ data, role }: { data: CrmWorkspaceData; role: CrmOperatingRole }) {
   const home = useMemo(() => deriveCrmHome(data), [data]);
   const roleView = deriveCrmRoleView(data, role);
   if (roleView.aggregateOnly) return <><section className="crmws__metrics" aria-label="Executive aggregate CRM portfolio">
@@ -187,4 +187,4 @@ function DetailGrid({ record }: { record:CrmRecord }) { return <RecordSection ti
 function RecordSection({ title,children,missing }: { title:string; children?:React.ReactNode; missing?:string }) { return <section className="crmws__recordSection"><h3>{title}</h3>{children ?? <Empty copy={missing ?? 'No supported facts are available.'} />}</section>; }
 function RecordLinks({ records,domain }: { records:readonly CrmRecord[]; domain?:string }) { if (!records.length) return null; return <ul className="crmws__recordLinks">{records.map((r) => <li key={r.id}>{domain ? <Link to={`../../${domain}/${r.id}`}>{r.title}</Link> : <strong>{r.title}</strong>}<span>{r.subtitle ?? r.badge ?? 'Classification unavailable'}</span></li>)}</ul>; }
 function Provenance({ record,auditCount }: { record:CrmRecord; auditCount:number }) { return <dl className="crmws__details"><div><dt>Source</dt><dd>Internal Dataverse CRM</dd></div><div><dt>Record ID</dt><dd>{record.id}</dd></div><div><dt>Audit events loaded</dt><dd>{auditCount}</dd></div><div><dt>Classification</dt><dd>User-entered or source-projected; not independently verified by this UI</dd></div></dl>; }
-function RoleOperatingPanel({data,role}:{data:CrmWorkspaceData;role:CopilotWorkspaceContext['workspaceRole']}){const view=deriveCrmRoleView(data,role);return <section className="crmws__panel"><PanelHead eyebrow={`${role.toUpperCase()} CRM VIEW`} title={view.scopeLabel}/><p>{view.coverageGapCount} deterministic relationship coverage gap(s); {view.activityCount ?? 'activity data unavailable'} recent activity event(s).</p><p>Unavailable until governed sources exist: {view.unavailable.join(', ')}.</p></section>}
+function RoleOperatingPanel({data,role}:{data:CrmWorkspaceData;role:CrmOperatingRole}){const view=deriveCrmRoleView(data,role);return <section className="crmws__panel"><PanelHead eyebrow={`${role.toUpperCase()} CRM VIEW`} title={view.scopeLabel}/><p>{view.coverageGapCount} deterministic relationship coverage gap(s); {view.activityCount ?? 'activity data unavailable'} recent activity event(s).</p><p>Unavailable until governed sources exist: {view.unavailable.join(', ')}.</p></section>}

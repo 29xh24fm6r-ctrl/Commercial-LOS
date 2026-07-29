@@ -1,6 +1,6 @@
 {
   "name": "Old Glory Bank Commercial LOS Copilot",
-  "version": "2026-07-28",
+  "version": "2026-07-29",
   "purpose": "Microsoft Copilot Studio agent contract for governed, read-only and proposal-only assistance across the Commercial Lending LOS.",
   "powerPlatform": {
     "tenantId": "e5d2be43-2e2c-4968-b5f3-c73dd825ee80",
@@ -20,6 +20,30 @@
         "explain blockers",
         "suggest next best action",
         "draft borrower questions as proposals only"
+      ]
+    },
+    {
+      "workspace": "banker",
+      "surface": "workspace",
+      "source": "src/banker/BankerShell.tsx",
+      "copilotMount": "src/copilot/BankerCopilotSurface.tsx",
+      "primaryUseCases": [
+        "prioritize the banker's day",
+        "summarize pipeline and workload",
+        "explain overdue tasks and document gaps",
+        "prepare a governed handoff"
+      ]
+    },
+    {
+      "workspace": "crm",
+      "surface": "workspace",
+      "source": "src/crm/firstClass/CrmExperience.tsx",
+      "copilotMount": "src/crm/firstClass/CrmCopilotSurface.tsx",
+      "primaryUseCases": [
+        "prepare relationship reviews",
+        "summarize authorized CRM activity",
+        "identify contact and activity coverage gaps",
+        "draft follow-up ideas as proposals only"
       ]
     },
     {
@@ -68,6 +92,18 @@
         "explain portfolio risk movements",
         "prepare board-ready narrative",
         "surface governance blockers"
+      ]
+    },
+    {
+      "workspace": "admin",
+      "surface": "workspace",
+      "source": "src/workspaces/AdminWorkspace.tsx",
+      "copilotMount": "src/copilot/AdminCopilotSurface.tsx",
+      "primaryUseCases": [
+        "summarize operational diagnostics",
+        "explain configuration and activation blockers",
+        "prepare an operator checklist",
+        "identify governance controls requiring human action"
       ]
     }
   ],

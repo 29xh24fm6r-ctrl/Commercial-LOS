@@ -3,7 +3,7 @@
 This repo now treats Microsoft Copilot as a first-class, cross-system capability, not a loose chat widget. The integration is intentionally governed:
 
 - the user experience is mounted across the LOS deal and command-center surfaces;
-- live AI runs through Microsoft Copilot Studio / Dataverse server-side boundaries;
+- live AI is designed to run through Microsoft Copilot Studio / Dataverse server-side boundaries after tenant activation;
 - the browser never receives model secrets or direct model endpoints;
 - Copilot can summarize and propose, but it cannot autonomously write, approve, email, post to Teams, or mutate Dataverse.
 
@@ -12,16 +12,19 @@ This repo now treats Microsoft Copilot as a first-class, cross-system capability
 | Area | Status | Evidence |
 | --- | --- | --- |
 | Banker deal workspace | Wired | `src/deals/BankerDealWorkspace.tsx` mounts `DealCopilotAssist` |
+| Banker command center | Wired, live-gated | `src/banker/BankerShell.tsx` mounts `BankerCopilotSurface` |
+| CRM workspace | Wired, live-gated across all sections | `src/crm/firstClass/CrmExperience.tsx` mounts `CrmCopilotSurface` |
 | Manager command center | Wired | `src/manager/ManagerBloombergControlPanel.tsx` mounts `CopilotAssistPanel` |
 | Portfolio command center | Wired | `src/portfolio/PortfolioCommandCenter.tsx` mounts `CopilotAssistPanel` |
 | Team ops queue | Wired | `src/team/TeamOpsQueue.tsx` mounts `CopilotAssistPanel` |
 | Executive command center | Wired | `src/executive/ExecutiveCommandCenter.tsx` mounts `CopilotAssistPanel` |
+| Admin operations | Wired, live-gated | `src/workspaces/AdminWorkspace.tsx` mounts `AdminCopilotSurface` |
 | Dataverse Custom API contract | Defined | `cr664_RunLosCopilotAssist` in `src/copilot/copilotCustomApiContract.ts` |
 | Audit event ledger | Defined | `cr664_copilotauditevent` in `src/copilot/copilotAuditLogger.ts` |
 | Microsoft Copilot Studio contract | Defined | `microsoft365/copilot-studio/agent-contract.json` |
 | Activation verifier | Defined | `scripts/activation/verify-copilot-integration.ps1` |
 
-The runtime default remains `not_configured` until tenant-side Copilot Studio and Dataverse Custom API activation are completed. That is deliberate: no fake Copilot, no client-side secret, no unapproved model call.
+The runtime default remains `not_configured` until tenant-side Copilot Studio and Dataverse Custom API activation are completed. The current environment does not yet have a `shared_microsoftcopilotstudio` connection reference, and the repository transport remains fail-closed. The static verifier proves contracts and mounts; it does not prove an end-to-end agent call.
 
 ## Microsoft-supported integration path
 

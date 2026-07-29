@@ -32,29 +32,47 @@ describe('Microsoft Copilot full integration package', () => {
         copilotMount: string;
       }>;
     };
-    const byWorkspace = new Map(
-      contract.supportedSurfaces.map((surface) => [surface.workspace, surface]),
+    const workspaceNames = new Set(
+      contract.supportedSurfaces.map((surface) => surface.workspace),
     );
 
-    expect([...byWorkspace.keys()].sort()).toEqual([
+    expect([...workspaceNames].sort()).toEqual([
+      'admin',
       'banker',
+      'crm',
       'executive',
       'manager',
       'portfolio',
       'team',
     ]);
 
-    expect(byWorkspace.get('banker')).toMatchObject({
+    expect(contract.supportedSurfaces).toContainEqual(expect.objectContaining({
+      workspace: 'banker',
       surface: 'deal',
       source: 'src/deals/BankerDealWorkspace.tsx',
       copilotMount: 'src/copilot/DealCopilotAssist.tsx',
-    });
+    }));
+    expect(contract.supportedSurfaces).toContainEqual(expect.objectContaining({
+      workspace: 'banker',
+      surface: 'workspace',
+      source: 'src/banker/BankerShell.tsx',
+      copilotMount: 'src/copilot/BankerCopilotSurface.tsx',
+    }));
     for (const workspace of ['manager', 'portfolio', 'team', 'executive']) {
-      expect(byWorkspace.get(workspace)).toMatchObject({
+      expect(contract.supportedSurfaces).toContainEqual(expect.objectContaining({
+        workspace,
         surface: 'workspace',
         copilotMount: 'src/copilot/CopilotAssistPanel.tsx',
-      });
+      }));
     }
+    expect(contract.supportedSurfaces).toContainEqual(expect.objectContaining({
+      workspace: 'crm',
+      copilotMount: 'src/crm/firstClass/CrmCopilotSurface.tsx',
+    }));
+    expect(contract.supportedSurfaces).toContainEqual(expect.objectContaining({
+      workspace: 'admin',
+      copilotMount: 'src/copilot/AdminCopilotSurface.tsx',
+    }));
   });
 
   it('pins the Dataverse Custom API, audit table, and proposal-only policy', () => {
