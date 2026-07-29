@@ -104,6 +104,7 @@ function Company360({ data, id }: { data: CrmWorkspaceData; id: string }) {
   const last = rel.activities[0];
   return <Record360 kind="Company" record={rel.company}
     summary={[['Last interaction', last?.occurredAt ? new Date(last.occurredAt).toLocaleDateString() : undefined], ['Active relationships', String(rel.relationships.length)], ['Linked people', String(rel.people.length)], ['Loan exposure', undefined]]}>
+    {rel.duplicateWarning && <div className="crmws__duplicate" role="alert">Possible duplicate cluster by {rel.duplicateWarning.matchType}: {rel.duplicateWarning.organizationIds.length} records. Review only; no automatic merge occurs.</div>}
     <DetailGrid record={rel.company} />
     <RecordSection title="People and roles" missing="No linked people or governed roles are present."><RecordLinks records={[...rel.people, ...rel.roles]} domain="people" /></RecordSection>
     <RecordSection title="Relationship graph" missing="No parent, affiliate, ownership, guarantor, or adviser edges are recorded."><RecordLinks records={rel.relationships} /></RecordSection>

@@ -197,6 +197,10 @@ export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
       row('Website', s(o.cr664_website)),
       row('Tax ID on file', yn(o.cr664_taxidpresent)),
       row('Status', s(o.cr664_status)),
+      row('Relationship start', d(o.cr664_relationshipstartdate)),
+      row('Relationship end', d(o.cr664_relationshipenddate)),
+      row('Source system', s(o.cr664_sourcesystem)),
+      row('Last updated', d(o.cr664_updatedat)),
     ]),
   };
 }
@@ -215,6 +219,8 @@ export function mapPerson(p: Cr664_crmpersons): CrmRecord {
       row('Title', s(p.cr664_title)),
       row('Role summary', s(p.cr664_rolesummary)),
       row('Status', s(p.cr664_status)),
+      row('Source system', s(p.cr664_sourcesystem)),
+      row('Last updated', d(p.cr664_updatedat)),
     ]),
   };
 }
@@ -235,6 +241,10 @@ export function mapRelationship(r: Cr664_crmrelationships): CrmRecord {
       row('To', s(r.cr664_targetentitytype)),
       row('Start', d(r.cr664_startdate)),
       row('End', d(r.cr664_enddate)),
+      row('Source organization', s(r.cr664_sourceorganizationname)),
+      row('Source person', s(r.cr664_sourcepersonname)),
+      row('Target organization', s(r.cr664_targetorganizationname)),
+      row('Target person', s(r.cr664_targetpersonname)),
     ]),
   };
 }
@@ -245,6 +255,8 @@ export function mapRoleAssignment(r: Cr664_crmroleassignments): CrmRecord {
     title: s(r.cr664_roletype) ?? s(r.cr664_name) ?? 'Role assignment',
     subtitle: s(r.cr664_authoritylevel),
     badge: r.cr664_active === false ? 'Inactive' : r.cr664_active === true ? 'Active' : undefined,
+    organizationId: s(r._cr664_organization_value),
+    personId: s(r._cr664_person_value),
     detail: pick([
       row('Role type', s(r.cr664_roletype)),
       row('Authority level', s(r.cr664_authoritylevel)),
@@ -262,6 +274,8 @@ export function mapContactPoint(c: Cr664_crmcontactpoints): CrmRecord {
     title: s(c.cr664_value) ?? s(c.cr664_name) ?? 'Contact point',
     subtitle: s(c.cr664_contacttype) ?? s(c.cr664_label),
     badge: c.cr664_preferred === true ? 'Preferred' : c.cr664_donotcontact === true ? 'Do not contact' : undefined,
+    organizationId: s(c._cr664_organization_value),
+    personId: s(c._cr664_person_value),
     detail: pick([
       row('Type', s(c.cr664_contacttype)),
       row('Value', s(c.cr664_value)),
@@ -279,6 +293,8 @@ export function mapCommunicationPreference(p: Cr664_crmcommunicationpreferences)
     title: s(p.cr664_preferredmethod) ?? s(p.cr664_name) ?? 'Communication preference',
     subtitle: s(p.cr664_consentstatus),
     badge: s(p.cr664_consentstatus),
+    organizationId: s(p._cr664_organization_value),
+    personId: s(p._cr664_person_value),
     detail: pick([
       row('Preferred method', s(p.cr664_preferredmethod)),
       row('Consent status', s(p.cr664_consentstatus)),
@@ -294,6 +310,8 @@ export function mapContactAuthorization(a: Cr664_crmcontactauthorizations): CrmR
     id: a.cr664_crmcontactauthorizationid,
     title: s(a.cr664_name) ?? 'Contact authorization',
     subtitle: s(a.cr664_ownertype),
+    organizationId: s(a._cr664_organization_value),
+    personId: s(a._cr664_person_value),
     detail: pick([
       row('Financial requests', yn(a.cr664_authorizedforfinancialrequests)),
       row('Upload links', yn(a.cr664_authorizedforuploadlinks)),
@@ -349,6 +367,8 @@ export function mapAuditEntry(a: Cr664_crmauditentries): CrmRecord {
     subtitle: s(a.cr664_fieldkey) ?? s(a.cr664_entitytype),
     badge: a.cr664_redacted === true ? 'Redacted' : s(a.cr664_entitytype),
     occurredAt: s(a.cr664_timestamp),
+    organizationId: s(a._cr664_organization_value),
+    personId: s(a._cr664_person_value),
     detail: pick([
       row('Action', s(a.cr664_action)),
       row('Actor', s(a.cr664_actor)),

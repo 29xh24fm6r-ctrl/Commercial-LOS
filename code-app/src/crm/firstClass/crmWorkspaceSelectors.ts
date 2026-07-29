@@ -1,4 +1,5 @@
 import type { CrmDomainKey, CrmRecord, CrmWorkspaceData } from '../workspace/crmWorkspaceData';
+import { findDuplicateOrganizationClusters } from '../write/crmDuplicateDetection';
 
 export interface CrmSearchResult {
   readonly domain: CrmDomainKey;
@@ -95,13 +96,21 @@ export function deriveCrmHome(data: CrmWorkspaceData, now = new Date()): CrmHome
 
 export function relatedToCompany(data: CrmWorkspaceData, companyId: string) {
   const ready = (key: CrmDomainKey) => data[key].status === 'ready' ? data[key].records : [];
+  const companies = ready('organizations');
+  const duplicateClusters = findDuplicateOrganizationClusters(companies.map((company) => ({
+    organizationId: company.id,
+    name: company.title,
+    legalName: company.orgLegalName,
+    website: company.orgWebsite,
+  })));
   return {
-    company: ready('organizations').find((r) => r.id === companyId),
+    company: companies.find((r) => r.id === companyId),
     people: ready('people').filter((r) => r.organizationId === companyId),
     relationships: ready('relationships').filter((r) => r.organizationId === companyId),
     activities: ready('timelineEvents').filter((r) => r.organizationId === companyId),
     roles: ready('roleAssignments').filter((r) => r.organizationId === companyId),
     audits: ready('auditEntries').filter((r) => r.organizationId === companyId),
+    duplicateWarning: duplicateClusters.find((cluster) => cluster.organizationIds.includes(companyId)),
   };
 }
 
