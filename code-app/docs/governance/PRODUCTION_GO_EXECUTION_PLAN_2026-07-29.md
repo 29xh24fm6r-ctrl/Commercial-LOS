@@ -378,3 +378,20 @@ The current verdict remains **NO-GO**. The next step requires Matthew's
 record-level production-data mutation/disposition approval. Deployment, live
 byte upload certification, managed-Edge acceptance, and distinct-user
 segregation-of-duties certification remain later gates.
+
+## Production data gate checkpoint — 2026-07-29
+
+Matthew approved the record-level mutation manifest. Four ETag-guarded PATCH
+actions were applied and read back successfully; no record was deleted or
+merged. The post-apply inventory contains 23 active deals, 13 governed
+operational deals, 16 open tasks (all inherited from controlled parents), four
+active CRM organizations (three controlled), nine active entitlements, one
+incomplete boarded loan, 24 active checklist rows, and eight active credit
+memos.
+
+The authoritative evidence is
+`PRODUCTION_DATA_REMEDIATION_EVIDENCE_2026-07-29.md`. The remaining boarded-loan
+facts require an authoritative servicing/core source, and the two inconsistent
+historical final memos are controlled-test artifacts that must not be silently
+rewritten. Deployment and all live certification gates remain pending, so the
+verdict remains **NO-GO**.
