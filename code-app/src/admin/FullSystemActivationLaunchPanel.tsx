@@ -46,23 +46,22 @@ export function FullSystemActivationLaunchPanel() {
                 <h3 style={styles.domainTitle}>{domain.label}</h3>
                 <Badge variant={BADGE_BY_STATUS[domain.status]}>{STATUS_LABEL[domain.status]}</Badge>
               </div>
-              <div style={styles.classRow}>
-                <span style={styles.classTag} data-activation-classification={domain.classification}>
-                  {domain.classification}
-                </span>
-                <span style={styles.flagState}>
-                  {domain.flagNames[0]}: {domain.flagEnabled ? 'enabled' : 'gated'}
-                </span>
-              </div>
-
-              <div style={styles.block}>
-                <span style={styles.blockLabel}>Certification evidence</span>
+              <details>
+                <summary style={styles.technicalSummary}>Technical evidence</summary>
+                <div style={styles.classRow}>
+                  <span style={styles.classTag} data-activation-classification={domain.classification}>
+                    {domain.classification}
+                  </span>
+                  <span style={styles.flagState}>
+                    {domain.flagNames[0]}: {domain.flagEnabled ? 'enabled' : 'gated'}
+                  </span>
+                </div>
                 <ul style={styles.list}>
                   {domain.evidencePresent.map((e) => (
                     <li key={e}>{e}</li>
                   ))}
                 </ul>
-              </div>
+              </details>
 
               <div style={styles.block}>
                 <span style={styles.blockLabel}>Blockers</span>
@@ -132,6 +131,13 @@ const styles: Record<string, CSSProperties> = {
     gap: spacing.sm,
     alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  technicalSummary: {
+    cursor: 'pointer',
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    marginBottom: spacing.xs,
   },
   classTag: {
     fontSize: typography.size.xs,

@@ -27,10 +27,8 @@ describe('Phase 237 — Full System Activation Launch panel', () => {
     ]) {
       expect(within(region).getByText(label)).toBeInTheDocument();
     }
-    // Launch Phase 5: only New Deal create (pilot-certified) is Enabled; the five
-    // evidence-gated domains are Blocked until authentic evidence lands.
-    expect(within(region).getAllByText('Enabled').length).toBe(1);
-    expect(within(region).getAllByText('Blocked').length).toBe(5);
+    expect(within(region).getAllByText('Enabled').length).toBe(5);
+    expect(within(region).getAllByText('Blocked').length).toBe(1);
   });
 
   it('exposes no buttons, forms, inputs, or write controls (read-only)', () => {

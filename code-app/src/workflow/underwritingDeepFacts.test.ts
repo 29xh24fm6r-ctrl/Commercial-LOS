@@ -55,7 +55,9 @@ describe('ARC Phase 3 / N-14 remediation — risk-rating readiness policy', () =
     expect(evaluateRiskRatingReadiness(undefined, DEAL_ID).reason).toMatch(/no risk rating/i);
   });
   it('a draft rating never satisfies, even with a complete rationale/actor/timestamp', () => {
-    expect(evaluateRiskRatingReadiness(rating({ status: 'draft' }), DEAL_ID).met).toBe(false);
+    const result = evaluateRiskRatingReadiness(rating({ status: 'draft' }), DEAL_ID);
+    expect(result.met).toBe(false);
+    expect(result.reason).toContain('an assigned rating is required');
   });
   it('an empty value never satisfies', () => {
     expect(evaluateRiskRatingReadiness(rating({ ratingValue: '  ' }), DEAL_ID).met).toBe(false);

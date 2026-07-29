@@ -63,7 +63,10 @@ export function RelationshipContext() {
     if (!bankerId) return () => undefined;
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadBankerWorkQueueData(bankerId)
+    // Relationship discovery is a detail surface, not an operational KPI.
+    // Include explicitly labelled controlled-test siblings so this card uses
+    // the same visible relationship population as the CRM relationship card.
+    loadBankerWorkQueueData(bankerId, { includeTestDeals: true })
       .then((data) => {
         if (!cancelled) setState({ kind: 'ready', data });
       })

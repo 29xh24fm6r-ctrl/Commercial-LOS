@@ -139,6 +139,14 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state));
+  const [pendingTab, setPendingTab] = useState<ShellTab | null>(null);
+  const selectTab = useCallback((next: ShellTab) => {
+    setPendingTab(next);
+    window.setTimeout(() => {
+      setTab(next);
+      window.setTimeout(() => setPendingTab(null), 350);
+    }, 0);
+  }, []);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   // Bugfix — the post-create readback retry in `onDealCreated` below is a multi-await async
@@ -182,9 +190,9 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   // resolver, and audit; the header is only a navigation shortcut.
   const [newDealFocusNonce, setNewDealFocusNonce] = useState(0);
   const openNewDeal = useCallback(() => {
-    setTab('active-deals');
+    selectTab('active-deals');
     setNewDealFocusNonce((n) => n + 1);
-  }, []);
+  }, [selectTab]);
 
   useEffect(() => {
     if (newDealFocusNonce === 0) return;
@@ -316,12 +324,12 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
           // Update local state as well so isolated shell tests and any slow route
           // transition never leave a blank panel. In production the route change
           // immediately unmounts this shell.
-          setTab('crm-hub');
+          selectTab('crm-hub');
           navigate(WORKSPACE_ROUTES.crm);
           return;
         }
         const target = TAB_SPECS.find((t) => t.nav === navKey);
-        if (target) setTab(target.key);
+        if (target) selectTab(target.key);
       }}
       fullName={fullName}
       email={email}
@@ -343,7 +351,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         onNewDeal={openNewDeal}
         now={now}
       />
-      <BankerKpiGrid state={state} now={now} onSelectTab={setTab} />
+      <BankerKpiGrid state={state} now={now} onSelectTab={selectTab} />
       <main style={styles.main} role="main" aria-label="Banker workspace">
         <div style={styles.body}>
           <section style={styles.contentArea} aria-label="Banker workspace content">
@@ -353,12 +361,17 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
             <TabBar
               active={tab}
               onSelect={(next) => {
-                setTab(next);
+                selectTab(next);
                 if (next === 'crm-hub') navigate(WORKSPACE_ROUTES.crm);
               }}
               kpis={kpis}
               state={state}
             />
+            {pendingTab && (
+              <div role="status" aria-live="polite" style={styles.tabTransitionStatus}>
+                Opening {TAB_SPECS.find((item) => item.key === pendingTab)?.label ?? 'section'}…
+              </div>
+            )}
             <div style={styles.tabPanel} role="tabpanel" aria-labelledby={`tab-${tab}`}>
               <ErrorBoundary surface={TAB_SPECS.find((t) => t.key === tab)?.label ?? 'This section'} navKey={tab}>
                 <TabContent
@@ -371,7 +384,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   loading={state.kind === 'loading'}
                   healthError={state.kind === 'failed' ? state.message : undefined}
                   onWorkQueueDataChanged={reload}
-                  onSelectTab={setTab}
+                  onSelectTab={selectTab}
                   onDealCreated={onDealCreated}
                   dealsRefreshNonce={dealsRefreshNonce}
                   dealCreateConfirm={dealCreateConfirm}
@@ -856,6 +869,14 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: spacing.lg,
     display: 'flex',
     flexDirection: 'column',
+  },
+  tabTransitionStatus: {
+    marginTop: spacing.xs,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    borderRadius: radius.sm,
+    background: palette.infoBg,
+    color: palette.infoFg,
+    fontSize: typography.size.sm,
   },
   tabStack: {
     display: 'flex',

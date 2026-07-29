@@ -200,6 +200,20 @@ describe('Step 1 — client list truncation is surfaced honestly, never silently
 });
 
 describe('Step 1 — CRM Client is required before the deal can proceed', () => {
+  it('excludes controlled test clients from the operational New Deal picker', async () => {
+    loadClientsMock.mockResolvedValue([
+      ...CLIENTS,
+      { id: 'test-client-guid', name: 'TEST Client', sublabel: 'Controlled smoke record', active: true },
+      { id: 'qa-client-guid', name: '[QA] Borrower', sublabel: 'Controlled QA record', active: true },
+    ]);
+    setBanker();
+    renderCreate();
+
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    expect(screen.queryByRole('option', { name: /TEST Client/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /\[QA\] Borrower/i })).not.toBeInTheDocument();
+  });
+
   it('cannot continue past Step 1 without selecting a client (honest inline blocker)', async () => {
     setBanker();
     const { container } = renderCreate();

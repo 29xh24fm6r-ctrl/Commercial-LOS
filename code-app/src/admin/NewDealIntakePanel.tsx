@@ -165,10 +165,10 @@ export function NewDealIntakePanel() {
         </table>
       </details>
 
-      <div style={styles.section}>
-        <div style={styles.sectionTitle}>
-          New Deal create enablement checklist
-        </div>
+      <details style={styles.section}>
+        <summary style={styles.sectionTitle}>
+          Technical enablement checklist
+        </summary>
         <ol style={styles.checklist} data-admin-new-deal-checklist>
           {NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST.map((step) => (
             <li
@@ -186,7 +186,7 @@ export function NewDealIntakePanel() {
             </li>
           ))}
         </ol>
-      </div>
+      </details>
 
       <div style={styles.actions}>
         <Link

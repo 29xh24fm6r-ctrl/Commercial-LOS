@@ -13,7 +13,6 @@ import { loadDocumentRequirements } from './documentRequirementLiveReader';
 import { performDocumentRequirementAction, type DocumentRequirementActionOutcome } from './documentRequirementActions';
 import { buildLiveDocumentRequirementActionDeps } from './documentRequirementLiveDeps';
 import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
-import { buildDocumentChecklistUiEnableReadiness } from './documentChecklistUiEnableReadiness';
 import { mapDocumentWriteError } from './documentReviewErrorMapping';
 
 /**
@@ -156,7 +155,8 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
             IO-free 188I readiness model (default mode — reads no live data,
             triggers nothing, matches its own "enables NOTHING" contract). */}
         <p style={styles.checklistGenerationNotice} data-doc-checklist-generation-notice>
-          {buildDocumentChecklistUiEnableReadiness({}).blockers[0]}
+          Requirements are derived and synchronized automatically. This panel does not require a
+          separate manual Generate step.
         </p>
       </header>
       <ul style={styles.list}>

@@ -80,6 +80,25 @@ const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
 const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
 const TIMELINE_SUBTYPE_CREDIT_MEMO_FINALIZED = 'creditmemo:finalized';
 
+/**
+ * A draft's parent memo preview is persisted with explicit draft language.
+ * Finalization must update that preview atomically with the status so a Final
+ * row can never still tell the banker it is "not saved, not final".
+ */
+export function buildFinalizedMemoText(text: string | undefined): string | undefined {
+  if (!text) return text;
+  return text
+    .replace(/^# Credit Memo [—-] DRAFT PREVIEW/m, '# Credit Memo — FINAL')
+    .replace(
+      'Draft preview — not saved, not final, banker review required.',
+      'Finalized credit memo — retained as the approved version.',
+    )
+    .replace(
+      'End of draft preview. Not saved to Dataverse. Not exported. Not finalized.',
+      'End of finalized credit memo.',
+    );
+}
+
 async function emitAuditEvent(opts: {
   dealId: string;
   memoId: string;
@@ -217,7 +236,12 @@ export async function finalizeCreditMemoAction(
   const actor = await resolveActorChangedBy(input.actorEmail);
 
   try {
-    const result = await Cr664_creditmemo1sService.update(memoId, { cr664_status: MEMO_STATUS_FINAL });
+    const result = await Cr664_creditmemo1sService.update(memoId, {
+      cr664_status: MEMO_STATUS_FINAL,
+      ...(current.fullText
+        ? { cr664_memotext: buildFinalizedMemoText(current.fullText) }
+        : {}),
+    });
     if (!result.success) {
       const rawError = result.error?.message ?? 'Unknown memo finalize error';
       void emitAuditEvent({

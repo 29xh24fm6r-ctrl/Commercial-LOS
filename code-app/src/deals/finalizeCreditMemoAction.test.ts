@@ -17,7 +17,7 @@ import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmem
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
-import { finalizeCreditMemoAction } from './finalizeCreditMemoAction';
+import { buildFinalizedMemoText, finalizeCreditMemoAction } from './finalizeCreditMemoAction';
 import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const memoGetAll = vi.mocked(Cr664_creditmemo1sService.getAll);
@@ -124,9 +124,25 @@ describe('finalizeCreditMemoAction', () => {
     const outcome = await finalizeCreditMemoAction(baseInput(), okResolver);
 
     expect(outcome).toEqual({ kind: 'success', memoId: 'memo-1' });
-    expect(memoUpdate).toHaveBeenCalledWith('memo-1', { cr664_status: 788190001 });
+    expect(memoUpdate).toHaveBeenCalledWith('memo-1', {
+      cr664_status: 788190001,
+      cr664_memotext: 'Full memo text',
+    });
     expect(auditCreate).toHaveBeenCalledTimes(1);
     expect(timelineCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes draft-only claims from the memo preview when finalizing', () => {
+    const draft = [
+      '# Credit Memo — DRAFT PREVIEW',
+      'Draft preview — not saved, not final, banker review required.',
+      'Body',
+      'End of draft preview. Not saved to Dataverse. Not exported. Not finalized.',
+    ].join('\n');
+    const finalized = buildFinalizedMemoText(draft);
+    expect(finalized).toContain('# Credit Memo — FINAL');
+    expect(finalized).toContain('Finalized credit memo');
+    expect(finalized).not.toMatch(/DRAFT PREVIEW|not saved, not final|Not finalized/);
   });
 
   it('returns write-failed (banker-safe message, no raw Dataverse text) when the update fails', async () => {

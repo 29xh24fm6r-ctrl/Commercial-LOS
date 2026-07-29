@@ -60,11 +60,12 @@ export function AddRequiredDocumentModal({ candidateNames, presetName, onConfirm
     <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={styles.overlay}>
       <div style={styles.card} data-add-document-modal ref={dialogRef}>
         <header style={styles.header}>
-          <h2 id={titleId} style={styles.title}>Add required document</h2>
+          <h2 id={titleId} style={styles.title}>Record receipt without a file</h2>
           <p style={styles.subtitle}>
-            Records the governed receipt of a required document and associates it with this deal. This
-            marks the document <strong>received</strong>. It records receipt details; it does not attach
-            or store the document file itself.
+            Creates the missing checklist row and records that the required document arrived through
+            an approved external channel. This marks it <strong>received</strong>, but stores no file
+            bytes. To retain a file in this app, use <strong>Mark Document Received</strong> on an
+            existing checklist row and attach the file there.
           </p>
         </header>
 

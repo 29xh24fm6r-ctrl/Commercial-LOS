@@ -17,7 +17,7 @@ describe('normalizeDocumentName (N-11 — the one shared implementation)', () =>
     expect(normalizeDocumentName(once)).toBe(once);
   });
 
-  it('the exact reported N-11 mismatch: "Business Tax Returns" and "Tax returns" normalize to DIFFERENT strings (documented, not silently unified)', () => {
-    expect(normalizeDocumentName('Business Tax Returns')).not.toBe(normalizeDocumentName('Tax returns'));
+  it('reconciles the commercial tax-return labels to one canonical requirement identity', () => {
+    expect(normalizeDocumentName('Business Tax Returns')).toBe(normalizeDocumentName('Tax returns'));
   });
 });

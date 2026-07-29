@@ -57,6 +57,10 @@ import {
   isReceivedDocumentPendingReview,
 } from '../shared/workQueue/primitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
+import {
+  deriveRiskRatingRecordFromDeal,
+  deriveUnderwritingRecommendationRecordFromDeal,
+} from '../workflow/underwritingDeepFacts';
 
 interface DealDocumentsProps {
   /** Phase 36: read-only manager path — no Request button, no
@@ -265,6 +269,8 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
     // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed.
     fundingAuthorization: fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined,
+    riskRating: deriveRiskRatingRecordFromDeal(deal),
+    underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(deal),
   });
   // Additively unions in any unsatisfied dynamically-derived document requirement
   // (documentRequirementDerivation.ts) the static per-stage engine above doesn't
@@ -346,7 +352,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
               style={styles.addDocButton}
               data-add-required-document
             >
-              + Add required document
+              + Record receipt without file
             </button>
             {missingRequiredDocuments.length > 0 && (
               <span style={styles.docActionHint} data-add-required-document-missing>

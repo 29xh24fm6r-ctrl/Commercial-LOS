@@ -63,7 +63,8 @@ export function evaluateRiskRatingReadiness(
   if (!record) return { met: false, reason: 'No risk rating has been assigned to this deal.' };
   if (record.ratingValue.trim().length === 0) return { met: false, reason: 'Risk rating has no value.' };
   if (RISK_STATUS_ORDER[record.status] < RISK_STATUS_ORDER[policy.minStatus]) {
-    return { met: false, reason: `Risk rating is "${record.status}"; a ${policy.minStatus} rating is required.` };
+    const article = /^[aeiou]/i.test(policy.minStatus) ? 'an' : 'a';
+    return { met: false, reason: `Risk rating is "${record.status}"; ${article} ${policy.minStatus} rating is required.` };
   }
   if (!record.ratingScale || record.ratingScale.trim().length === 0) {
     return { met: false, reason: 'Risk rating has no rating scale recorded.' };

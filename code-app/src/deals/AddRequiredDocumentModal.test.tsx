@@ -37,7 +37,7 @@ describe('AddRequiredDocumentModal operating experience', () => {
       />,
     );
     const text = document.body.textContent ?? '';
-    expect(text).toMatch(/does not attach or store the document file/i);
+    expect(text).toMatch(/stores no file bytes/i);
     expect(text).not.toMatch(/schema|column|cr664_/i);
   });
 });

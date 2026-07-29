@@ -467,7 +467,7 @@ describe('DealProfileEditModal — CRM/NAICS industry projection (Phase 4B)', ()
       if (!el) throw new Error('not yet');
       return el as HTMLElement;
     });
-    expect(conflict.textContent).toMatch(/CRM says/i);
+    expect(conflict.textContent).toMatch(/CRM classification is/i);
     expect(conflict.textContent).toMatch(/Manufacturing/);
     expect(conflict.textContent).toMatch(/Retail/);
     // Apply is offered to reconcile.
