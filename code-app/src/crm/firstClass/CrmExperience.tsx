@@ -5,6 +5,7 @@ import { loadCrmWorkspaceData } from '../workspace/crmWorkspaceData';
 import { CrmWriteActions } from '../workspace/CrmWriteActions';
 import { deriveCrmHome, explicitPersonClassifications, relatedToCompany, relatedToPerson, searchCrm } from './crmWorkspaceSelectors';
 import { CRM_GROWTH_SCHEMA_DEPENDENCY, CRM_OPPORTUNITY_STAGES } from './crmGrowthModel';
+import { CrmEngagementCenter } from './CrmEngagementCenter';
 
 interface Props {
   readonly section: string;
@@ -65,7 +66,7 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
       {section === 'insights' && <Insights data={data} />}
       {section === 'reports' && <Reports data={data} />}
       {['opportunities','referrals'].includes(section) && <GrowthDependency section={section} />}
-      {section === 'calendar' && <DependencySection section={section} />}
+      {section === 'calendar' && <CrmEngagementCenter bankerEmail={actorEmail} />}
     </div>
   );
 }
@@ -152,7 +153,6 @@ function TaskCenter({ data }: { data: CrmWorkspaceData }) {
 }
 function Insights({ data }: { data: CrmWorkspaceData }) { const home = deriveCrmHome(data); return <section className="crmws__panel"><PanelHead eyebrow="EVIDENCE-BASED" title="Relationship coverage insights" /><p>{home.attention.length} deterministic coverage gap(s) derived from linked contacts and dated activity. No composite relationship score is calculated.</p></section>; }
 function Reports({ data }: { data: CrmWorkspaceData }) { return <section className="crmws__panel"><PanelHead eyebrow="GOVERNED REPORTING" title="CRM source completeness" />{Object.entries(data).map(([k,v]) => <div className="crmws__reportRow" key={k}><strong>{k}</strong><span>{v.status === 'ready' ? `${v.records.length} loaded (bounded at source)` : 'Unavailable'}</span></div>)}</section>; }
-function DependencySection({ section }: { section: string }) { return <StatePanel title={`${section[0].toUpperCase()+section.slice(1)} requires a tenant dependency`} copy={`The verified ten-table CRM schema has no governed ${section} table. The workspace does not substitute LOS stages or fabricate records. See the CRM architecture runbook for the exact fail-closed dependency.`} />; }
 function GrowthDependency({ section }: { section: string }) { return <section className="crmws__panel"><PanelHead eyebrow="FAIL-CLOSED TENANT DEPENDENCY" title={`${section[0].toUpperCase()+section.slice(1)} operating model`} /><p>{CRM_GROWTH_SCHEMA_DEPENDENCY.reason}</p><p>Required table: <code>{section === 'opportunities' ? CRM_GROWTH_SCHEMA_DEPENDENCY.tables[0] : CRM_GROWTH_SCHEMA_DEPENDENCY.tables[1]}</code>. Writes and conversion remain disabled until verification.</p>{section === 'opportunities' && <><h3>Commercial opportunity stages</h3><div className="crmws__stageModel">{CRM_OPPORTUNITY_STAGES.map((stage) => <span key={stage}>{stage}</span>)}</div><p>Available views after activation: Kanban and table; my/team; stale/no-next-action; closing; referral-sourced; converted; lost/deferred.</p></>}</section>; }
 function Timeline({ title, records, status, empty }: { title: string; records: readonly CrmRecord[]; status: string; empty?: string }) { return <section className="crmws__panel"><PanelHead eyebrow="CHRONOLOGICAL LEDGER" title={title} />{status === 'failed' ? <StatePanel title="Timeline unavailable" copy="The timeline domain could not be read." tone="error" /> : <CompactTimeline records={records} empty={empty} />}</section>; }
 function CompactTimeline({ records, empty = 'No dated activity is present.' }: { records: readonly CrmRecord[]; empty?: string }) { if (!records.length) return <Empty copy={empty} />; return <ol className="crmws__timeline">{records.slice(0,30).map((r) => <li key={r.id}><time>{r.occurredAt ? new Date(r.occurredAt).toLocaleString() : 'Date unavailable'}</time><strong>{r.title}</strong><span>{r.subtitle ?? 'No summary recorded'}</span></li>)}</ol>; }
