@@ -96,6 +96,19 @@ function Add-DuplicateFindings(
       category = $Category
       entitySet = $EntitySet
       recordIds = @($group.Group | ForEach-Object { $_.$IdField })
+      records = @($group.Group | ForEach-Object {
+        [ordered]@{
+          recordId = $_.$IdField
+          name = $_.$NameField
+          amount = $_.cr664_amount
+          clientId = $_._cr664_client_value
+          legalName = $_.cr664_legalname
+          website = $_.cr664_website
+          createdOn = $_.createdon
+          modifiedOn = $_.modifiedon
+          etag = $_.'@odata.etag'
+        }
+      })
       evidence = "normalized-name:$($group.Name)"
       disposition = 'review-retain-merge-or-deactivate'
       operation = 'review'
@@ -154,16 +167,16 @@ $deals = @(Get-AllDataverseRows $envInfo.OrgUrl $token (
   # cr664_clientname is a generated SDK lookup-display shadow, not a selectable
   # Dataverse Web API property. Duplicate detection uses the persisted deal
   # name; client linkage is available separately as _cr664_client_value.
-  'cr664_loandeals?$select=cr664_loandealid,cr664_dealname,_cr664_client_value,cr664_amount,cr664_istestrecord,statecode&$filter=statecode eq 0'
+  'cr664_loandeals?$select=cr664_loandealid,cr664_dealname,_cr664_client_value,_cr664_stagereference_value,_cr664_statusreference_value,cr664_amount,cr664_istestrecord,createdon,modifiedon,statecode&$filter=statecode eq 0'
 ))
 $organizations = @(Get-AllDataverseRows $envInfo.OrgUrl $token (
-  'cr664_crmorganizations?$select=cr664_crmorganizationid,cr664_name,cr664_legalname,cr664_website,statecode&$filter=statecode eq 0'
+  'cr664_crmorganizations?$select=cr664_crmorganizationid,cr664_name,cr664_legalname,cr664_website,cr664_sourcesystem,cr664_sourcerecordid,createdon,modifiedon,statecode&$filter=statecode eq 0'
 ))
 $entitlements = @(Get-AllDataverseRows $envInfo.OrgUrl $token (
-  'cr664_workspaceentitlementses?$select=cr664_workspaceentitlementsid,cr664_entitlementname,cr664_accesslevel,statecode&$filter=statecode eq 0'
+  'cr664_workspaceentitlementses?$select=cr664_workspaceentitlementsid,cr664_entitlementname,cr664_accesslevel,cr664_isdefault,_cr664_losuserprofile_value,_cr664_workspace_value,createdon,modifiedon,statecode&$filter=statecode eq 0'
 ))
 $boarded = @(Get-AllDataverseRows $envInfo.OrgUrl $token (
-  'cr664_portfolioboardedloans?$select=cr664_portfolioboardedloanid,_cr664_originatedloandeal_value,_cr664_assignedservicingowner_value,cr664_loannumber,cr664_borrowerlegalname,cr664_loanstatus,cr664_currentoutstandingprincipal,cr664_currentriskrating,cr664_maturitydate,cr664_originalcommitmentamount,cr664_bookingdate,statecode&$filter=statecode eq 0'
+  'cr664_portfolioboardedloans?$select=cr664_portfolioboardedloanid,cr664_name,_cr664_originatedloandeal_value,_cr664_assignedservicingowner_value,cr664_boardingsource,cr664_loannumber,cr664_borrowerlegalname,cr664_loanstatus,cr664_currentoutstandingprincipal,cr664_currentriskrating,cr664_maturitydate,cr664_originalcommitmentamount,cr664_bookingdate,createdon,modifiedon,statecode&$filter=statecode eq 0'
 ))
 $tasks = @(Get-AllDataverseRows $envInfo.OrgUrl $token (
   'cr664_dealtask1s?$select=cr664_dealtask1id,cr664_taskname,cr664_completed,_cr664_deal_value,statecode&$filter=statecode eq 0 and cr664_completed ne true'
@@ -223,6 +236,10 @@ foreach ($organization in $organizations) {
       entitySet = 'cr664_crmorganizations'
       recordId = $organization.cr664_crmorganizationid
       recordName = $organization.cr664_name
+      sourceSystem = $organization.cr664_sourcesystem
+      sourceRecordId = $organization.cr664_sourcerecordid
+      createdOn = $organization.createdon
+      etag = $organization.'@odata.etag'
       disposition = 'retain-and-classify-through-approved-governance-field-or-ledger'
       operation = 'review'
     })
@@ -237,6 +254,19 @@ foreach ($group in $entitlementGroups) {
     category = 'duplicate-entitlement'
     entitySet = 'cr664_workspaceentitlementses'
     recordIds = @($group.Group | ForEach-Object { $_.cr664_workspaceentitlementsid })
+    records = @($group.Group | ForEach-Object {
+      [ordered]@{
+        recordId = $_.cr664_workspaceentitlementsid
+        name = $_.cr664_entitlementname
+        accessLevel = $_.cr664_accesslevel
+        isDefault = $_.cr664_isdefault
+        profileId = $_._cr664_losuserprofile_value
+        workspaceId = $_._cr664_workspace_value
+        createdOn = $_.createdon
+        modifiedOn = $_.modifiedon
+        etag = $_.'@odata.etag'
+      }
+    })
     evidence = $group.Name
     disposition = 'review-access-impact-then-deactivate-redundant-row'
     operation = 'review'
@@ -273,6 +303,10 @@ $requiredBoarded = [ordered]@{
 foreach ($loan in $boarded) {
   $missing = @()
   foreach ($field in $requiredBoarded.Keys) {
+    if ($field -eq '_cr664_originatedloandeal_value' -and
+        ([string]$loan.cr664_boardingsource) -match '(?i)manual\s+existing\s+loan') {
+      continue
+    }
     if ($null -eq $loan.$field -or ($loan.$field -is [string] -and -not $loan.$field.Trim())) {
       $missing += $requiredBoarded[$field]
     }
@@ -283,6 +317,19 @@ foreach ($loan in $boarded) {
       entitySet = 'cr664_portfolioboardedloans'
       recordId = $loan.cr664_portfolioboardedloanid
       missingFields = $missing
+      currentFacts = [ordered]@{
+        name = $loan.cr664_name
+        boardingSource = $loan.cr664_boardingsource
+        loanNumber = $loan.cr664_loannumber
+        borrowerLegalName = $loan.cr664_borrowerlegalname
+        outstandingPrincipal = $loan.cr664_currentoutstandingprincipal
+        originalCommitment = $loan.cr664_originalcommitmentamount
+        maturityDate = $loan.cr664_maturitydate
+        bookingDate = $loan.cr664_bookingdate
+        createdOn = $loan.createdon
+        modifiedOn = $loan.modifiedon
+        etag = $loan.'@odata.etag'
+      }
       disposition = 'repair-only-from-authoritative-source'
       operation = 'review'
     })

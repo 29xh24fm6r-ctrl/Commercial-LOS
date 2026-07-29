@@ -367,7 +367,7 @@ first production-data gate:
 The complete read-only production inventory was generated at
 `.tmp-production-go-remediation.json` against
 `https://org3a57b8d4.crm.dynamics.com`. Its SHA-256 is
-`e38e11d4a5560a8ecf187ba25bbad6f5c4f8d22ba46765ab08594635fe5b7626`.
+`5451cfc33e79f48f0942fbd2773ecc1cc30fda43bffbb809ccfd3aca188313b6`.
 It found 25 active deals, 15 governed operational deals, 16 open tasks (all on
 controlled parent deals), four active CRM organizations (three controlled),
 ten active entitlements (one duplicate pair), one incomplete boarded loan,

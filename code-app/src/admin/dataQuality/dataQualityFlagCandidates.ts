@@ -309,6 +309,7 @@ export interface BoardedLoanLinkRow {
   readonly originatedLoanDealId: string | undefined;
   readonly assignedServicingOwnerId: string | undefined;
   readonly active: boolean;
+  readonly boardingSource?: string;
   readonly loanNumber?: string;
   readonly borrowerLegalName?: string;
   readonly loanStatus?: string;
@@ -370,6 +371,11 @@ export function detectIncompleteBoardedLoanFlags(
     .map((loan) => ({
       loan,
       missing: BOARDED_COMPLETENESS_FIELDS
+        .filter(
+          (field) =>
+            field.key !== 'originatedLoanDealId' ||
+            !/manual\s+existing\s+loan/i.test(loan.boardingSource ?? ''),
+        )
         .filter((field) => missingBoardedValue(loan[field.key]))
         .map((field) => field.label),
     }))

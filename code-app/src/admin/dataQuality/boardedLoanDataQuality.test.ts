@@ -62,4 +62,25 @@ describe('Production GO — boarded-loan governance', () => {
       ]),
     ).toHaveLength(0);
   });
+
+  it('does not require an originated deal for a manually boarded existing loan', () => {
+    const flags = detectIncompleteBoardedLoanFlags([
+      {
+        portfolioBoardedLoanId: 'b-existing',
+        originatedLoanDealId: undefined,
+        assignedServicingOwnerId: 'u1',
+        active: true,
+        boardingSource: 'Manual Existing Loan Entry',
+        loanNumber: 'LN-2',
+        borrowerLegalName: 'Legacy Borrower LLC',
+        loanStatus: 'Active',
+        currentOutstandingPrincipal: 100,
+        currentRiskRating: 'Pass',
+        maturityDate: '2031-01-01',
+        originalCommitmentAmount: 500000,
+        bookingDate: '2024-01-01',
+      },
+    ]);
+    expect(flags).toHaveLength(0);
+  });
 });

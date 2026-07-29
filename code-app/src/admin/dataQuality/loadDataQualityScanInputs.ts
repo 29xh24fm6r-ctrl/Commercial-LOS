@@ -114,6 +114,7 @@ async function loadScanBoardedLoanLinks(): Promise<{
       originatedLoanDealId: b._cr664_originatedloandeal_value,
       assignedServicingOwnerId: b._cr664_assignedservicingowner_value,
       active: b.statecode === 0,
+      boardingSource: b.cr664_boardingsource,
       loanNumber: b.cr664_loannumber,
       borrowerLegalName: b.cr664_borrowerlegalname,
       loanStatus: b.cr664_loanstatus,
