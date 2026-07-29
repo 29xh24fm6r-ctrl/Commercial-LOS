@@ -19,10 +19,12 @@
 
 export type CopilotWorkspace =
   | 'banker'
+  | 'crm'
   | 'manager'
   | 'portfolio'
   | 'team'
-  | 'executive';
+  | 'executive'
+  | 'admin';
 
 export type CopilotSurface = 'deal' | 'workspace';
 

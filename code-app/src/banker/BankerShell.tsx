@@ -28,6 +28,7 @@ import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { Badge } from '../shared/Badge';
 import { CountBadge } from '../shared/cockpitPrimitives';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
+import { BankerCopilotSurface } from '../copilot/BankerCopilotSurface';
 
 /**
  * Phase 125F — Banker Workspace shell (Lending OS recomposition).
@@ -349,6 +350,9 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       <main style={styles.main} role="main" aria-label="Banker workspace">
         <div style={styles.body}>
           <section style={styles.contentArea} aria-label="Banker workspace content">
+            {state.kind === 'ready' && kpis && (
+              <BankerCopilotSurface data={state.data} kpis={kpis} userName={fullName} />
+            )}
             <TabBar
               active={tab}
               onSelect={(next) => {

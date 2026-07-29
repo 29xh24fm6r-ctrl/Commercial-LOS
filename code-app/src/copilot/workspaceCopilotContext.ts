@@ -13,7 +13,7 @@
 import type { CopilotWorkspaceContext } from './copilotAssistantAdapter';
 
 interface WorkspaceCopilotInput {
-  workspaceRole: 'banker' | 'manager' | 'team' | 'portfolio' | 'executive';
+  workspaceRole: 'banker' | 'crm' | 'manager' | 'team' | 'portfolio' | 'executive' | 'admin';
   userName: string | undefined;
   teamName: string | undefined;
   deals: { id: string; name: string; stage: string | undefined }[];

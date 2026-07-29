@@ -29,6 +29,7 @@ import {
 } from '../bootstrap/workspaceEntitlements';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, spacing, typography } from '../shared/theme';
+import { AdminCopilotSurface } from '../copilot/AdminCopilotSurface';
 
 export function AdminWorkspace() {
   return (
@@ -89,6 +90,7 @@ function AdminWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        <AdminCopilotSurface userName={fullName} />
         <AdminOperationsConsole />
         {/* Factory Arc Phase 4 — Platform Operations Workspace: the 12-capability
             runtime/wiring/audit console (Runtime Capabilities, Dataverse Bindings,
