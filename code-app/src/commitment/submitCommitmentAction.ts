@@ -17,6 +17,10 @@ import {
   type CommitmentStatus,
 } from '../workflow/commitmentRecordTypes';
 import type { CommitmentStoreDeps } from './commitmentRecordStore';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /**
  * Final LOS Completion arc — Workstream D. The governed write that turns commitment issuance and
@@ -178,6 +182,7 @@ export async function submitCommitmentAction(
   input: SubmitCommitmentActionInput,
   store: CommitmentStoreDeps,
   resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+  lifecycleGovernance?: LifecycleGovernanceInvocation,
 ): Promise<SubmitCommitmentActionOutcome> {
   const dealId = input.dealId.trim();
   if (dealId.length === 0) {
@@ -198,7 +203,7 @@ export async function submitCommitmentAction(
     };
   }
 
-  let keyTermsSummary = '';
+  let keyTermsSummary: string;
   let declineReason: string | undefined;
   let supersedesCommitmentId: string | undefined;
 
@@ -232,6 +237,15 @@ export async function submitCommitmentAction(
         return { kind: 'invalid-input', message: 'A decline reason is required to record a declined commitment.' };
       }
     }
+  }
+
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'commitment',
+    lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-commitment-readiness'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return { kind: 'invalid-input', message: lifecycleGate.safeMessage };
   }
 
   const correlationId = newCorrelationId('cmt');

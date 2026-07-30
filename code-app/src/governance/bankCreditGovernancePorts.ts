@@ -13,7 +13,7 @@ import type {
  * Stable cross-runtime contract version. TypeScript clients and the Dataverse
  * server implementation must reject versions they do not understand.
  */
-export const BANK_CREDIT_GOVERNANCE_CONTRACT_VERSION = 'bank-credit-governance/v1' as const;
+export const BANK_CREDIT_GOVERNANCE_CONTRACT_VERSION = 'bank-credit-governance/v2' as const;
 export type BankCreditGovernanceContractVersion = typeof BANK_CREDIT_GOVERNANCE_CONTRACT_VERSION;
 
 export interface ActivePolicyQuery {
@@ -116,5 +116,7 @@ export interface BankCreditGovernanceServer {
 }
 
 export function serverResponsePermitsAction(response: ServerGovernanceEvaluationResponse): boolean {
-  return response.kind === 'evaluated' && response.result.decision === 'PERMIT';
+  return response.kind === 'evaluated' &&
+    response.evaluationRecordId.trim().length > 0 &&
+    response.result.decision === 'PERMIT';
 }

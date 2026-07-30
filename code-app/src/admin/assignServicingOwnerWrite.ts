@@ -36,6 +36,10 @@ import {
   type ResolveActorChangedBy,
 } from '../deals/newDealAuditActorResolver';
 import type { LookupResult } from './adminLoanLookup';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 // Schema-verified cr664_auditevents option-set values (see Cr664_auditeventsModel.ts) -- same
 // values portfolioLoanRemovalWrite.ts already verified for this same entity type.
@@ -103,6 +107,7 @@ export interface AssignServicingOwnerWriteDeps {
   readonly updateLoan: (loanId: string, patch: Record<string, unknown>) => Promise<ServicingOwnerWriteResult>;
   readonly emitAudit: (payload: Record<string, unknown>) => Promise<ServicingOwnerAuditResult>;
   readonly resolveActorChangedBy: ResolveActorChangedBy;
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
 }
 
 function trimmed(v: string | undefined): string {
@@ -135,6 +140,15 @@ export async function writeAssignServicingOwner(
     return { kind: 'invalid-input', reason: 'No servicing owner was selected.' };
   }
   const ownerName = trimmed(input.servicingOwnerName) || ownerId;
+
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'servicing',
+    deps.lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-servicing-owner-controls'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return { kind: 'unauthorized', reason: lifecycleGate.safeMessage };
+  }
 
   const actor = await deps.resolveActorChangedBy(input.actorEmail);
   if (!actor.ok || !actor.changedByBind) {

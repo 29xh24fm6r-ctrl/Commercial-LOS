@@ -13,10 +13,33 @@
 export type GovernedCreditAction =
   | 'ORIGINATE'
   | 'UNDERWRITE'
+  | 'RECOMMEND'
   | 'APPROVE'
+  | 'APPROVE_EXCEPTION'
+  | 'COMMIT'
   | 'CLOSE'
-  | 'FUND'
-  | 'BOARD';
+  | 'AUTHORIZE_FUNDING'
+  | 'CONFIRM_DISBURSEMENT'
+  | 'BOARD'
+  | 'SERVICE'
+  | 'MODIFY'
+  | 'RENEW';
+
+export const GOVERNED_CREDIT_ACTIONS: readonly GovernedCreditAction[] = [
+  'ORIGINATE',
+  'UNDERWRITE',
+  'RECOMMEND',
+  'APPROVE',
+  'APPROVE_EXCEPTION',
+  'COMMIT',
+  'CLOSE',
+  'AUTHORIZE_FUNDING',
+  'CONFIRM_DISBURSEMENT',
+  'BOARD',
+  'SERVICE',
+  'MODIFY',
+  'RENEW',
+];
 
 export type PolicyStatus = 'DRAFT' | 'ACTIVE' | 'RETIRED';
 

@@ -18,6 +18,10 @@ import {
   type ConditionVerificationStatus,
 } from '../workflow/conditionVerificationTypes';
 import type { ConditionVerificationStoreDeps } from './conditionVerificationStore';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /**
  * Final LOS Completion arc — Workstream E. The governed write that turns a closer's/loan-ops
@@ -156,6 +160,7 @@ export async function submitConditionVerificationAction(
   input: SubmitConditionVerificationInput,
   store: ConditionVerificationStoreDeps,
   resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+  lifecycleGovernance?: LifecycleGovernanceInvocation,
 ): Promise<SubmitConditionVerificationOutcome> {
   const dealId = input.dealId.trim();
   if (dealId.length === 0) {
@@ -172,18 +177,25 @@ export async function submitConditionVerificationAction(
     return { kind: 'invalid-input', message: 'Notes are required to record a condition verification.' };
   }
 
-  let existing: readonly ConditionVerificationRecord[] = [];
   const existingRead = await store.listVerificationsForDeal(dealId);
-  if (existingRead.success) {
-    existing = existingRead.records ?? [];
-  } else {
+  if (!existingRead.success) {
     return {
       kind: 'write-failed',
       error: mapBusinessSafeError(existingRead.error ?? 'Could not read existing condition verifications.').safeMessage,
     };
   }
+  const existing: readonly ConditionVerificationRecord[] = existingRead.records ?? [];
   const readiness = evaluateConditionVerificationReadiness(existing, dealId);
   const supersedesRecordId = readiness.currentRecords[input.conditionType]?.recordId;
+
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'exception-approval',
+    lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-condition-verification-controls'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return { kind: 'invalid-input', message: lifecycleGate.safeMessage };
+  }
 
   const correlationId = newCorrelationId('cv');
   const nowIso = new Date().toISOString();

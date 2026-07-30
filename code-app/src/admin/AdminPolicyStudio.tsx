@@ -20,13 +20,14 @@ import type {
   PolicyStudioVersion,
   RoleCombinationControl,
 } from '../governance/policyStudioTypes';
-import type { GovernedCreditAction } from '../governance/bankCreditGovernanceEngine';
+import {
+  GOVERNED_CREDIT_ACTIONS,
+  type GovernedCreditAction,
+} from '../governance/bankCreditGovernanceEngine';
 import { Card, CardHeader } from '../shared/Card';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
-const ACTIONS: readonly GovernedCreditAction[] = [
-  'ORIGINATE', 'UNDERWRITE', 'APPROVE', 'CLOSE', 'FUND', 'BOARD',
-];
+const ACTIONS: readonly GovernedCreditAction[] = GOVERNED_CREDIT_ACTIONS;
 
 const now = () => new Date().toISOString();
 const list = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean);

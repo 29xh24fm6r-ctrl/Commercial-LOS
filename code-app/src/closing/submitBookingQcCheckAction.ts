@@ -16,6 +16,10 @@ import {
   type BookingQcStatus,
 } from '../workflow/bookingQcCheckTypes';
 import type { BookingQcCheckStoreDeps } from './bookingQcCheckStore';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /**
  * Final LOS Completion arc — Workstream H. The governed write that turns a loan-ops reviewer's
@@ -153,6 +157,7 @@ export async function submitBookingQcCheckAction(
   input: SubmitBookingQcCheckInput,
   store: BookingQcCheckStoreDeps,
   resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+  lifecycleGovernance?: LifecycleGovernanceInvocation,
 ): Promise<SubmitBookingQcCheckOutcome> {
   const dealId = input.dealId.trim();
   if (dealId.length === 0) {
@@ -166,18 +171,25 @@ export async function submitBookingQcCheckAction(
     return { kind: 'invalid-input', message: 'Notes are required to record a booking QC check.' };
   }
 
-  let existing: readonly BookingQcCheckRecord[] = [];
   const existingRead = await store.listChecksForDeal(dealId);
-  if (existingRead.success) {
-    existing = existingRead.records ?? [];
-  } else {
+  if (!existingRead.success) {
     return {
       kind: 'write-failed',
       error: mapBusinessSafeError(existingRead.error ?? 'Could not read existing booking QC checks.').safeMessage,
     };
   }
+  const existing: readonly BookingQcCheckRecord[] = existingRead.records ?? [];
   const readiness = evaluateBookingQcReadiness(existing, dealId);
   const supersedesCheckId = readiness.currentCheck?.checkId;
+
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'closing',
+    lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-booking-qc-readiness'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return { kind: 'invalid-input', message: lifecycleGate.safeMessage };
+  }
 
   const correlationId = newCorrelationId('qc');
   const nowIso = new Date().toISOString();

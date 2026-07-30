@@ -19,6 +19,10 @@ import { Card } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /**
  * PR 106 -- Risk Rating + Underwriting Recommendation capture. This panel lets an underwriter
@@ -65,9 +69,18 @@ export interface DealRiskRatingPanelProps {
    *  patch so the cockpit's in-context deal updates immediately, without a full browser reload.
    *  See DealRiskRatingPanelConnected.tsx for the precedent (DealFundingAuthorizationPanelConnected.tsx). */
   readonly onSaved?: (verified: VerifiedProfilePatch) => void;
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
 }
 
-export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, actorSystemUserId, onSaved }: DealRiskRatingPanelProps) {
+export function DealRiskRatingPanel({
+  deal,
+  ratedBy,
+  authorized,
+  actorEmail,
+  actorSystemUserId,
+  onSaved,
+  lifecycleGovernance,
+}: DealRiskRatingPanelProps) {
   const dealId = deal.id;
   const savedRating = useMemo(() => parseRiskRatingFormState(deal.riskRatingInputsJson), [deal.riskRatingInputsJson]);
   const savedRecommendation = useMemo(
@@ -158,6 +171,18 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       assignedAtIso: new Date().toISOString(),
     });
     try {
+      const governance = await evaluateLifecycleBeforeWrite(
+        'underwriting',
+        lifecycleGovernance,
+        { allowed: true, evidenceIds: ['legacy-risk-rating-readiness'] },
+      );
+      if (!governance.allowed) {
+        setRatingSave({
+          kind: 'done',
+          outcome: { kind: 'write-failed', error: governance.safeMessage, correlationId: '' },
+        });
+        return;
+      }
       const result = await updateDealProfile(
         { dealId, actorEmail, actorSystemUserId, authorized: true, patch: { riskRatingInputs: json } },
         buildLiveUpdateDealProfileDeps(),
@@ -183,6 +208,18 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       recordedAtIso: new Date().toISOString(),
     });
     try {
+      const governance = await evaluateLifecycleBeforeWrite(
+        'recommendation',
+        lifecycleGovernance,
+        { allowed: true, evidenceIds: ['legacy-underwriting-recommendation-readiness'] },
+      );
+      if (!governance.allowed) {
+        setRecommendationSave({
+          kind: 'done',
+          outcome: { kind: 'write-failed', error: governance.safeMessage, correlationId: '' },
+        });
+        return;
+      }
       const result = await updateDealProfile(
         { dealId, actorEmail, actorSystemUserId, authorized: true, patch: { underwritingRecommendationInputs: json } },
         buildLiveUpdateDealProfileDeps(),

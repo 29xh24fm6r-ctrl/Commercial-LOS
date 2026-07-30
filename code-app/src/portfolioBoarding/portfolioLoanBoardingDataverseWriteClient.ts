@@ -17,6 +17,10 @@
  */
 
 import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 interface GeneratedRecordService {
   create(record: Record<string, unknown>): Promise<{ success: boolean; data?: Record<string, unknown>; error?: { message?: string } }>;
@@ -133,7 +137,9 @@ async function resolveEntity(entitySetName: string): Promise<{ service: Generate
  * origin, is the only in-scope point that actually closes the leak (every downstream layer
  * already carries the safe message unchanged).
  */
-export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWriteClient {
+export function buildLivePortfolioBoardingDataverseWriteClient(
+  lifecycleGovernance?: LifecycleGovernanceInvocation,
+): DataverseWriteClient {
   return {
     async create(entitySetName, record) {
       const resolved = await resolveEntity(entitySetName);
@@ -151,6 +157,14 @@ export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWrite
       }
     },
     async update(entitySetName, id, record) {
+      if (entitySetName === 'cr664_portfolioboardedloans') {
+        const lifecycleGate = await evaluateLifecycleBeforeWrite(
+          'modification',
+          lifecycleGovernance,
+          { allowed: true, evidenceIds: ['legacy-portfolio-update-controls'] },
+        );
+        if (!lifecycleGate.allowed) return { ok: false, error: lifecycleGate.safeMessage };
+      }
       const resolved = await resolveEntity(entitySetName);
       if (!resolved) return NOT_REGISTERED;
       try {

@@ -51,6 +51,10 @@ import {
   crmIntakeGatePasses,
   crmIntakeBlockerMessage,
 } from './newDealCrmIntakeGate';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 export interface DealOriginationFormInput {
   readonly dealName: string;
@@ -128,6 +132,8 @@ export interface DealOriginationDeps {
   readonly runPortfolioWrite?: RunPortfolioWrite;
   readonly runBorrowerSend?: RunBorrowerSend;
   readonly correlationId?: () => string;
+  /** Optional PR 5 configurable-governance injection. Omitted is LEGACY_ONLY. */
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
   /**
    * Test-only: inject a downstream module's whole outcome to exercise the
    * top-level determination. Production never sets these (the real adapters,
@@ -248,6 +254,23 @@ export async function orchestrateDealOrigination(
         crmIntakeBlockerMessage(gate),
       );
     }
+  }
+
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'origination',
+    deps.lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-origination-prechecks'] },
+  );
+  operatorNotes.push(
+    `bank-credit-governance: ${lifecycleGate.trace.mode}/${lifecycleGate.allowed ? 'permit' : 'block'}`,
+  );
+  if (!lifecycleGate.allowed) {
+    return baseResult(
+      'unauthorized',
+      { kind: 'skipped' },
+      { kind: 'skipped' },
+      lifecycleGate.safeMessage,
+    );
   }
 
   // Governed create (gated; default disabled).

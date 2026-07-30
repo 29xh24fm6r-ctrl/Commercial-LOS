@@ -28,6 +28,10 @@ import {
   buildExtendedLoanAttributes,
   serializeExtendedLoanAttributes,
 } from './extendedLoanAttributes';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /** The boardingsource marker for a manually-entered existing portfolio loan. */
 export const MANUAL_EXISTING_LOAN_BOARDING_SOURCE = 'Manual Existing Loan Entry';
@@ -198,6 +202,7 @@ export interface ExistingLoanDeps {
   readonly createChild: (collection: ExistingLoanChildKey, payload: Record<string, unknown>) => Promise<WriteResult>;
   /** Emit a domain audit-entry child for the boarding. */
   readonly emitAudit: (payload: Record<string, unknown>) => Promise<WriteResult>;
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
 }
 
 function trimmed(v: string | undefined): string {
@@ -335,6 +340,14 @@ export async function boardExistingLoan(
       kind: 'identity-unresolved',
       reason: 'No Dataverse identity is available for the signed-in operator; the loan was not boarded.',
     };
+  }
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'boarding',
+    deps.lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-portfolio-boarding-controls'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return { kind: 'unauthorized', reason: lifecycleGate.safeMessage };
   }
   const actorEmail = trimmed(input.actorEmail);
   const correlationId = newCorrelationId('xl');

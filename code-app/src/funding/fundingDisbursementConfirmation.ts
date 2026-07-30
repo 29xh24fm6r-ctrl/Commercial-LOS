@@ -4,6 +4,10 @@ import { recordFundingAudit, type EmitFundingAudit } from './fundingAudit';
 import { recordFundingTimeline, type EmitFundingTimeline } from './fundingTimelineWrite';
 import type { FundingAuthorizationStorageDeps } from './fundingAuthorizationStorage';
 import type { FundingAuthorizationRecord, FundingReadinessFacts } from './fundingAuthorizationTypes';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /**
  * final-seven-workstreams Workstream 7 — the disbursement confirmation step. This is the ONLY
@@ -16,7 +20,7 @@ import type { FundingAuthorizationRecord, FundingReadinessFacts } from './fundin
 export type FundingDisbursementOutcome =
   | { readonly kind: 'confirmed'; readonly record: FundingAuthorizationRecord; readonly auditRecorded: boolean; readonly auditError?: string }
   | { readonly kind: 'blocked'; readonly blockers: readonly FundingReadinessBlocker[] }
-  | { readonly kind: 'denied'; readonly reason: 'not_approved' | 'already_funded' | 'record_terminal' }
+  | { readonly kind: 'denied'; readonly reason: 'not_approved' | 'already_funded' | 'record_terminal' | 'governance_blocked'; readonly message?: string }
   | { readonly kind: 'write_failed'; readonly error: string };
 
 export interface ConfirmFundingDisbursementInput {
@@ -37,6 +41,7 @@ export interface FundingDisbursementDeps {
    * success/failure.
    */
   readonly emitTimeline?: EmitFundingTimeline;
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
 }
 
 export async function confirmFundingDisbursement(
@@ -55,6 +60,14 @@ export async function confirmFundingDisbursement(
 
   const readiness = deriveFundingReadiness(input.readinessFacts);
   if (!readiness.ready) return { kind: 'blocked', blockers: readiness.blockers };
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'disbursement-confirmation',
+    deps.lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-funding-disbursement-readiness'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return { kind: 'denied', reason: 'governance_blocked', message: lifecycleGate.safeMessage };
+  }
 
   const updated: FundingAuthorizationRecord = {
     ...input.record,

@@ -6,7 +6,7 @@ namespace CommercialLendingLOS.Plugins
 {
     public sealed class ServerGovernanceEvaluationCommand
     {
-        public const string SupportedContractVersion = "bank-credit-governance/v1";
+        public const string SupportedContractVersion = "bank-credit-governance/v2";
         public string ContractVersion { get; set; }
         public string EvaluationId { get; set; }
         public string BankId { get; set; }

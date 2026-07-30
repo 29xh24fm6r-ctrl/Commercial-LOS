@@ -9,6 +9,10 @@ import { recordFundingAudit, type EmitFundingAudit } from './fundingAudit';
 import { recordFundingTimeline, type EmitFundingTimeline } from './fundingTimelineWrite';
 import type { FundingAuthorizationStorageDeps } from './fundingAuthorizationStorage';
 import type { FundingAuthorizationRecord } from './fundingAuthorizationTypes';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 export interface FundingApprovalDeps {
   readonly storage: FundingAuthorizationStorageDeps;
@@ -21,6 +25,7 @@ export interface FundingApprovalDeps {
    * success/failure.
    */
   readonly emitTimeline?: EmitFundingTimeline;
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
 }
 
 export type FundingApprovalOutcome =
@@ -75,6 +80,12 @@ export async function approveFunding(
 ): Promise<FundingApprovalOutcome> {
   const evaluation = evaluateFundingApproval(input);
   if (evaluation.kind === 'denied') return { kind: 'denied', reason: evaluation.reason };
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'funding-authorization',
+    deps.lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-funding-approval-policy'] },
+  );
+  if (!lifecycleGate.allowed) return { kind: 'denied', reason: lifecycleGate.safeMessage };
 
   const nowIso = new Date().toISOString();
   if (evaluation.kind === 'first_approval_recorded') {
