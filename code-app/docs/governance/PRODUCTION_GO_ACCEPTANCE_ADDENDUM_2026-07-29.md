@@ -127,3 +127,19 @@ the direct-bypass implementation gap but does not replace positive multi-user
 certification.
 
 No production GO claim is made by this addendum.
+
+## Consolidated human-input handoff — 2026-07-30
+
+All remaining facts and tenant decisions that cannot be inferred are collected
+in `PRODUCTION_GO_HUMAN_INPUT_PACKAGE_2026-07-30.md`. It contains:
+
+- one four-person identity worksheet and the exact identity-chain evidence;
+- one authoritative Skeeterhawk loan `0100066127` data worksheet;
+- one tenant-admin, records/legal, DLP, auditing, retention, legal-hold, and
+  least-privilege role confirmation request.
+
+Blank values remain intentionally blank. Completing the package does not by
+itself authorize an irreversible retention transition, Preservation Lock,
+external delivery, funds movement, or production data mutation. The verdict
+remains **NO-GO** until the package is accepted and distinct-human live
+certification passes.

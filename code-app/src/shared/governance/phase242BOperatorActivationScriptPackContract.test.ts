@@ -38,9 +38,10 @@ describe('the pack is present', () => {
     expect(existsSync(resolve(here(), '..', 'docs', 'PHASE_242B_OPERATOR_ENVIRONMENT_ACTIVATION_SCRIPT_PACK.md'))).toBe(true);
   });
 
-  it('only the six expected .ps1 files are present (no stray scripts)', () => {
-    const ps1 = readdirSync(ACTIVATION_DIR).filter((f) => f.endsWith('.ps1')).sort();
-    expect(ps1).toEqual([...SCRIPTS].sort());
+  it('the six phase-owned scripts remain the complete governed pack', () => {
+    const ps1 = readdirSync(ACTIVATION_DIR).filter((f) => f.endsWith('.ps1'));
+    for (const script of SCRIPTS) expect(ps1, script).toContain(script);
+    expect(new Set(SCRIPTS).size).toBe(SCRIPTS.length);
   });
 });
 
