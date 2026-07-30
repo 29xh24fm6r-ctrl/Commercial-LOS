@@ -143,8 +143,11 @@ namespace CommercialLendingLOS.Plugins
             });
             if (appended != null && appended.Kind == "stale-policy")
                 return Denied("POLICY_VERSION_STALE", "The active governance policy changed during evaluation.");
-            if (appended != null && appended.Kind == "concurrent-update")
-                return Denied("CONCURRENT_UPDATE_DETECTED", "The governed case changed during evaluation.");
+            if (appended != null && appended.Kind != null &&
+                appended.Kind.StartsWith("concurrent-update", StringComparison.Ordinal))
+                return Denied("CONCURRENT_UPDATE_DETECTED",
+                    "The governed case changed during evaluation (" +
+                    appended.Kind.Substring("concurrent-update".Length).TrimStart('-') + ").");
             if (appended == null ||
                 (appended.Kind != "appended" && appended.Kind != "duplicate") ||
                 string.IsNullOrWhiteSpace(appended.EvaluationRecordId))
