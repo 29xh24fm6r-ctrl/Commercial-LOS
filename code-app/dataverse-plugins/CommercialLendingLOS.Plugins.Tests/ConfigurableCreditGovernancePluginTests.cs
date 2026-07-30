@@ -217,6 +217,21 @@ public sealed class ConfigurableCreditGovernancePluginTests
     }
 
     [Fact]
+    public void ExactProductionOptionAPolicyArtifactDeserializes()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
+        var snapshot = File.ReadAllText(Path.Combine(root,
+            "deployment/bank-credit-governance/initial-ogb-policy-v1.proposed-active.json"));
+        var fixture = new Fixture(snapshot);
+        fixture.Policy["cr664_policyid"] = "ogb-option-a-initial";
+
+        var error = Assert.Throws<InvalidPluginExecutionException>(fixture.Execute);
+
+        Assert.Contains("ROLE_NOT_PERMITTED", error.Message);
+        Assert.DoesNotContain("ACTIVE_POLICY_UNRESOLVED", error.Message);
+    }
+
+    [Fact]
     public void RegistrationIsDisabledFirstAndDoesNotTargetLegacyPluginType()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
