@@ -16,6 +16,10 @@ import {
 } from '../workflow/creditApprovalAuthority';
 import { DECISION_STATUSES, type CreditApprovalDecisionRecord, type CreditApprovalDecisionStatus } from '../workflow/creditApprovalDecisionTypes';
 import type { CreditApprovalDecisionStoreDeps } from './creditApprovalDecisionStore';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 /**
  * Final LOS Completion arc — Workstream C. The governed write that turns a credit-authority
@@ -78,6 +82,8 @@ export interface SubmitCreditApprovalDecisionInput {
   readonly advancingActorBankerId?: string | undefined;
   readonly originatingBankerId?: string | undefined;
   readonly supersedesDecisionId?: string | undefined;
+  /** Explicit policy route; conditions alone never imply a policy exception. */
+  readonly governanceLifecyclePoint?: 'approval' | 'exception-approval';
 }
 
 function authorityTierFor(banker: BankerCreditAuthority | undefined): string | undefined {
@@ -180,6 +186,7 @@ export async function submitCreditApprovalDecision(
   input: SubmitCreditApprovalDecisionInput,
   store: CreditApprovalDecisionStoreDeps,
   resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+  lifecycleGovernance?: LifecycleGovernanceInvocation,
 ): Promise<SubmitCreditApprovalDecisionOutcome> {
   if (!DECISION_STATUSES.has(input.decisionStatus)) {
     return {
@@ -209,6 +216,19 @@ export async function submitCreditApprovalDecision(
       kind: 'authority-denied',
       reasonCode: authority.reasonCode,
       message: describeCreditApprovalAuthorityReason(authority.reasonCode),
+    };
+  }
+
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    input.governanceLifecyclePoint ?? 'approval',
+    lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-credit-approval-authority'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return {
+      kind: 'authority-denied',
+      reasonCode: lifecycleGate.reasonCode,
+      message: lifecycleGate.safeMessage,
     };
   }
 

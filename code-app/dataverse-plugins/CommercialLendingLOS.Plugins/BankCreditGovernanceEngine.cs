@@ -4,7 +4,22 @@ using System.Linq;
 
 namespace CommercialLendingLOS.Plugins
 {
-    public enum GovernedCreditAction { Originate, Underwrite, Approve, Close, Fund, Board }
+    public enum GovernedCreditAction
+    {
+        Originate,
+        Underwrite,
+        Recommend,
+        Approve,
+        ApproveException,
+        Commit,
+        Close,
+        AuthorizeFunding,
+        ConfirmDisbursement,
+        Board,
+        Service,
+        Modify,
+        Renew,
+    }
     public enum GovernanceDecision { Permit, Block, Escalate }
 
     public sealed class CreditCaseFacts

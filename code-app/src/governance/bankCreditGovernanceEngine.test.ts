@@ -27,7 +27,7 @@ const officer: GovernanceActor = {
   committeeMemberships: [],
   authorityGrants: [{
     grantId: 'grant-1',
-    actions: ['ORIGINATE', 'UNDERWRITE', 'APPROVE', 'CLOSE', 'FUND', 'BOARD'],
+    actions: ['ORIGINATE', 'UNDERWRITE', 'RECOMMEND', 'APPROVE', 'APPROVE_EXCEPTION', 'COMMIT', 'CLOSE', 'AUTHORIZE_FUNDING', 'CONFIRM_DISBURSEMENT', 'BOARD', 'SERVICE', 'MODIFY', 'RENEW'],
     maximumAmount: 1_000_000,
     maximumRelationshipExposure: 2_000_000,
     effectiveFrom: '2026-01-01T00:00:00Z',
@@ -122,7 +122,7 @@ describe('evaluateBankCreditGovernance', () => {
     const separatedPolicy = policy([{
       ruleId: 'funding-separation',
       description: 'Funding is independent of origination, underwriting, approval, and closing.',
-      actions: ['FUND'],
+      actions: ['AUTHORIZE_FUNDING'],
       requirements: {
         actorRoles: ['funding-officer'],
         independentFrom: ['ORIGINATE', 'UNDERWRITE', 'APPROVE', 'CLOSE'],
@@ -130,7 +130,7 @@ describe('evaluateBankCreditGovernance', () => {
       nonOverrideable: true,
     }]);
     const result = evaluateBankCreditGovernance(request({
-      action: 'FUND',
+      action: 'AUTHORIZE_FUNDING',
       policy: separatedPolicy,
       actor: { ...officer, roles: ['funding-officer'] },
     }));

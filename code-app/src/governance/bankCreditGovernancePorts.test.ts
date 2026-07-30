@@ -32,7 +32,7 @@ const result = {
 
 describe('bank credit governance server contract', () => {
   it('uses an explicit cross-runtime contract version', () => {
-    expect(BANK_CREDIT_GOVERNANCE_CONTRACT_VERSION).toBe('bank-credit-governance/v1');
+    expect(BANK_CREDIT_GOVERNANCE_CONTRACT_VERSION).toBe('bank-credit-governance/v2');
   });
 
   it('permits only a durably evaluated PERMIT response', () => {

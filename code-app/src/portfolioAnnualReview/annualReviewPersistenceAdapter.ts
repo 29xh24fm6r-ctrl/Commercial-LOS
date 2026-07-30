@@ -19,6 +19,10 @@ import type {
   AnnualReviewPersistenceResult,
   AnnualReviewReadResult,
 } from './annualReviewPersistenceTypes';
+import {
+  evaluateLifecycleBeforeWrite,
+  type LifecycleGovernanceInvocation,
+} from '../governance/lifecycleGovernanceIntegration';
 
 const SERIALIZATION_KIND = 'commercial-los-annual-review';
 const SERIALIZATION_VERSION = 1;
@@ -43,6 +47,7 @@ export interface AnnualReviewLiveContext {
   readonly cycle: AnnualReviewCycle;
   readonly actor: string;
   readonly now?: () => Date;
+  readonly lifecycleGovernance?: LifecycleGovernanceInvocation;
 }
 
 function ok(operation: string, recordId?: string): AnnualReviewPersistenceResult {
@@ -150,6 +155,14 @@ async function persistPackage(
 ): Promise<AnnualReviewPersistenceResult> {
   const loanId = pkg.loan.boardedLoanId;
   if (!loanId) return failed(operation, 'missing_loan_id', 'A boarded loan id is required.');
+  const lifecycleGate = await evaluateLifecycleBeforeWrite(
+    'renewal',
+    context.lifecycleGovernance,
+    { allowed: true, evidenceIds: ['legacy-annual-review-controls'] },
+  );
+  if (!lifecycleGate.allowed) {
+    return failed(operation, 'governance_blocked', lifecycleGate.safeMessage);
+  }
   const now = (context.now ?? (() => new Date()))().toISOString();
   const existing = await findReview(pkg.cycleId, loanId);
   const payload = {

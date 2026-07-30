@@ -36,7 +36,7 @@ function withAuthority(state: PolicyStudioState, overrides: {
     userId: 'officer-1',
     userDisplayName: 'Authenticated Officer',
     roles: ['authorized-officer'],
-    actions: ['ORIGINATE', 'UNDERWRITE', 'APPROVE', 'CLOSE', 'FUND', 'BOARD'],
+    actions: ['ORIGINATE', 'UNDERWRITE', 'RECOMMEND', 'APPROVE', 'APPROVE_EXCEPTION', 'COMMIT', 'CLOSE', 'AUTHORIZE_FUNDING', 'CONFIRM_DISBURSEMENT', 'BOARD', 'SERVICE', 'MODIFY', 'RENEW'],
     products: [],
     maximumAmount: overrides.maximumAmount ?? 1_000_000,
     maximumRelationshipExposure: 2_000_000,

@@ -1,5 +1,6 @@
 import {
   evaluateBankCreditGovernance,
+  GOVERNED_CREDIT_ACTIONS,
   type BankCreditGovernancePolicy,
   type CreditGovernanceRule,
   type GovernedCreditAction,
@@ -22,9 +23,7 @@ import {
   type StudioDiagnostic,
 } from './policyStudioTypes';
 
-const ACTIONS: readonly GovernedCreditAction[] = [
-  'ORIGINATE', 'UNDERWRITE', 'APPROVE', 'CLOSE', 'FUND', 'BOARD',
-];
+const ACTIONS: readonly GovernedCreditAction[] = GOVERNED_CREDIT_ACTIONS;
 
 function id(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
