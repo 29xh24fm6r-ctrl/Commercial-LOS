@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { INITIAL_OGB_SHADOW_POLICY } from './ogbGovernanceMigration';
+import { INITIAL_OGB_OPTION_A_POLICY } from './initialOgbOptionAPolicy';
 
 interface ActivationManifest {
   readonly activationState: string;
@@ -53,27 +53,33 @@ describe('PR 8 production activation package', () => {
     }
   });
 
-  it('packages exactly the reviewed OGB policy content without activating it', () => {
+  it('packages exactly the approved Option A policy content without claiming activation', () => {
     const proposed = json<Record<string, unknown>>(manifest.initialPolicy.path);
-    expect(proposed).toEqual({ ...INITIAL_OGB_SHADOW_POLICY, status: 'ACTIVE' });
+    expect(proposed).toEqual({ ...INITIAL_OGB_OPTION_A_POLICY, status: 'ACTIVE' });
     expect(manifest.initialPolicy.productionPersisted).toBe(false);
     expect(manifest.initialPolicy.productionActivated).toBe(false);
     expect(manifest.activationState).toBe('NO_GO');
     expect(manifest.schemaProvisioner.dryRunByDefault).toBe(true);
   });
 
-  it('contains no fabricated authority, committee, vote, or approval rows', () => {
+  it('contains only Matthew’s explicitly approved authority and no committee, vote, or approval rows', () => {
     const plan = json<{
-      assignments: unknown[];
+      assignments: { upn: string; maximumAmount: number; maximumRelationshipExposure: number; maximumUnsecuredAmount: number }[];
       committeeMemberships: unknown[];
       temporaryDelegations: unknown[];
       titleOrWorkspaceInferencePermitted: boolean;
     }>(manifest.authorityPlan.path);
-    expect(plan.assignments).toEqual([]);
+    expect(plan.assignments).toHaveLength(1);
+    expect(plan.assignments[0]).toEqual(expect.objectContaining({
+      upn: 'mpaller@oldglorybank.com',
+      maximumAmount: 1_000_000,
+      maximumRelationshipExposure: 1_000_000,
+      maximumUnsecuredAmount: 0,
+    }));
     expect(plan.committeeMemberships).toEqual([]);
     expect(plan.temporaryDelegations).toEqual([]);
     expect(plan.titleOrWorkspaceInferencePermitted).toBe(false);
-    expect(manifest.authorityPlan.realAssignments).toBe(0);
+    expect(manifest.authorityPlan.realAssignments).toBe(1);
   });
 
   it('requires one consolidated approval for every real production action', () => {

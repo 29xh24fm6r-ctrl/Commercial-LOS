@@ -64,10 +64,13 @@ export interface StudioAuthorityAssignment {
   readonly products: readonly string[];
   readonly maximumAmount?: number;
   readonly maximumRelationshipExposure?: number;
+  readonly maximumUnsecuredAmount?: number;
   readonly riskRatings: readonly string[];
   readonly geographies: readonly string[];
   readonly industries: readonly string[];
   readonly exceptionTypes: readonly string[];
+  readonly insiderPermitted?: boolean;
+  readonly criticizedClassifiedStatuses?: readonly string[];
   readonly effectiveFrom: string;
   readonly effectiveThrough?: string;
   readonly temporary: boolean;
@@ -202,11 +205,14 @@ export function assignmentToGrant(assignment: StudioAuthorityAssignment): Delega
     actions: assignment.actions,
     maximumAmount: assignment.maximumAmount,
     maximumRelationshipExposure: assignment.maximumRelationshipExposure,
+    maximumUnsecuredAmount: assignment.maximumUnsecuredAmount,
     products: assignment.products.length > 0 ? assignment.products : undefined,
     riskRatings: assignment.riskRatings.length > 0 ? assignment.riskRatings : undefined,
     geographies: assignment.geographies.length > 0 ? assignment.geographies : undefined,
     industries: assignment.industries.length > 0 ? assignment.industries : undefined,
     exceptionTypes: assignment.exceptionTypes.length > 0 ? assignment.exceptionTypes : undefined,
+    insiderPermitted: assignment.insiderPermitted,
+    criticizedClassifiedStatuses: assignment.criticizedClassifiedStatuses,
     effectiveFrom: assignment.effectiveFrom,
     effectiveThrough: assignment.effectiveThrough,
   };

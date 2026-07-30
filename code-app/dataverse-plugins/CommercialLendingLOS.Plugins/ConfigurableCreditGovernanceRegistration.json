@@ -7,6 +7,35 @@
   "rank": 2,
   "supportedDeployment": 0,
   "initialState": "Disabled",
+  "duplicateGuard": {
+    "pluginType": "CommercialLendingLOS.Plugins.GovernanceNaturalKeyGuardPlugin",
+    "mode": 0,
+    "rank": 1,
+    "supportedDeployment": 0,
+    "boundaries": [
+      { "entity": "cr664_creditgovernanceprofile", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_creditgovernanceprofile", "message": "Update", "filteringAttributes": "cr664_bankkey,cr664_profileenabled", "preImageAttributes": "cr664_name,cr664_bankkey,cr664_profileenabled" },
+      { "entity": "cr664_creditpolicyversion", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_creditpolicyversion", "message": "Update", "filteringAttributes": "cr664_policyid,cr664_versionnumber,cr664_policystatus,cr664_effectivefrom,cr664_effectivethrough", "preImageAttributes": "cr664_governanceprofile,cr664_policyid,cr664_versionnumber,cr664_policystatus,cr664_effectivefrom,cr664_effectivethrough" },
+      { "entity": "cr664_governancepolicyrule", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governancepolicyrule", "message": "Update", "filteringAttributes": "cr664_policyversion,cr664_ruleid", "preImageAttributes": "cr664_policyversion,cr664_ruleid" },
+      { "entity": "cr664_governanceroleassignment", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governanceroleassignment", "message": "Update", "filteringAttributes": "cr664_assignmentid,cr664_assignmentstate,cr664_effectivefrom,cr664_effectivethrough", "preImageAttributes": "cr664_governanceprofile,cr664_officer,cr664_assignmentid,cr664_rolecode,cr664_assignmentstate,cr664_effectivefrom,cr664_effectivethrough" },
+      { "entity": "cr664_authoritygrant", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_authoritygrant", "message": "Update", "filteringAttributes": "cr664_grantid,cr664_grantstate,cr664_effectivefrom,cr664_effectivethrough", "preImageAttributes": "cr664_governanceprofile,cr664_officer,cr664_grantid,cr664_actionsjson,cr664_productsjson,cr664_riskratingsjson,cr664_exceptiontypesjson,cr664_insiderpermitted,cr664_criticizedclassifiedstatusesjson,cr664_grantstate,cr664_effectivefrom,cr664_effectivethrough" },
+      { "entity": "cr664_governancecommittee", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governancecommittee", "message": "Update", "filteringAttributes": "cr664_committeeid,cr664_active", "preImageAttributes": "cr664_governanceprofile,cr664_committeeid,cr664_active" },
+      { "entity": "cr664_governancecommitteemember", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governancecommitteemember", "message": "Update", "filteringAttributes": "cr664_membershipid,cr664_membershipstate,cr664_effectivefrom,cr664_effectivethrough", "preImageAttributes": "cr664_committee,cr664_officer,cr664_membershipid,cr664_membershipstate,cr664_effectivefrom,cr664_effectivethrough" },
+      { "entity": "cr664_governedactionevidence", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governedactionevidence", "message": "Update", "filteringAttributes": "cr664_evidenceid", "preImageAttributes": "cr664_governanceprofile,cr664_evidenceid" },
+      { "entity": "cr664_governanceapprovalvote", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governanceapprovalvote", "message": "Update", "filteringAttributes": "cr664_approvalid", "preImageAttributes": "cr664_governanceprofile,cr664_loandeal,cr664_voter,cr664_approvalid,cr664_groupid" },
+      { "entity": "cr664_governanceevaluation", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" },
+      { "entity": "cr664_governanceevaluation", "message": "Update", "filteringAttributes": "cr664_evaluationid", "preImageAttributes": "cr664_governanceprofile,cr664_evaluationid,cr664_requestsha256,cr664_resultsha256" },
+      { "entity": "cr664_conditionverification", "message": "Create", "filteringAttributes": "", "preImageAttributes": "" }
+    ]
+  },
   "boundaries": [
     {
       "action": "Originate",

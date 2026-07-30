@@ -1,78 +1,88 @@
 {
-  "policyId": "ogb-governance-migration",
+  "policyId": "ogb-option-a-initial",
   "version": 1,
   "status": "ACTIVE",
-  "effectiveFrom": "2026-01-01T00:00:00.000Z",
+  "effectiveFrom": "2026-07-30T00:00:00.000Z",
   "rules": [
     {
-      "ruleId": "ogb-credit-approval",
-      "description": "Migrated current credit approval authority and self-approval controls.",
+      "ruleId": "option-a-authorized-officer",
+      "description": "An explicitly granted authorized officer may perform the approved combined roles within delegated authority.",
       "actions": [
+        "ORIGINATE",
+        "UNDERWRITE",
+        "RECOMMEND",
         "APPROVE",
-        "APPROVE_EXCEPTION"
+        "COMMIT",
+        "CLOSE",
+        "AUTHORIZE_FUNDING",
+        "CONFIRM_DISBURSEMENT",
+        "BOARD",
+        "SERVICE"
       ],
       "requirements": {
         "actorRoles": [
-          "OGB_CREDIT_COMMITTEE",
-          "OGB_APPROVAL_OVERRIDE"
+          "OGB_AUTHORIZED_OFFICER"
         ],
-        "delegatedAuthorityRequired": true,
-        "independentFrom": [
-          "ORIGINATE"
-        ]
-      },
-      "nonOverrideable": true
-    },
-    {
-      "ruleId": "ogb-funding-below-250k",
-      "description": "Current funding approval count below the legacy dual-control threshold.",
-      "actions": [
-        "AUTHORIZE_FUNDING"
-      ],
-      "when": {
-        "maximumAmount": 249999.999999
-      },
-      "requirements": {
-        "delegatedAuthorityRequired": true,
-        "approvalGroups": [
-          {
-            "groupId": "OGB_FUNDING_APPROVERS",
-            "approvalsRequired": 1,
-            "distinctActors": true
-          }
-        ]
-      },
-      "nonOverrideable": true
-    },
-    {
-      "ruleId": "ogb-funding-at-or-above-250k",
-      "description": "Current two-person funding approval at and above USD 250,000.",
-      "actions": [
-        "AUTHORIZE_FUNDING"
-      ],
-      "when": {
-        "minimumAmount": 250000
-      },
-      "requirements": {
-        "delegatedAuthorityRequired": true,
-        "approvalGroups": [
-          {
-            "groupId": "OGB_FUNDING_APPROVERS",
-            "approvalsRequired": 2,
-            "distinctActors": true
-          }
-        ]
-      },
-      "nonOverrideable": true
-    },
-    {
-      "ruleId": "ogb-disbursement-confirmation",
-      "description": "Adds explicit delegated authority while legacy disbursement separation remains mandatory.",
-      "actions": [
-        "CONFIRM_DISBURSEMENT"
-      ],
-      "requirements": {
         "delegatedAuthorityRequired": true
+      },
+      "nonOverrideable": true
+    },
+    {
+      "ruleId": "option-a-policy-exception-prohibited",
+      "description": "The initial Option A profile has no policy-exception authority.",
+      "actions": [
+        "ORIGINATE",
+        "UNDERWRITE",
+        "RECOMMEND",
+        "APPROVE",
+        "COMMIT",
+        "CLOSE",
+        "AUTHORIZE_FUNDING",
+        "CONFIRM_DISBURSEMENT",
+        "BOARD",
+        "SERVICE"
+      ],
+      "when": {
+        "hasPolicyException": true
+      },
+      "requirements": {
+        "prohibited": "Policy exceptions require separately approved authority."
+      },
+      "nonOverrideable": true
+    },
+    {
+      "ruleId": "option-a-insider-prohibited",
+      "description": "The initial Option A profile excludes insider lending.",
+      "actions": [
+        "ORIGINATE",
+        "UNDERWRITE",
+        "RECOMMEND",
+        "APPROVE",
+        "COMMIT",
+        "CLOSE",
+        "AUTHORIZE_FUNDING",
+        "CONFIRM_DISBURSEMENT",
+        "BOARD",
+        "SERVICE"
+      ],
+      "when": {
+        "insiderStatus": true
+      },
+      "requirements": {
+        "prohibited": "Insider lending is outside the initial authority profile."
+      },
+      "nonOverrideable": true
+    },
+    {
+      "ruleId": "option-a-excluded-actions",
+      "description": "Exception approval, modification, and renewal remain outside the initial production authority.",
+      "actions": [
+        "APPROVE_EXCEPTION",
+        "MODIFY",
+        "RENEW"
+      ],
+      "requirements": {
+        "prohibited": "This action is outside the initial Option A authority profile."
       },
       "nonOverrideable": true
     }

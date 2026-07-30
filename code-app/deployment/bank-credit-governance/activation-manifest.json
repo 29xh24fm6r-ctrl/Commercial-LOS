@@ -1,12 +1,19 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-3-plugin-host",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-2",
-  "createdAt": "2026-07-30T18:53:13Z",
+  "packageVersion": "bank-credit-governance/pr8-4-native-id-fallback",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-3-plugin-host",
+  "createdAt": "2026-07-30T20:17:00Z",
   "activationState": "NO_GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
     "governancePolicyRuleTable": "cr664_governancepolicyrule",
     "destructiveOperations": []
+  },
+  "alternateKeyFallback": {
+    "recordIdentity": "NATIVE_DATAVERSE_GUID",
+    "duplicateDetection": "SYNCHRONOUS_PREOPERATION_NATURAL_KEY",
+    "concurrencyBarrier": "DETERMINISTIC_GUID_AND_PROFILE_TRANSACTION_MUTEX",
+    "pendingAlternateKeysRequiredForActivation": false,
+    "pendingAlternateKeysMutated": false
   },
   "sdk": {
     "version": "8.0.423",
@@ -14,7 +21,7 @@
     "source": "https://dot.net/v1/dotnet-install.ps1"
   },
   "csharpTests": {
-    "passed": 92,
+    "passed": 105,
     "failed": 0,
     "skipped": 0,
     "configuration": "Release",
@@ -23,20 +30,20 @@
   "pluginAssembly": {
     "packagePath": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
     "entry": "CommercialLendingLOS.Plugins.dll",
-    "sha256": "16ef4bd34e7b82237460783048dc3b5f7b80e9e49394f8a4c9e8435176c650f6",
-    "bytes": 107008,
+    "sha256": "ddd957a673fc69b08c8782312fe71aa9250035b24f06c64bd099ad4bcd44d846",
+    "bytes": 118784,
     "targetFramework": "net462",
     "assemblyVersion": "1.0.0.0",
     "publicKeyToken": "74c842538bd8bf32"
   },
   "pluginPackage": {
     "path": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
-    "sha256": "dbd3534390930a67beb3b912c00bca943691105c5abb6a609f307644be2016d3",
-    "bytes": 40110
+    "sha256": "8231e04c2dd6a1f08bc72c4421c91516cb3d32717449d5f3cb1429f393ce0c03",
+    "bytes": 44360
   },
   "schemaPlan": {
     "path": "deployment/bank-credit-governance/dataverse-schema-plan.json",
-    "sha256": "8384b8ab18eedd299b5970418d5769a4abc9caa7476a2bfc65e08c948c0918c4",
+    "sha256": "2984fd1ebd30be7d4a1646e7fe6292387b939c0bfc43acb07c527cfbaa842a63",
     "mutationSemantics": "CREATE_MISSING_ONLY"
   },
   "schemaProvisioner": {
@@ -46,28 +53,30 @@
   },
   "initialPolicy": {
     "path": "deployment/bank-credit-governance/initial-ogb-policy-v1.proposed-active.json",
-    "sha256": "8c47221a9191405364f06c0f128a57b124f7b67ca09ed3dad30c34406ace1a92",
-    "policyId": "ogb-governance-migration",
+    "sha256": "833f936dfddfdb3ddce8b3d7a78de62946131e96498431dfcfd772a5e96c919d",
+    "policyId": "ogb-option-a-initial",
     "version": 1,
     "productionPersisted": false,
     "productionActivated": false
   },
   "authorityPlan": {
     "path": "deployment/bank-credit-governance/authority-profile-provisioning-plan.json",
-    "sha256": "8161df6b0e9a2c12f117d658938ab956905533fbe2993b7b52c53325aa6e4aa1",
-    "realAssignments": 0
+    "sha256": "4beec1d3b0a4770d1d5ba189f74d71e61519749724fdb4a28cad50f956f93d22",
+    "realAssignments": 1
   },
   "registrationManifest": {
     "path": "dataverse-plugins/CommercialLendingLOS.Plugins/ConfigurableCreditGovernanceRegistration.json",
-    "sha256": "65a2af32da6fcbc3f64e4cfdc507d6c7ef9b1a98f26b2d998e5f64f422f3d51a",
+    "sha256": "41949cda25aaa5723316c89683a1ec9fa0fc15480951a218988270a6abaff837",
     "pluginType": "CommercialLendingLOS.Plugins.ConfigurableCreditGovernancePlugin",
-    "steps": 37,
+    "steps": 58,
+    "preImages": 28,
+    "duplicateGuardPluginType": "CommercialLendingLOS.Plugins.GovernanceNaturalKeyGuardPlugin",
     "initialState": "Disabled",
     "productionRegisteredByThisPackage": false
   },
   "registrationScript": {
     "path": "scripts/dataverse/register-configurable-credit-governance-plugin.ps1",
-    "sha256": "5966062d67b879be7c1b51120b74141a12376921052c95e4f7991ff94378e76d",
+    "sha256": "eba2115e59034d96d27d5c550aa858c9b26e104fb4f363a90da10b4cf5aa80a9",
     "dryRunByDefault": true
   },
   "approvalRequired": [

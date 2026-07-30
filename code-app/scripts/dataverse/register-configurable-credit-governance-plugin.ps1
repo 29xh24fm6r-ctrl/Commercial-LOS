@@ -26,6 +26,9 @@ $manifestFullPath = (Resolve-Path (Join-Path $repo $ManifestPath)).Path
 $assemblyHash = (Get-FileHash -Algorithm SHA256 $assemblyFullPath).Hash.ToLowerInvariant()
 $manifestHash = (Get-FileHash -Algorithm SHA256 $manifestFullPath).Hash.ToLowerInvariant()
 $manifest = Get-Content -Raw $manifestFullPath | ConvertFrom-Json
+$configurableStepCount = (($manifest.boundaries | ForEach-Object { @($_.stages).Count } | Measure-Object -Sum).Sum)
+$guardStepCount = @($manifest.duplicateGuard.boundaries).Count
+$totalStepCount = $configurableStepCount + $guardStepCount
 
 if ($RegisterDisabled -and $EnableAfterApproval) { throw 'Choose disabled registration or approved enablement, never both.' }
 if ($Apply -and -not $RegisterDisabled -and -not $EnableAfterApproval) {
@@ -39,7 +42,7 @@ if ($Apply) {
 Write-Host ("Mode={0} state={1} assemblySha256={2} manifestSha256={3} steps={4}" -f
   $(if ($Apply) { 'APPLY' } else { 'DRY_RUN' }),
   $(if ($EnableAfterApproval) { 'ENABLED' } else { 'DISABLED' }),
-  $assemblyHash, $manifestHash, (($manifest.boundaries | ForEach-Object { @($_.stages).Count } | Measure-Object -Sum).Sum))
+  $assemblyHash, $manifestHash, $totalStepCount)
 if (-not $Apply) {
   Write-Host 'NO-GO: no assembly, step, image, policy, authority, or business row was changed.'
   exit 0
@@ -55,12 +58,12 @@ $headers = @{
   Accept = 'application/json'; 'Content-Type' = 'application/json'; Prefer = 'return=representation'
 }
 function Esc([string]$value) { $value.Replace("'", "''") }
-function Get-Rows([string]$relative) { @((Invoke-RestMethod Get "$api/$relative" -Headers $headers).value) }
+function Get-Rows([string]$relative) { @((Invoke-RestMethod -Method Get -Uri "$api/$relative" -Headers $headers).value) }
 function Post-Row([string]$set, [hashtable]$body) {
-  Invoke-RestMethod Post "$api/$set" -Headers $headers -Body ($body | ConvertTo-Json -Depth 10)
+  Invoke-RestMethod -Method Post -Uri "$api/$set" -Headers $headers -Body ($body | ConvertTo-Json -Depth 10)
 }
 function Patch-Row([string]$set, [string]$id, [hashtable]$body) {
-  Invoke-RestMethod Patch "$api/$set($id)" -Headers $headers -Body ($body | ConvertTo-Json -Depth 10) | Out-Null
+  Invoke-RestMethod -Method Patch -Uri "$api/$set($id)" -Headers $headers -Body ($body | ConvertTo-Json -Depth 10) | Out-Null
 }
 function One($rows, [string]$label) {
   if (@($rows).Count -ne 1) { throw "Expected one $label; found $(@($rows).Count)." }
@@ -136,9 +139,61 @@ try {
     }
     }
   }
+  $guardTypeRows = Get-Rows "plugintypes?`$select=plugintypeid&`$filter=typename eq '$(Esc $manifest.duplicateGuard.pluginType)'"
+  if ($guardTypeRows.Count -eq 0) {
+    $guardShort = ($manifest.duplicateGuard.pluginType -split '\.')[-1]
+    $guardTypeId = [string](Post-Row plugintypes @{
+      typename=$manifest.duplicateGuard.pluginType; name=$guardShort; friendlyname=$guardShort
+      'pluginassemblyid@odata.bind'="/pluginassemblies($assemblyId)"
+    }).plugintypeid
+  } else { $guardTypeId = [string](One $guardTypeRows 'natural-key guard plugin type').plugintypeid }
+
+  foreach ($boundary in @($manifest.duplicateGuard.boundaries)) {
+    $message = One (Get-Rows "sdkmessages?`$select=sdkmessageid&`$filter=name eq '$($boundary.message)'") "message $($boundary.message)"
+    $filter = One (Get-Rows ("sdkmessagefilters?`$select=sdkmessagefilterid&`$filter=_sdkmessageid_value eq {0} and primaryobjecttypecode eq '{1}'" -f
+      $message.sdkmessageid, (Esc $boundary.entity))) "filter $($boundary.message)/$($boundary.entity)"
+    $guardStepName = "OGL Governance Natural Key Guard | PreOperation | $($boundary.message) | $($boundary.entity)"
+    $guardStepRows = Get-Rows "sdkmessageprocessingsteps?`$select=sdkmessageprocessingstepid&`$filter=name eq '$(Esc $guardStepName)'"
+    $guardBody = @{
+      name=$guardStepName
+      description='Transactional natural-key duplicate detection with deterministic native Dataverse GUID idempotency.'
+      configuration=''
+      stage=20; mode=[int]$manifest.duplicateGuard.mode; rank=[int]$manifest.duplicateGuard.rank
+      supporteddeployment=[int]$manifest.duplicateGuard.supportedDeployment
+      filteringattributes=[string]$boundary.filteringAttributes
+      'sdkmessageid@odata.bind'="/sdkmessages($($message.sdkmessageid))"
+      'sdkmessagefilterid@odata.bind'="/sdkmessagefilters($($filter.sdkmessagefilterid))"
+      'eventhandler_plugintype@odata.bind'="/plugintypes($guardTypeId)"
+    }
+    if ($guardStepRows.Count -eq 0) {
+      $guardStepId = [string](Post-Row sdkmessageprocessingsteps $guardBody).sdkmessageprocessingstepid
+    } else {
+      $guardStepId = [string](One $guardStepRows "step $guardStepName").sdkmessageprocessingstepid
+      Patch-Row sdkmessageprocessingsteps $guardStepId $guardBody
+    }
+    Patch-Row sdkmessageprocessingsteps $guardStepId @{
+      statecode=$(if ($EnableAfterApproval) { 0 } else { 1 })
+      statuscode=$(if ($EnableAfterApproval) { 1 } else { 2 })
+    }
+    if ($boundary.message -eq 'Update') {
+      if ([string]::IsNullOrWhiteSpace([string]$boundary.preImageAttributes)) {
+        throw "Guard update boundary $($boundary.entity) has no pre-image attributes."
+      }
+      $guardImages = Get-Rows "sdkmessageprocessingstepimages?`$select=sdkmessageprocessingstepimageid&`$filter=_sdkmessageprocessingstepid_value eq $guardStepId and name eq 'PreImage'"
+      $guardImageBody = @{
+        name='PreImage'; entityalias='PreImage'; imagetype=0; messagepropertyname='Target'
+        attributes=[string]$boundary.preImageAttributes
+        'sdkmessageprocessingstepid@odata.bind'="/sdkmessageprocessingsteps($guardStepId)"
+      }
+      if ($guardImages.Count -eq 0) { Post-Row sdkmessageprocessingstepimages $guardImageBody | Out-Null }
+      else { Patch-Row sdkmessageprocessingstepimages ([string](One $guardImages "image $guardStepName").sdkmessageprocessingstepimageid) $guardImageBody }
+    }
+  }
   Write-Host ("EVIDENCE configurableType={0} steps={1} state={2} assemblySha256={3} manifestSha256={4}" -f
-    $typeId, (($manifest.boundaries | ForEach-Object { @($_.stages).Count } | Measure-Object -Sum).Sum), $(if ($EnableAfterApproval) { 'enabled' } else { 'disabled' }),
+    $typeId, $configurableStepCount, $(if ($EnableAfterApproval) { 'enabled' } else { 'disabled' }),
     $assemblyHash, $manifestHash)
+  Write-Host ("EVIDENCE duplicateGuardType={0} steps={1} state={2}" -f
+    $guardTypeId, $guardStepCount, $(if ($EnableAfterApproval) { 'enabled' } else { 'disabled' }))
 } finally {
   $token = $null
 }

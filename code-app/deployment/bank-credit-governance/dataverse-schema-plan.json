@@ -1,11 +1,11 @@
 {
-  "schemaVersion": "credit-governance/2.0.1",
+  "schemaVersion": "credit-governance/2.0.2",
   "activationState": "NO_GO",
   "mutationSemantics": "CREATE_MISSING_ONLY",
   "destructiveOperations": [],
   "expected": {
     "tables": 10,
-    "columns": 107,
+    "columns": 117,
     "relationships": 24,
     "alternateKeys": 10
   },
@@ -495,6 +495,14 @@
     },
     {
       "table": "cr664_authoritygrant",
+      "logicalName": "cr664_maximumunsecuredamount",
+      "schemaName": "cr664_Maximumunsecuredamount",
+      "displayName": "Maximum unsecured amount",
+      "type": "Money",
+      "required": false
+    },
+    {
+      "table": "cr664_authoritygrant",
       "logicalName": "cr664_productsjson",
       "schemaName": "cr664_Productsjson",
       "displayName": "Products JSON",
@@ -534,6 +542,23 @@
       "logicalName": "cr664_exceptiontypesjson",
       "schemaName": "cr664_Exceptiontypesjson",
       "displayName": "Exception types JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_insiderpermitted",
+      "schemaName": "cr664_Insiderpermitted",
+      "displayName": "Insider lending permitted",
+      "type": "Boolean",
+      "required": true
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_criticizedclassifiedstatusesjson",
+      "schemaName": "cr664_Criticizedclassifiedstatusesjson",
+      "displayName": "Criticized/classified statuses JSON",
       "type": "Memo",
       "required": true,
       "maxLength": 100000
@@ -1093,6 +1118,67 @@
       "displayName": "Correlation ID",
       "type": "String",
       "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_geography",
+      "schemaName": "cr664_Geography",
+      "displayName": "Governance geography",
+      "type": "String",
+      "required": false,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_haspolicyexception",
+      "schemaName": "cr664_Haspolicyexception",
+      "displayName": "Has policy exception",
+      "type": "Boolean",
+      "required": false
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_policyexceptiontypesjson",
+      "schemaName": "cr664_Policyexceptiontypesjson",
+      "displayName": "Policy exception types JSON",
+      "type": "Memo",
+      "required": false,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_insiderstatus",
+      "schemaName": "cr664_Insiderstatus",
+      "displayName": "Insider status",
+      "type": "Boolean",
+      "required": false
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_concentrationjson",
+      "schemaName": "cr664_Concentrationjson",
+      "displayName": "Concentration JSON",
+      "type": "Memo",
+      "required": false,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_governmentguaranteedprogram",
+      "schemaName": "cr664_Governmentguaranteedprogram",
+      "displayName": "Government-guaranteed program",
+      "type": "String",
+      "required": false,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_loandeal",
+      "logicalName": "cr664_criticizedclassifiedstatus",
+      "schemaName": "cr664_Criticizedclassifiedstatus",
+      "displayName": "Criticized/classified status",
+      "type": "String",
+      "required": false,
       "maxLength": 100
     }
   ],

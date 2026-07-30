@@ -62,6 +62,12 @@ public sealed class ConfigurableCreditGovernancePluginTests
             Deal["cr664_riskrating"] = "pass";
             Deal["cr664_industry"] = "other";
             Deal["cr664_geography"] = "US";
+            Deal["cr664_haspolicyexception"] = false;
+            Deal["cr664_policyexceptiontypesjson"] = "[]";
+            Deal["cr664_insiderstatus"] = false;
+            Deal["cr664_concentrationjson"] = "[]";
+            Deal["cr664_governmentguaranteedprogram"] = "NONE";
+            Deal["cr664_criticizedclassifiedstatus"] = "NONE";
             Provider.OrganizationService.Seed(Deal);
 
             var role = Row("cr664_governanceroleassignment", Guid.NewGuid(), "role-v1");

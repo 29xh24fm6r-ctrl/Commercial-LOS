@@ -5,7 +5,7 @@
  * Production provisioning is a separately approved operator action.
  */
 
-export const BANK_CREDIT_GOVERNANCE_SCHEMA_VERSION = 'credit-governance/2.0.1';
+export const BANK_CREDIT_GOVERNANCE_SCHEMA_VERSION = 'credit-governance/2.0.2';
 export const BANK_CREDIT_GOVERNANCE_ACTIVATION_STATE = 'NO_GO' as const;
 
 export type GovernanceDataverseType =
@@ -69,6 +69,10 @@ export const GOVERNANCE_TABLE = Object.freeze({
   approvalVote: 'cr664_governanceapprovalvote',
   evaluation: 'cr664_governanceevaluation',
 });
+
+export const GOVERNANCE_EXISTING_TABLES = Object.freeze([
+  'cr664_loandeal',
+]);
 
 function table(
   logicalName: string,
@@ -183,11 +187,14 @@ export const BANK_CREDIT_GOVERNANCE_COLUMNS: readonly GovernanceColumnPlan[] = O
   column(T.authorityGrant, 'actionsjson', 'Actions JSON', 'Memo', true, { maxLength: 20_000 }),
   column(T.authorityGrant, 'maximumamount', 'Maximum amount', 'Money'),
   column(T.authorityGrant, 'maximumrelationshipexposure', 'Maximum relationship exposure', 'Money'),
+  column(T.authorityGrant, 'maximumunsecuredamount', 'Maximum unsecured amount', 'Money'),
   column(T.authorityGrant, 'productsjson', 'Products JSON', 'Memo', true, { maxLength: 100_000 }),
   column(T.authorityGrant, 'riskratingsjson', 'Risk ratings JSON', 'Memo', true, { maxLength: 100_000 }),
   column(T.authorityGrant, 'geographiesjson', 'Geographies JSON', 'Memo', true, { maxLength: 100_000 }),
   column(T.authorityGrant, 'industriesjson', 'Industries JSON', 'Memo', true, { maxLength: 100_000 }),
   column(T.authorityGrant, 'exceptiontypesjson', 'Exception types JSON', 'Memo', true, { maxLength: 100_000 }),
+  column(T.authorityGrant, 'insiderpermitted', 'Insider lending permitted', 'Boolean', true),
+  column(T.authorityGrant, 'criticizedclassifiedstatusesjson', 'Criticized/classified statuses JSON', 'Memo', true, { maxLength: 100_000 }),
   column(T.authorityGrant, 'effectivefrom', 'Effective from', 'DateTime', true),
   column(T.authorityGrant, 'effectivethrough', 'Effective through', 'DateTime'),
   column(T.authorityGrant, 'grantstate', 'Grant state', 'String', true, { maxLength: 20 }),
@@ -252,6 +259,14 @@ export const BANK_CREDIT_GOVERNANCE_COLUMNS: readonly GovernanceColumnPlan[] = O
   column(T.evaluation, 'requestsha256', 'Request SHA-256', 'String', true, { maxLength: 64 }),
   column(T.evaluation, 'resultsha256', 'Result SHA-256', 'String', true, { maxLength: 64 }),
   column(T.evaluation, 'correlationid', 'Correlation ID', 'String', true, { maxLength: 100 }),
+
+  column('cr664_loandeal', 'geography', 'Governance geography', 'String', false, { maxLength: 200 }),
+  column('cr664_loandeal', 'haspolicyexception', 'Has policy exception', 'Boolean', false),
+  column('cr664_loandeal', 'policyexceptiontypesjson', 'Policy exception types JSON', 'Memo', false, { maxLength: 100_000 }),
+  column('cr664_loandeal', 'insiderstatus', 'Insider status', 'Boolean', false),
+  column('cr664_loandeal', 'concentrationjson', 'Concentration JSON', 'Memo', false, { maxLength: 100_000 }),
+  column('cr664_loandeal', 'governmentguaranteedprogram', 'Government-guaranteed program', 'String', false, { maxLength: 200 }),
+  column('cr664_loandeal', 'criticizedclassifiedstatus', 'Criticized/classified status', 'String', false, { maxLength: 100 }),
 ]);
 
 function relationship(
@@ -311,8 +326,12 @@ export interface GovernanceSchemaValidation {
 
 export function validateBankCreditGovernanceSchemaPlan(): GovernanceSchemaValidation {
   const errors: string[] = [];
-  const tables = new Set(BANK_CREDIT_GOVERNANCE_TABLES.map((item) => item.logicalName));
-  if (tables.size !== BANK_CREDIT_GOVERNANCE_TABLES.length) errors.push('duplicate table logical name');
+  const governedTableNames = BANK_CREDIT_GOVERNANCE_TABLES.map((item) => item.logicalName);
+  const tables = new Set([
+    ...governedTableNames,
+    ...GOVERNANCE_EXISTING_TABLES,
+  ]);
+  if (new Set(governedTableNames).size !== governedTableNames.length) errors.push('duplicate table logical name');
   const columnKeys = new Set<string>();
   for (const columnPlan of BANK_CREDIT_GOVERNANCE_COLUMNS) {
     if (!tables.has(columnPlan.table)) errors.push(`column references unknown table: ${columnPlan.logicalName}`);

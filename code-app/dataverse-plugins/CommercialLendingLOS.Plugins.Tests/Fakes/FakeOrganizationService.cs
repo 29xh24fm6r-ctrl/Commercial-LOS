@@ -20,57 +20,78 @@ namespace CommercialLendingLOS.Plugins.Tests.Fakes;
 public sealed class FakeOrganizationService : IOrganizationService
 {
     private readonly Dictionary<string, Dictionary<Guid, Entity>> _store = new();
+    private readonly object _sync = new();
     public List<Entity> Created { get; } = new();
+    public List<Entity> Updated { get; } = new();
 
     public void Seed(Entity entity)
     {
-        if (entity.Id == Guid.Empty) entity.Id = Guid.NewGuid();
-        if (!_store.TryGetValue(entity.LogicalName, out var table))
+        lock (_sync)
         {
-            table = new Dictionary<Guid, Entity>();
-            _store[entity.LogicalName] = table;
+            if (entity.Id == Guid.Empty) entity.Id = Guid.NewGuid();
+            if (!_store.TryGetValue(entity.LogicalName, out var table))
+            {
+                table = new Dictionary<Guid, Entity>();
+                _store[entity.LogicalName] = table;
+            }
+            table[entity.Id] = entity;
         }
-        table[entity.Id] = entity;
     }
 
     public Guid Create(Entity entity)
     {
-        Created.Add(entity);
-        if (entity.Id == Guid.Empty) entity.Id = Guid.NewGuid();
-        Seed(entity);
-        return entity.Id;
+        lock (_sync)
+        {
+            if (entity.Id == Guid.Empty) entity.Id = Guid.NewGuid();
+            if (!_store.TryGetValue(entity.LogicalName, out var table))
+            {
+                table = new Dictionary<Guid, Entity>();
+                _store[entity.LogicalName] = table;
+            }
+            if (table.ContainsKey(entity.Id))
+                throw new InvalidOperationException("FakeOrganizationService: duplicate native GUID.");
+            Created.Add(entity);
+            table[entity.Id] = entity;
+            return entity.Id;
+        }
     }
 
     public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
     {
-        if (_store.TryGetValue(entityName, out var table) && table.TryGetValue(id, out var found))
+        lock (_sync)
         {
-            return found;
+            if (_store.TryGetValue(entityName, out var table) && table.TryGetValue(id, out var found))
+            {
+                return found;
+            }
         }
         throw new InvalidOperationException($"FakeOrganizationService: no seeded '{entityName}' row with id {id}.");
     }
 
     public EntityCollection RetrieveMultiple(QueryExpression query)
     {
-        if (!_store.TryGetValue(query.EntityName, out var table))
+        lock (_sync)
         {
-            return new EntityCollection(new List<Entity>());
+            if (!_store.TryGetValue(query.EntityName, out var table))
+            {
+                return new EntityCollection(new List<Entity>());
+            }
+            IEnumerable<Entity> rows = table.Values;
+            if (query.Criteria != null)
+            {
+                rows = rows.Where(e => MatchesFilter(e, query.Criteria));
+            }
+            if (query.Orders.Count > 0)
+            {
+                var order = query.Orders[0];
+                rows = order.OrderType == OrderType.Ascending
+                    ? rows.OrderBy(e => e.GetAttributeValue<int>(order.AttributeName))
+                    : rows.OrderByDescending(e => e.GetAttributeValue<int>(order.AttributeName));
+            }
+            var list = rows.ToList();
+            if (query.TopCount.HasValue) list = list.Take(query.TopCount.Value).ToList();
+            return new EntityCollection(list);
         }
-        IEnumerable<Entity> rows = table.Values;
-        if (query.Criteria != null)
-        {
-            rows = rows.Where(e => MatchesFilter(e, query.Criteria));
-        }
-        if (query.Orders.Count > 0)
-        {
-            var order = query.Orders[0];
-            rows = order.OrderType == OrderType.Ascending
-                ? rows.OrderBy(e => e.GetAttributeValue<int>(order.AttributeName))
-                : rows.OrderByDescending(e => e.GetAttributeValue<int>(order.AttributeName));
-        }
-        var list = rows.ToList();
-        if (query.TopCount.HasValue) list = list.Take(query.TopCount.Value).ToList();
-        return new EntityCollection(list);
     }
 
     private static bool MatchesFilter(Entity entity, FilterExpression filter)
@@ -106,7 +127,16 @@ public sealed class FakeOrganizationService : IOrganizationService
         return Equals(actual, expected);
     }
 
-    public void Update(Entity entity) => throw new NotSupportedException();
+    public void Update(Entity entity)
+    {
+        lock (_sync)
+        {
+            if (!_store.TryGetValue(entity.LogicalName, out var table) || !table.TryGetValue(entity.Id, out var existing))
+                throw new InvalidOperationException($"FakeOrganizationService: no seeded '{entity.LogicalName}' row with id {entity.Id}.");
+            foreach (var pair in entity.Attributes) existing[pair.Key] = pair.Value;
+            Updated.Add(entity);
+        }
+    }
     public void Delete(string entityName, Guid id) => throw new NotSupportedException();
     public OrganizationResponse Execute(OrganizationRequest request) => throw new NotSupportedException();
     public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) => throw new NotSupportedException();

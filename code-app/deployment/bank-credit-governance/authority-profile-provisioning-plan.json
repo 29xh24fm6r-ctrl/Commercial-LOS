@@ -1,10 +1,67 @@
 {
   "contractVersion": "bank-credit-governance/v2",
   "bankKey": "OGB",
-  "activationState": "NO_GO",
-  "assignmentSource": "INSTITUTION_APPROVED_ROSTER_REQUIRED",
+  "activationState": "APPROVED_FOR_CUTOVER",
+  "assignmentSource": "MATTHEW_APPROVED_OPTION_A_2026-07-30",
   "titleOrWorkspaceInferencePermitted": false,
-  "assignments": [],
+  "assignments": [
+    {
+      "assignmentId": "ogb-option-a-matthew-authorized-officer",
+      "grantId": "ogb-option-a-matthew-authority",
+      "upn": "mpaller@oldglorybank.com",
+      "roles": [
+        "OGB_AUTHORIZED_OFFICER"
+      ],
+      "actions": [
+        "ORIGINATE",
+        "UNDERWRITE",
+        "RECOMMEND",
+        "APPROVE",
+        "COMMIT",
+        "CLOSE",
+        "AUTHORIZE_FUNDING",
+        "CONFIRM_DISBURSEMENT",
+        "BOARD",
+        "SERVICE"
+      ],
+      "maximumAmount": 1000000,
+      "maximumRelationshipExposure": 1000000,
+      "maximumUnsecuredAmount": 0,
+      "products": [
+        "Equipment",
+        "Term Loan",
+        "Term loan",
+        "Working Capital",
+        "Owner-occupied CRE",
+        "CRE",
+        "Commercial Mortgage",
+        "SBA 7(a)",
+        "SBA 504",
+        "Line of Credit",
+        "Revolving line of credit"
+      ],
+      "riskRatings": [
+        "PASS"
+      ],
+      "exceptionTypes": [],
+      "insiderPermitted": false,
+      "criticizedClassifiedStatuses": [],
+      "effectiveFrom": "2026-07-30T00:00:00.000Z",
+      "effectiveThrough": null,
+      "permittedRoleCombinations": [
+        "ORIGINATE",
+        "UNDERWRITE",
+        "RECOMMEND",
+        "APPROVE",
+        "COMMIT",
+        "CLOSE",
+        "AUTHORIZE_FUNDING",
+        "CONFIRM_DISBURSEMENT",
+        "BOARD",
+        "SERVICE"
+      ]
+    }
+  ],
   "committeeMemberships": [],
   "temporaryDelegations": [],
   "requiredApprovalEvidence": [
@@ -17,7 +74,7 @@
     "Approver identity and approval timestamp"
   ],
   "blockingDiagnostics": [
-    "No real authority roster has been approved or supplied.",
+    "The approved UPN must resolve to exactly one enabled systemuser with a non-empty Entra object ID.",
     "No production assignment may be inferred from title, security role, team, or workspace access.",
     "No temporary delegation may exist without explicit source and expiry.",
     "Duplicate or ambiguous identity bindings block provisioning."

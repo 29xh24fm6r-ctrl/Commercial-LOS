@@ -15,6 +15,7 @@ const facts: CreditCaseFacts = {
   collateral: ['real estate', 'equipment'],
   riskRating: '6',
   hasPolicyException: true,
+  policyExceptionTypes: ['Covenant'],
   insiderStatus: true,
   concentration: ['hospitality'],
   industry: 'hotel',
@@ -57,6 +58,9 @@ function request(over: Partial<GovernanceEvaluationRequest> = {}): GovernanceEva
         actions: ['APPROVE'],
         maximumAmount: 1_000_000,
         maximumRelationshipExposure: 2_000_000,
+        exceptionTypes: ['Covenant'],
+        insiderPermitted: true,
+        criticizedClassifiedStatuses: ['criticized'],
         effectiveFrom: '2026-01-01T00:00:00Z',
       }],
     },
@@ -236,6 +240,8 @@ describe('bank credit governance property and invariant coverage', () => {
           geographies: [facts.geography],
           industries: [facts.industry],
           exceptionTypes: ['Covenant'],
+          insiderPermitted: true,
+          criticizedClassifiedStatuses: ['criticized'],
           effectiveFrom: '2026-01-01T00:00:00Z',
         }],
       },
@@ -249,7 +255,6 @@ describe('bank credit governance property and invariant coverage', () => {
       { ...scopedRequest.facts, geography: 'other' },
       { ...scopedRequest.facts, industry: 'other' },
       { ...scopedRequest.facts, policyExceptionTypes: ['Documentation'] },
-      { ...scopedRequest.facts, hasPolicyException: false },
     ];
     for (const candidate of outsideScope) {
       const result = evaluateBankCreditGovernance({ ...scopedRequest, facts: candidate });

@@ -65,6 +65,9 @@ namespace CommercialLendingLOS.Plugins
             var repository = new DataverseBankCreditGovernanceRepository(
                 service, bankId, context.InitiatingUserId, context.CorrelationId, source);
             var caseId = repository.ResolveLoanDealId();
+            var stableOperationId = StableOperationId(
+                bankId, action, context.PrimaryEntityName, target, source, caseId);
+            var evaluationId = stableOperationId.ToString("N") + "-" + action;
             if (context.Stage == 40 && action != GovernedCreditAction.Originate)
             {
                 repository.AppendActionEvidence(
@@ -72,19 +75,19 @@ namespace CommercialLendingLOS.Plugins
                     caseId,
                     context.PrimaryEntityName,
                     target.Id,
-                    context.CorrelationId.ToString("N") + "-" + action);
+                    evaluationId);
                 return;
             }
             var command = new ServerGovernanceEvaluationCommand
             {
                 ContractVersion = ServerGovernanceEvaluationCommand.SupportedContractVersion,
-                EvaluationId = context.CorrelationId.ToString("N") + "-" + action,
+                EvaluationId = evaluationId,
                 BankId = bankId,
                 CaseId = caseId.ToString("D"),
                 Action = action,
                 ActorSystemUserId = context.InitiatingUserId.ToString("D"),
                 RequestedAt = DateTimeOffset.UtcNow,
-                OperationCorrelationId = context.CorrelationId.ToString("D"),
+                OperationCorrelationId = stableOperationId.ToString("D"),
             };
             tracing?.Trace(
                 "ConfigurableCreditGovernance bank={0} action={1} deal={2} actor={3} correlation={4}",
@@ -123,6 +126,36 @@ namespace CommercialLendingLOS.Plugins
                 result[pair[0].Trim()] = pair[1].Trim();
             }
             return result;
+        }
+
+        private static Guid StableOperationId(
+            string bank,
+            GovernedCreditAction governedAction,
+            string entityName,
+            Entity target,
+            Entity source,
+            Guid caseId)
+        {
+            var clientCorrelation = source.GetAttributeValue<string>("cr664_correlationid");
+            var operationKey = !string.IsNullOrWhiteSpace(clientCorrelation)
+                ? "correlation:" + clientCorrelation.Trim().ToLowerInvariant()
+                : target.Id != Guid.Empty
+                    ? "record:" + target.Id.ToString("D")
+                    : "case:" + caseId.ToString("D");
+            var canonical = string.Join("|", new[]
+            {
+                bank.Trim().ToLowerInvariant(),
+                governedAction.ToString().ToLowerInvariant(),
+                (entityName ?? string.Empty).Trim().ToLowerInvariant(),
+                operationKey,
+            });
+            using (var sha = SHA256.Create())
+            {
+                var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(canonical)).Take(16).ToArray();
+                bytes[7] = (byte)((bytes[7] & 0x0f) | 0x50);
+                bytes[8] = (byte)((bytes[8] & 0x3f) | 0x80);
+                return new Guid(bytes);
+            }
         }
 
         private static string Required(IDictionary<string, string> values, string key)
@@ -474,21 +507,35 @@ namespace CommercialLendingLOS.Plugins
             var exposure = related.Sum(item => MoneyValue(item, "cr664_amount"));
             if (!related.Any(item => item.Id == row.Id)) exposure += amount;
             var collateral = Text(row, "cr664_collateralsummary");
+            var product = DisplayAny(row, "cr664_producttypereference", "cr664_producttype");
+            var riskRating = DisplayAny(row, "cr664_risklevelreference", "cr664_riskrating");
+            var industry = DisplayAny(row, "cr664_industry");
+            var geography = RequiredText(row, "cr664_geography");
+            RequirePresent(row, "cr664_haspolicyexception");
+            RequirePresent(row, "cr664_policyexceptiontypesjson");
+            RequirePresent(row, "cr664_insiderstatus");
+            RequirePresent(row, "cr664_concentrationjson");
+            var guaranteedProgram = RequiredText(row, "cr664_governmentguaranteedprogram");
+            var classification = RequiredText(row, "cr664_criticizedclassifiedstatus");
+            if (string.IsNullOrWhiteSpace(product) || string.IsNullOrWhiteSpace(riskRating) ||
+                string.IsNullOrWhiteSpace(industry))
+                throw Fail("CASE_FACTS_INCOMPLETE", "Product, risk rating, and industry are required.");
             return new CreditCaseFacts
             {
                 Amount = amount,
                 TotalRelationshipExposure = exposure,
-                Product = Display(row, "cr664_producttype"),
+                UnsecuredExposure = string.IsNullOrWhiteSpace(collateral) ? amount : 0m,
+                Product = product,
                 Collateral = string.IsNullOrWhiteSpace(collateral) ? new List<string>() : new List<string> { collateral },
-                RiskRating = Text(row, "cr664_riskrating"),
+                RiskRating = riskRating,
                 HasPolicyException = Bool(row, "cr664_haspolicyexception"),
                 PolicyExceptionTypes = Strings(row, "cr664_policyexceptiontypesjson"),
                 InsiderStatus = Bool(row, "cr664_insiderstatus"),
                 Concentration = Strings(row, "cr664_concentrationjson"),
-                Industry = Display(row, "cr664_industry"),
-                Geography = Text(row, "cr664_geography"),
-                GovernmentGuaranteedProgram = Text(row, "cr664_governmentguaranteedprogram"),
-                CriticizedClassifiedStatus = Text(row, "cr664_criticizedclassifiedstatus"),
+                Industry = industry,
+                Geography = geography,
+                GovernmentGuaranteedProgram = Same(guaranteedProgram, "NONE") ? null : guaranteedProgram,
+                CriticizedClassifiedStatus = Same(classification, "NONE") ? null : classification,
             };
         }
 
@@ -502,11 +549,14 @@ namespace CommercialLendingLOS.Plugins
                     Actions = ParseActions(row.GetAttributeValue<string>("cr664_actionsjson")),
                     MaximumAmount = NullableMoney(row, "cr664_maximumamount"),
                     MaximumRelationshipExposure = NullableMoney(row, "cr664_maximumrelationshipexposure"),
+                    MaximumUnsecuredAmount = NullableMoney(row, "cr664_maximumunsecuredamount"),
                     Products = StringsOrNull(row, "cr664_productsjson"),
                     RiskRatings = StringsOrNull(row, "cr664_riskratingsjson"),
                     Geographies = StringsOrNull(row, "cr664_geographiesjson"),
                     Industries = StringsOrNull(row, "cr664_industriesjson"),
                     ExceptionTypes = StringsOrNull(row, "cr664_exceptiontypesjson"),
+                    InsiderPermitted = Bool(row, "cr664_insiderpermitted"),
+                    CriticizedClassifiedStatuses = StringsOrNull(row, "cr664_criticizedclassifiedstatusesjson"),
                     EffectiveFrom = Date(row, "cr664_effectivefrom"),
                     EffectiveThrough = NullableDate(row, "cr664_effectivethrough"),
                 };
@@ -566,9 +616,37 @@ namespace CommercialLendingLOS.Plugins
             row.GetAttributeValue<long>("versionnumber").ToString(CultureInfo.InvariantCulture);
         private static string Text(Entity row, string name) => row.GetAttributeValue<string>(name);
         private static bool Bool(Entity row, string name) => row.GetAttributeValue<bool>(name);
-        private static string Display(Entity row, string name) =>
-            row.FormattedValues.Contains(name) ? row.FormattedValues[name] :
-            row.GetAttributeValue<string>(name);
+        private static string DisplayAny(Entity row, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (row.FormattedValues.Contains(name) &&
+                    !string.IsNullOrWhiteSpace(row.FormattedValues[name]))
+                    return row.FormattedValues[name];
+                object raw;
+                if (!row.Attributes.TryGetValue(name, out raw) || raw == null) continue;
+                var reference = raw as EntityReference;
+                if (reference != null && !string.IsNullOrWhiteSpace(reference.Name))
+                    return reference.Name;
+                var text = raw as string;
+                if (!string.IsNullOrWhiteSpace(text)) return text;
+                var option = raw as OptionSetValue;
+                if (option != null) return option.Value.ToString(CultureInfo.InvariantCulture);
+            }
+            return null;
+        }
+        private static string RequiredText(Entity row, string name)
+        {
+            var value = Text(row, name);
+            if (string.IsNullOrWhiteSpace(value))
+                throw Fail("CASE_FACTS_INCOMPLETE", name + " is required.");
+            return value;
+        }
+        private static void RequirePresent(Entity row, string name)
+        {
+            if (!row.Contains(name) || row[name] == null)
+                throw Fail("CASE_FACTS_INCOMPLETE", name + " is required.");
+        }
         private static decimal MoneyValue(Entity row, string name)
         {
             var money = row.GetAttributeValue<Money>(name);
