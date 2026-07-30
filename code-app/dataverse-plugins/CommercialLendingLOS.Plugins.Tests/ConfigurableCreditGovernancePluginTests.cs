@@ -156,11 +156,26 @@ public sealed class ConfigurableCreditGovernancePluginTests
     }
 
     [Fact]
-    public void PreOperationRejectsConcurrentCaseChangeAfterDurablePreValidationEvaluation()
+    public void PreOperationAcceptsSameOperationWhenOnlyDealRowVersionAdvanced()
     {
         var fixture = new Fixture();
         fixture.Execute();
         fixture.Deal.RowVersion = "deal-v2";
+        fixture.Provider.Context.Stage = 20;
+
+        fixture.Execute();
+
+        Assert.Single(fixture.Provider.OrganizationService.Created.Where(
+            value => value.LogicalName == "cr664_governanceevaluation"));
+    }
+
+    [Fact]
+    public void PreOperationRejectsMaterialCaseChangeAfterDurablePreValidationEvaluation()
+    {
+        var fixture = new Fixture();
+        fixture.Execute();
+        fixture.Deal.RowVersion = "deal-v2";
+        fixture.Deal["cr664_amount"] = new Money(101m);
         fixture.Provider.Context.Stage = 20;
 
         var error = Assert.Throws<InvalidPluginExecutionException>(fixture.Execute);
