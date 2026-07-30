@@ -11,6 +11,7 @@ written approval covering all actions in the final checklist.**
 | Item | Source of truth |
 |---|---|
 | Additive schema plan | `deployment/bank-credit-governance/dataverse-schema-plan.json` |
+| Create-missing-only schema provisioner | `scripts/dataverse/provision-bank-credit-governance-schema.ps1` |
 | Plug-in assembly | `deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip` |
 | Registration manifest | `dataverse-plugins/CommercialLendingLOS.Plugins/DurableRecordGovernanceRegistration.json` |
 | Proposed initial policy | `deployment/bank-credit-governance/initial-ogb-policy-v1.proposed-active.json` |
@@ -51,10 +52,11 @@ Required production concerns are pinned to these executable tests:
 | Concurrent update | `AtomicPersistenceRejectsStalePolicyAndConcurrentCaseUpdates(concurrent-update)` |
 | Audit/evaluation persistence | `EvaluationPersistenceCarriesAuditCorrelationPolicyAndSourceVersions`, `PreValidationRejection_WritesADurableAuditRow_WhenTheActorResolves` |
 
-The package verifier reruns this suite and then checks every deployable hash.
-Hashing after the build prevents a successful report if test execution replaced
-the assembly bytes. A mismatch or test failure stops the process before any
-production command.
+The package verifier reruns this suite and then checks every deployable hash,
+including hashing the DLL entry directly inside the committed ZIP. The
+strong-name build can be byte-different across rebuilds, so the ZIP entry—not a
+freshly replaced build-output path—is the production artifact. A mismatch or
+test failure stops the process before any production command.
 
 ## Reproducible build
 
@@ -80,9 +82,9 @@ approval**:
 
 ```powershell
 # 1. Provision the reviewed create-missing-only schema plan.
-# Operator applies deployment/bank-credit-governance/dataverse-schema-plan.json
-# using the tenant's approved solution-import/change process, then exports and
-# reconciles live metadata against the same manifest.
+powershell -File scripts/dataverse/provision-bank-credit-governance-schema.ps1 `
+  -Apply -Force `
+  -ExpectedSchemaSha256 <schemaSha256>
 
 # 2. Register the exact hashed assembly disabled for inspection.
 powershell -File scripts/dataverse/register-durable-record-governance-plugin.ps1 `

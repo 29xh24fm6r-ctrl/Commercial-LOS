@@ -7,6 +7,11 @@ interface ActivationManifest {
   readonly activationState: string;
   readonly pluginPackage: { readonly path: string; readonly sha256: string };
   readonly schemaPlan: { readonly path: string; readonly sha256: string };
+  readonly schemaProvisioner: {
+    readonly path: string;
+    readonly sha256: string;
+    readonly dryRunByDefault: boolean;
+  };
   readonly initialPolicy: {
     readonly path: string;
     readonly sha256: string;
@@ -39,6 +44,7 @@ describe('PR 8 production activation package', () => {
     for (const item of [
       manifest.pluginPackage,
       manifest.schemaPlan,
+      manifest.schemaProvisioner,
       manifest.initialPolicy,
       manifest.authorityPlan,
       manifest.registrationManifest,
@@ -53,6 +59,7 @@ describe('PR 8 production activation package', () => {
     expect(manifest.initialPolicy.productionPersisted).toBe(false);
     expect(manifest.initialPolicy.productionActivated).toBe(false);
     expect(manifest.activationState).toBe('NO_GO');
+    expect(manifest.schemaProvisioner.dryRunByDefault).toBe(true);
   });
 
   it('contains no fabricated authority, committee, vote, or approval rows', () => {
