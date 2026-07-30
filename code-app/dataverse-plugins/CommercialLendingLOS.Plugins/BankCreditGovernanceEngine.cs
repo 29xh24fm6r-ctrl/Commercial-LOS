@@ -30,6 +30,7 @@ namespace CommercialLendingLOS.Plugins
         public IList<string> Collateral { get; set; } = new List<string>();
         public string RiskRating { get; set; }
         public bool HasPolicyException { get; set; }
+        public IList<string> PolicyExceptionTypes { get; set; } = new List<string>();
         public bool InsiderStatus { get; set; }
         public IList<string> Concentration { get; set; } = new List<string>();
         public string Industry { get; set; }
@@ -45,6 +46,10 @@ namespace CommercialLendingLOS.Plugins
         public decimal? MinimumRelationshipExposure { get; set; }
         public decimal? MaximumRelationshipExposure { get; set; }
         public IList<string> Products { get; set; }
+        public IList<string> RiskRatings { get; set; }
+        public IList<string> Geographies { get; set; }
+        public IList<string> Industries { get; set; }
+        public IList<string> ExceptionTypes { get; set; }
         public IList<string> AnyCollateral { get; set; }
         public IList<string> RiskRatings { get; set; }
         public bool? HasPolicyException { get; set; }
@@ -104,6 +109,11 @@ namespace CommercialLendingLOS.Plugins
         public string CommitteeId { get; set; }
         public bool DistinctActors { get; set; }
         public bool Unanimous { get; set; }
+        public int? QuorumRequired { get; set; }
+        public bool AbstentionsCountTowardQuorum { get; set; }
+        public IList<string> RecusedActorIds { get; set; }
+        public decimal? MaximumAmount { get; set; }
+        public decimal? MaximumRelationshipExposure { get; set; }
     }
 
     public sealed class RuleRequirements
@@ -308,19 +318,39 @@ namespace CommercialLendingLOS.Plugins
             {
                 var relevant = request.Approvals.Where(approval =>
                     Equal(approval.GroupId, group.GroupId) &&
-                    !Equal(approval.Decision, "ABSTAIN") &&
                     (group.CommitteeId == null || Equal(approval.CommitteeId, group.CommitteeId)) &&
+                    (group.RecusedActorIds == null || !Contains(group.RecusedActorIds, approval.ActorId)) &&
                     (group.EligibleRoles == null || approval.ActorRoles.Any(role => Contains(group.EligibleRoles, role))))
                     .ToList();
                 var approved = relevant.Where(approval => Equal(approval.Decision, "APPROVE")).ToList();
                 var count = group.DistinctActors
                     ? approved.Select(value => value.ActorId?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count()
                     : approved.Count;
-                var unanimous = !group.Unanimous || relevant.All(value => Equal(value.Decision, "APPROVE"));
-                if (count < group.ApprovalsRequired || !unanimous)
+                var quorumVotes = relevant.Where(approval =>
+                    !Equal(approval.Decision, "ABSTAIN") || group.AbstentionsCountTowardQuorum).ToList();
+                var quorumCount = group.DistinctActors
+                    ? quorumVotes.Select(value => value.ActorId?.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+                    : quorumVotes.Count;
+                var quorumSatisfied = !group.QuorumRequired.HasValue ||
+                    quorumCount >= group.QuorumRequired.Value;
+                var decisive = relevant.Where(value => !Equal(value.Decision, "ABSTAIN")).ToList();
+                var unanimous = !group.Unanimous ||
+                    (decisive.Count > 0 && decisive.All(value => Equal(value.Decision, "APPROVE")));
+                var authorityExceeded =
+                    (group.MaximumAmount.HasValue && request.Facts.Amount > group.MaximumAmount.Value) ||
+                    (group.MaximumRelationshipExposure.HasValue &&
+                     request.Facts.TotalRelationshipExposure > group.MaximumRelationshipExposure.Value);
+                if (count < group.ApprovalsRequired || !unanimous || !quorumSatisfied || authorityExceeded)
                 {
+                    var code = authorityExceeded
+                        ? "COMMITTEE_AUTHORITY_EXCEEDED"
+                        : !quorumSatisfied
+                            ? "COMMITTEE_QUORUM_UNSATISFIED"
+                            : group.CommitteeId == null
+                                ? "APPROVAL_GROUP_UNSATISFIED"
+                                : "COMMITTEE_ACTION_REQUIRED";
                     var item = Finding(
-                        group.CommitteeId == null ? "APPROVAL_GROUP_UNSATISFIED" : "COMMITTEE_ACTION_REQUIRED",
+                        code,
                         "The required approval group is not satisfied.",
                         rule);
                     item.EvidenceIds = approved.Select(value => value.ApprovalId).ToList();
@@ -338,6 +368,13 @@ namespace CommercialLendingLOS.Plugins
                 if (request.EvaluatedAt < grant.EffectiveFrom ||
                     (grant.EffectiveThrough.HasValue && request.EvaluatedAt > grant.EffectiveThrough.Value)) continue;
                 if (grant.Products != null && !Contains(grant.Products, request.Facts.Product)) continue;
+                if (grant.RiskRatings != null && !Contains(grant.RiskRatings, request.Facts.RiskRating)) continue;
+                if (grant.Geographies != null && !Contains(grant.Geographies, request.Facts.Geography)) continue;
+                if (grant.Industries != null && !Contains(grant.Industries, request.Facts.Industry)) continue;
+                if (grant.ExceptionTypes != null &&
+                    (!request.Facts.HasPolicyException ||
+                     request.Facts.PolicyExceptionTypes == null ||
+                     !request.Facts.PolicyExceptionTypes.Any(value => Contains(grant.ExceptionTypes, value)))) continue;
                 if (grant.MaximumAmount.HasValue && request.Facts.Amount > grant.MaximumAmount.Value)
                 {
                     exceeded = true;

@@ -218,4 +218,45 @@ describe('bank credit governance property and invariant coverage', () => {
       nonOverrideable: true,
     });
   });
+
+  it('never permits when any delegated-authority scope dimension is outside the grant', () => {
+    const scopedRequest = request({
+      facts: { ...facts, policyExceptionTypes: ['Covenant'] },
+      actor: {
+        actorId: 'actor-1',
+        roles: ['officer'],
+        committeeMemberships: [],
+        authorityGrants: [{
+          grantId: 'fully-scoped',
+          actions: ['APPROVE'],
+          maximumAmount: facts.amount,
+          maximumRelationshipExposure: facts.totalRelationshipExposure,
+          products: [facts.product],
+          riskRatings: [facts.riskRating],
+          geographies: [facts.geography],
+          industries: [facts.industry],
+          exceptionTypes: ['Covenant'],
+          effectiveFrom: '2026-01-01T00:00:00Z',
+        }],
+      },
+    });
+    expect(evaluateBankCreditGovernance(scopedRequest).decision).toBe('PERMIT');
+    const outsideScope = [
+      { ...scopedRequest.facts, amount: facts.amount + 1 },
+      { ...scopedRequest.facts, totalRelationshipExposure: facts.totalRelationshipExposure + 1 },
+      { ...scopedRequest.facts, product: 'other' },
+      { ...scopedRequest.facts, riskRating: 'other' },
+      { ...scopedRequest.facts, geography: 'other' },
+      { ...scopedRequest.facts, industry: 'other' },
+      { ...scopedRequest.facts, policyExceptionTypes: ['Documentation'] },
+      { ...scopedRequest.facts, hasPolicyException: false },
+    ];
+    for (const candidate of outsideScope) {
+      const result = evaluateBankCreditGovernance({ ...scopedRequest, facts: candidate });
+      expect(result.decision).toBe('BLOCK');
+      expect(result.findings.map((item) => item.code)).toEqual(
+        expect.arrayContaining([expect.stringMatching(/^DELEGATED_AUTHORITY_/)]),
+      );
+    }
+  });
 });

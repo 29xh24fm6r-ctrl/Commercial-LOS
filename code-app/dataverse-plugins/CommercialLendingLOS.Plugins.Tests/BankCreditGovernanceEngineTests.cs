@@ -227,4 +227,61 @@ public sealed class BankCreditGovernanceEngineTests
         Assert.Equal(GovernanceDecision.Block, result.Decision);
         Assert.Contains(result.Findings, item => item.Code == reason);
     }
+
+    [Fact]
+    public void DelegatedAuthorityEnforcesRiskGeographyIndustryAndExceptionScope()
+    {
+        var actor = Actor();
+        var grant = actor.AuthorityGrants.Single();
+        grant.RiskRatings = new[] { "5" };
+        grant.Geographies = new[] { "Georgia" };
+        grant.Industries = new[] { "Manufacturing" };
+        grant.ExceptionTypes = new[] { "Covenant" };
+        var request = Request(actor: actor);
+        request.Facts.HasPolicyException = true;
+        request.Facts.PolicyExceptionTypes = new[] { "Documentation" };
+
+        var denied = BankCreditGovernanceEngine.Evaluate(request);
+        request.Facts.PolicyExceptionTypes = new[] { "covenant" };
+        var permitted = BankCreditGovernanceEngine.Evaluate(request);
+
+        Assert.Contains(denied.Findings, item => item.Code == "DELEGATED_AUTHORITY_MISSING");
+        Assert.Equal(GovernanceDecision.Permit, permitted.Decision);
+    }
+
+    [Fact]
+    public void CommitteeHonorsQuorumAbstentionRecusalAndAuthorityLimit()
+    {
+        var group = new ApprovalGroupRequirement
+        {
+            GroupId = "credit",
+            CommitteeId = "credit",
+            ApprovalsRequired = 2,
+            QuorumRequired = 3,
+            AbstentionsCountTowardQuorum = true,
+            DistinctActors = true,
+            RecusedActorIds = new[] { "recused" },
+            MaximumAmount = 1_000_000m,
+        };
+        var rule = BaseRule();
+        rule.Requirements.ApprovalGroups = new[] { group };
+        var request = Request(Policy(rule));
+        request.Approvals = new[]
+        {
+            new ApprovalEvidence { ApprovalId = "v1", GroupId = "credit", CommitteeId = "credit", ActorId = "one", Decision = "APPROVE" },
+            new ApprovalEvidence { ApprovalId = "v2", GroupId = "credit", CommitteeId = "credit", ActorId = "two", Decision = "APPROVE" },
+            new ApprovalEvidence { ApprovalId = "v3", GroupId = "credit", CommitteeId = "credit", ActorId = "three", Decision = "ABSTAIN" },
+        };
+
+        Assert.Equal(GovernanceDecision.Permit, BankCreditGovernanceEngine.Evaluate(request).Decision);
+
+        request.Approvals[1].ActorId = "recused";
+        var recused = BankCreditGovernanceEngine.Evaluate(request);
+        Assert.Contains(recused.Findings, item => item.Code == "COMMITTEE_QUORUM_UNSATISFIED");
+
+        request.Approvals[1].ActorId = "two";
+        request.Facts.Amount = 1_000_001m;
+        var exceeded = BankCreditGovernanceEngine.Evaluate(request);
+        Assert.Contains(exceeded.Findings, item => item.Code == "COMMITTEE_AUTHORITY_EXCEEDED");
+    }
 }
