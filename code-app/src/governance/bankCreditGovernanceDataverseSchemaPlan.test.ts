@@ -19,6 +19,12 @@ describe('PR 2 Dataverse governance schema plan', () => {
     expect(BANK_CREDIT_GOVERNANCE_ALTERNATE_KEYS).toHaveLength(10);
   });
 
+  it('does not reuse the incompatible legacy credit-policy-rule table', () => {
+    expect(GOVERNANCE_TABLE.policyRule).toBe('cr664_governancepolicyrule');
+    expect(BANK_CREDIT_GOVERNANCE_TABLES.map((table) => table.logicalName))
+      .not.toContain('cr664_creditpolicyrule');
+  });
+
   it('contains no institution seed, active policy, authority assignment, or dollar value', () => {
     const serialized = JSON.stringify({
       tables: BANK_CREDIT_GOVERNANCE_TABLES,

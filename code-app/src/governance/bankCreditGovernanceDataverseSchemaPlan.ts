@@ -5,7 +5,7 @@
  * Production provisioning is a separately approved operator action.
  */
 
-export const BANK_CREDIT_GOVERNANCE_SCHEMA_VERSION = 'credit-governance/2.0.0';
+export const BANK_CREDIT_GOVERNANCE_SCHEMA_VERSION = 'credit-governance/2.0.1';
 export const BANK_CREDIT_GOVERNANCE_ACTIVATION_STATE = 'NO_GO' as const;
 
 export type GovernanceDataverseType =
@@ -57,7 +57,10 @@ export interface GovernanceAlternateKeyPlan {
 export const GOVERNANCE_TABLE = Object.freeze({
   profile: 'cr664_creditgovernanceprofile',
   policyVersion: 'cr664_creditpolicyversion',
-  policyRule: 'cr664_creditpolicyrule',
+  // Production already has a legacy, user-owned cr664_creditpolicyrule table.
+  // The configurable engine uses a distinct organization-owned table so the
+  // additive package never mutates or repurposes that legacy contract.
+  policyRule: 'cr664_governancepolicyrule',
   roleAssignment: 'cr664_governanceroleassignment',
   authorityGrant: 'cr664_authoritygrant',
   committee: 'cr664_governancecommittee',

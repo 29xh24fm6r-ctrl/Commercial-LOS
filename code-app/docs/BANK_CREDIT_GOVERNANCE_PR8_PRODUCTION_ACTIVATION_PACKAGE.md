@@ -24,6 +24,12 @@ The proposed policy artifact contains no users, grants, votes, approvals, or
 committee memberships. Its `ACTIVE` status describes the exact snapshot whose
 hash is presented for approval; committing the file does not activate it.
 
+Package revision `pr8-2` preserves the pre-existing, user-owned
+`cr664_creditpolicyrule` table without modification. The configurable engine's
+organization-owned policy-rule table is `cr664_governancepolicyrule`. This
+collision correction remains create-missing-only and contains no destructive
+operation.
+
 Exact proposed policy SHA-256:
 `8c47221a9191405364f06c0f128a57b124f7b67ca09ed3dad30c34406ace1a92`.
 
@@ -45,8 +51,10 @@ Required production concerns are pinned to these executable tests:
 | Concurrent update | `AtomicPersistenceRejectsStalePolicyAndConcurrentCaseUpdates(concurrent-update)` |
 | Audit/evaluation persistence | `EvaluationPersistenceCarriesAuditCorrelationPolicyAndSourceVersions`, `PreValidationRejection_WritesADurableAuditRow_WhenTheActorResolves` |
 
-The package verifier checks all committed hashes and reruns this suite. A hash
-mismatch or test failure stops the process before any production command.
+The package verifier reruns this suite and then checks every deployable hash.
+Hashing after the build prevents a successful report if test execution replaced
+the assembly bytes. A mismatch or test failure stops the process before any
+production command.
 
 ## Reproducible build
 

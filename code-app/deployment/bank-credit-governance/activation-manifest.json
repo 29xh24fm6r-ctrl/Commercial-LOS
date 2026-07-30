@@ -1,7 +1,13 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-1",
-  "createdAt": "2026-07-30T00:00:00Z",
+  "packageVersion": "bank-credit-governance/pr8-2",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-1",
+  "createdAt": "2026-07-30T17:32:28Z",
   "activationState": "NO_GO",
+  "productionCollisionCorrection": {
+    "legacyTablePreserved": "cr664_creditpolicyrule",
+    "governancePolicyRuleTable": "cr664_governancepolicyrule",
+    "destructiveOperations": []
+  },
   "sdk": {
     "version": "8.0.423",
     "runtimeVersion": "8.0.29",
@@ -16,7 +22,7 @@
   },
   "pluginAssembly": {
     "path": "dataverse-plugins/CommercialLendingLOS.Plugins/bin/Release/net462/CommercialLendingLOS.Plugins.dll",
-    "sha256": "355696b090c736848ba28f08ed06969eed122bdc24631f6b8e723c3206f47b3a",
+    "sha256": "e32ed3fa4f071360b33886d4df1ee0aff327184417f73aa00b6953a8276172bb",
     "bytes": 82432,
     "targetFramework": "net462",
     "assemblyVersion": "1.0.0.0",
@@ -24,12 +30,12 @@
   },
   "pluginPackage": {
     "path": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
-    "sha256": "f5d199fdbf9fa4689a9d4d5d384bca1e1b57b9a2d28e7a931692a965069b01fd",
-    "bytes": 41871
+    "sha256": "7db50c7b9af9a6786cf355778735468600703343583cbcd8a8748bc5e93878e1",
+    "bytes": 41888
   },
   "schemaPlan": {
     "path": "deployment/bank-credit-governance/dataverse-schema-plan.json",
-    "sha256": "c1a1317550e77d7fcabdbd6c8f44aa9a5545423d2c17742651d05e9a4bbc8ecf",
+    "sha256": "8384b8ab18eedd299b5970418d5769a4abc9caa7476a2bfc65e08c948c0918c4",
     "mutationSemantics": "CREATE_MISSING_ONLY"
   },
   "initialPolicy": {
