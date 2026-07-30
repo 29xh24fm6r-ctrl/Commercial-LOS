@@ -1,0 +1,61 @@
+{
+  "packageVersion": "bank-credit-governance/pr8-1",
+  "createdAt": "2026-07-30T00:00:00Z",
+  "activationState": "NO_GO",
+  "sdk": {
+    "version": "8.0.423",
+    "runtimeVersion": "8.0.29",
+    "source": "https://dot.net/v1/dotnet-install.ps1"
+  },
+  "csharpTests": {
+    "passed": 83,
+    "failed": 0,
+    "skipped": 0,
+    "configuration": "Release",
+    "targetFramework": "net8.0"
+  },
+  "pluginAssembly": {
+    "path": "dataverse-plugins/CommercialLendingLOS.Plugins/bin/Release/net462/CommercialLendingLOS.Plugins.dll",
+    "sha256": "355696b090c736848ba28f08ed06969eed122bdc24631f6b8e723c3206f47b3a",
+    "bytes": 82432,
+    "targetFramework": "net462",
+    "assemblyVersion": "1.0.0.0",
+    "publicKeyToken": "74c842538bd8bf32"
+  },
+  "pluginPackage": {
+    "path": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
+    "sha256": "f5d199fdbf9fa4689a9d4d5d384bca1e1b57b9a2d28e7a931692a965069b01fd",
+    "bytes": 41871
+  },
+  "schemaPlan": {
+    "path": "deployment/bank-credit-governance/dataverse-schema-plan.json",
+    "sha256": "c1a1317550e77d7fcabdbd6c8f44aa9a5545423d2c17742651d05e9a4bbc8ecf",
+    "mutationSemantics": "CREATE_MISSING_ONLY"
+  },
+  "initialPolicy": {
+    "path": "deployment/bank-credit-governance/initial-ogb-policy-v1.proposed-active.json",
+    "sha256": "8c47221a9191405364f06c0f128a57b124f7b67ca09ed3dad30c34406ace1a92",
+    "policyId": "ogb-governance-migration",
+    "version": 1,
+    "productionPersisted": false,
+    "productionActivated": false
+  },
+  "authorityPlan": {
+    "path": "deployment/bank-credit-governance/authority-profile-provisioning-plan.json",
+    "sha256": "8161df6b0e9a2c12f117d658938ab956905533fbe2993b7b52c53325aa6e4aa1",
+    "realAssignments": 0
+  },
+  "registrationManifest": {
+    "path": "dataverse-plugins/CommercialLendingLOS.Plugins/DurableRecordGovernanceRegistration.json",
+    "sha256": "c8128e5270cac6f9bab353bf38bcf0d4bab9ad732f3b26f8d4fb0defaa862c2f",
+    "productionRegisteredByThisPackage": false
+  },
+  "approvalRequired": [
+    "OGB_OVERRIDE_INTERPRETATION",
+    "PRODUCTION_SCHEMA_PROVISIONING",
+    "PRODUCTION_PLUGIN_REGISTRATION",
+    "INITIAL_ACTIVE_OGB_POLICY",
+    "PRODUCTION_AUTHORITY_ASSIGNMENTS",
+    "PRODUCTION_DEPLOYMENT"
+  ]
+}

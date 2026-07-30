@@ -40,6 +40,7 @@ namespace CommercialLendingLOS.Plugins
         public string BankId { get; set; }
         public string CaseId { get; set; }
         public string PolicySnapshotId { get; set; }
+        public string OperationCorrelationId { get; set; }
         public IDictionary<string, string> SourceVersionTokens { get; set; }
         public GovernanceEvaluationRequest Request { get; set; }
         public GovernanceEvaluation Result { get; set; }
@@ -135,10 +136,15 @@ namespace CommercialLendingLOS.Plugins
                 BankId = command.BankId,
                 CaseId = command.CaseId,
                 PolicySnapshotId = policy.SnapshotId,
+                OperationCorrelationId = command.OperationCorrelationId,
                 SourceVersionTokens = evidence.SourceVersionTokens,
                 Request = request,
                 Result = result,
             });
+            if (appended != null && appended.Kind == "stale-policy")
+                return Denied("POLICY_VERSION_STALE", "The active governance policy changed during evaluation.");
+            if (appended != null && appended.Kind == "concurrent-update")
+                return Denied("CONCURRENT_UPDATE_DETECTED", "The governed case changed during evaluation.");
             if (appended == null ||
                 (appended.Kind != "appended" && appended.Kind != "duplicate") ||
                 string.IsNullOrWhiteSpace(appended.EvaluationRecordId))

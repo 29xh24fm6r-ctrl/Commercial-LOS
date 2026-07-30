@@ -1,0 +1,80 @@
+{
+  "policyId": "ogb-governance-migration",
+  "version": 1,
+  "status": "ACTIVE",
+  "effectiveFrom": "2026-01-01T00:00:00.000Z",
+  "rules": [
+    {
+      "ruleId": "ogb-credit-approval",
+      "description": "Migrated current credit approval authority and self-approval controls.",
+      "actions": [
+        "APPROVE",
+        "APPROVE_EXCEPTION"
+      ],
+      "requirements": {
+        "actorRoles": [
+          "OGB_CREDIT_COMMITTEE",
+          "OGB_APPROVAL_OVERRIDE"
+        ],
+        "delegatedAuthorityRequired": true,
+        "independentFrom": [
+          "ORIGINATE"
+        ]
+      },
+      "nonOverrideable": true
+    },
+    {
+      "ruleId": "ogb-funding-below-250k",
+      "description": "Current funding approval count below the legacy dual-control threshold.",
+      "actions": [
+        "AUTHORIZE_FUNDING"
+      ],
+      "when": {
+        "maximumAmount": 249999.999999
+      },
+      "requirements": {
+        "delegatedAuthorityRequired": true,
+        "approvalGroups": [
+          {
+            "groupId": "OGB_FUNDING_APPROVERS",
+            "approvalsRequired": 1,
+            "distinctActors": true
+          }
+        ]
+      },
+      "nonOverrideable": true
+    },
+    {
+      "ruleId": "ogb-funding-at-or-above-250k",
+      "description": "Current two-person funding approval at and above USD 250,000.",
+      "actions": [
+        "AUTHORIZE_FUNDING"
+      ],
+      "when": {
+        "minimumAmount": 250000
+      },
+      "requirements": {
+        "delegatedAuthorityRequired": true,
+        "approvalGroups": [
+          {
+            "groupId": "OGB_FUNDING_APPROVERS",
+            "approvalsRequired": 2,
+            "distinctActors": true
+          }
+        ]
+      },
+      "nonOverrideable": true
+    },
+    {
+      "ruleId": "ogb-disbursement-confirmation",
+      "description": "Adds explicit delegated authority while legacy disbursement separation remains mandatory.",
+      "actions": [
+        "CONFIRM_DISBURSEMENT"
+      ],
+      "requirements": {
+        "delegatedAuthorityRequired": true
+      },
+      "nonOverrideable": true
+    }
+  ]
+}

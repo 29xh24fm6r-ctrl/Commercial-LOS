@@ -46,10 +46,6 @@ namespace CommercialLendingLOS.Plugins
         public decimal? MinimumRelationshipExposure { get; set; }
         public decimal? MaximumRelationshipExposure { get; set; }
         public IList<string> Products { get; set; }
-        public IList<string> RiskRatings { get; set; }
-        public IList<string> Geographies { get; set; }
-        public IList<string> Industries { get; set; }
-        public IList<string> ExceptionTypes { get; set; }
         public IList<string> AnyCollateral { get; set; }
         public IList<string> RiskRatings { get; set; }
         public bool? HasPolicyException { get; set; }
@@ -70,6 +66,10 @@ namespace CommercialLendingLOS.Plugins
         public decimal? MaximumAmount { get; set; }
         public decimal? MaximumRelationshipExposure { get; set; }
         public IList<string> Products { get; set; }
+        public IList<string> RiskRatings { get; set; }
+        public IList<string> Geographies { get; set; }
+        public IList<string> Industries { get; set; }
+        public IList<string> ExceptionTypes { get; set; }
         public DateTimeOffset EffectiveFrom { get; set; }
         public DateTimeOffset? EffectiveThrough { get; set; }
     }
