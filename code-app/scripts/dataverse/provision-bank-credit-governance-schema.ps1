@@ -329,6 +329,12 @@ function Assert-KeyMatch($actual, $planned) {
 function New-Key($planned) {
   Invoke-MetadataPost ("EntityDefinitions(LogicalName='{0}')/Keys" -f $planned.table) @{
     SchemaName = [string]$planned.schemaName
+    DisplayName = @{
+      LocalizedLabels = @(@{
+        Label = ([string]$planned.schemaName).Replace('cr664_key_', '').Replace('_', ' ')
+        LanguageCode = 1033
+      })
+    }
     KeyAttributes = @($planned.columns | ForEach-Object { [string]$_ })
   }
 }
