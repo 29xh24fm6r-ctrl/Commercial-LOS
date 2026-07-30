@@ -1,7 +1,7 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-7-policy-whitespace-correction",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-6-canonical-production-images",
-  "createdAt": "2026-07-30T20:55:00Z",
+  "packageVersion": "bank-credit-governance/pr8-8-policy-snapshot-registration",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-7-policy-whitespace-correction",
+  "createdAt": "2026-07-30T21:03:00Z",
   "activationState": "NO_GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
@@ -61,12 +61,12 @@
   },
   "authorityPlan": {
     "path": "deployment/bank-credit-governance/authority-profile-provisioning-plan.json",
-    "sha256": "fff234cc1a5612ee7287fdc87feebe8b5917dc7be0ddd6c18087bfe986a1c414",
+    "sha256": "fec974ac2aa226d8e953f6c6fd84d4000ef3fac9922c91b632b92fb86fa20a24",
     "realAssignments": 1
   },
   "registrationManifest": {
     "path": "dataverse-plugins/CommercialLendingLOS.Plugins/ConfigurableCreditGovernanceRegistration.json",
-    "sha256": "40e911cb2415298e60c2e640c17ca5b900282161ecaceaeb93e58bb4e19326dd",
+    "sha256": "82990a0a580aa875e1341687575a1b5cfad766ce37a49b283373ce088bb01ddf",
     "pluginType": "CommercialLendingLOS.Plugins.ConfigurableCreditGovernancePlugin",
     "steps": 58,
     "preImages": 28,
@@ -76,7 +76,7 @@
   },
   "registrationScript": {
     "path": "scripts/dataverse/register-configurable-credit-governance-plugin.ps1",
-    "sha256": "1d3ecb9f4a209c3cffd2d0a189e3a24511dc56502074fae7f03a128a83bb3424",
+    "sha256": "c7b8d3de6b125819fa0a5093d8d996bb7358c7d4446cda8202d4dc355d3ddc07",
     "dryRunByDefault": true
   },
   "approvalRequired": [

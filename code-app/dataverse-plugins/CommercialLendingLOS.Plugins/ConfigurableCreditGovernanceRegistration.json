@@ -1,5 +1,5 @@
 {
-  "packageVersion": "bank-credit-governance/plugin-host-2-production-lookups",
+  "packageVersion": "bank-credit-governance/plugin-host-3-policy-snapshot",
   "assemblyName": "CommercialLendingLOS.Plugins",
   "pluginType": "CommercialLendingLOS.Plugins.ConfigurableCreditGovernancePlugin",
   "bankId": "OGB",

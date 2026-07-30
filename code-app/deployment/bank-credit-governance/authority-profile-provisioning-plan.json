@@ -1,6 +1,6 @@
 {
   "contractVersion": "bank-credit-governance/v2",
-  "profileVersion": "ogb-option-a/1",
+  "profileVersion": "ogb-option-a/1-production",
   "bankKey": "OGB",
   "activationState": "APPROVED_FOR_CUTOVER",
   "assignmentSource": "MATTHEW_APPROVED_OPTION_A_2026-07-30",
