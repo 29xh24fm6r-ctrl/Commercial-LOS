@@ -376,10 +376,10 @@ namespace CommercialLendingLOS.Plugins
                 .Select(ParseApproval).Where(value => value != null).ToList();
             resolvedTokens = new Dictionary<string, string>
             {
-                ["profile"] = Token(profile),
+                ["profile"] = ProfileIdentityToken(profile),
                 ["policy"] = Token(policyRow),
                 ["deal"] = Token(deal),
-                ["actor"] = Token(user),
+                ["actor"] = ActorIdentityToken(user),
             };
             return Result(new GovernanceCaseResolution
             {
@@ -693,6 +693,18 @@ namespace CommercialLendingLOS.Plugins
         private static string Token(Entity row) =>
             !string.IsNullOrWhiteSpace(row.RowVersion) ? row.RowVersion :
             row.GetAttributeValue<long>("versionnumber").ToString(CultureInfo.InvariantCulture);
+        private static string ProfileIdentityToken(Entity row) => Hash(string.Join("|", new[]
+        {
+            row.Id.ToString("D"),
+            (row.GetAttributeValue<string>("cr664_bankkey") ?? string.Empty).Trim().ToLowerInvariant(),
+            row.GetAttributeValue<bool>("cr664_profileenabled") ? "enabled" : "disabled",
+        }));
+        private static string ActorIdentityToken(Entity row) => Hash(string.Join("|", new[]
+        {
+            row.Id.ToString("D"),
+            row.GetAttributeValue<bool>("isdisabled") ? "disabled" : "enabled",
+            row.GetAttributeValue<Guid>("azureactivedirectoryobjectid").ToString("D"),
+        }));
         private static string Text(Entity row, string name) => row.GetAttributeValue<string>(name);
         private static bool Bool(Entity row, string name) => row.GetAttributeValue<bool>(name);
         private static string DisplayAny(Entity row, params string[] names)
