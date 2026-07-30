@@ -23,13 +23,6 @@ function Assert-Hash($item, [string]$label) {
   Write-Host ("PASS {0} sha256={1}" -f $label, $actual)
 }
 
-Assert-Hash $manifest.pluginAssembly 'plug-in assembly'
-Assert-Hash $manifest.pluginPackage 'plug-in package'
-Assert-Hash $manifest.schemaPlan 'schema plan'
-Assert-Hash $manifest.initialPolicy 'initial policy'
-Assert-Hash $manifest.authorityPlan 'authority plan'
-Assert-Hash $manifest.registrationManifest 'registration manifest'
-
 $dotnet = (Resolve-Path (Join-Path $repo $DotnetPath)).Path
 $sdkVersion = (& $dotnet --version).Trim()
 if ($sdkVersion -ne [string]$manifest.sdk.version) {
@@ -41,6 +34,16 @@ $env:DOTNET_NOLOGO = '1'
 & $dotnet test (Join-Path $repo 'dataverse-plugins\CommercialLendingLOS.Plugins.Tests\CommercialLendingLOS.Plugins.Tests.csproj') `
   --configuration Release --no-restore --logger 'console;verbosity=minimal'
 if ($LASTEXITCODE -ne 0) { throw 'C# plug-in suite failed.' }
+
+# dotnet test builds the referenced plug-in project and can replace the assembly
+# at its output path. Hash every deployable input after executable validation so
+# the verifier cannot report success for bytes that the test command then changed.
+Assert-Hash $manifest.pluginAssembly 'plug-in assembly'
+Assert-Hash $manifest.pluginPackage 'plug-in package'
+Assert-Hash $manifest.schemaPlan 'schema plan'
+Assert-Hash $manifest.initialPolicy 'initial policy'
+Assert-Hash $manifest.authorityPlan 'authority plan'
+Assert-Hash $manifest.registrationManifest 'registration manifest'
 
 Write-Host 'PASS activation package is hash-consistent and executable.'
 Write-Host 'NO-GO: this verifier performs no Dataverse operation and grants no production approval.'

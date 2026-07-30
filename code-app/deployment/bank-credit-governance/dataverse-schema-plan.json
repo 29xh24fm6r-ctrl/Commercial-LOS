@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "credit-governance/2.0.0",
+  "schemaVersion": "credit-governance/2.0.1",
   "activationState": "NO_GO",
   "mutationSemantics": "CREATE_MISSING_ONLY",
   "destructiveOperations": [],
@@ -29,8 +29,8 @@
       "serverWriteOnly": false
     },
     {
-      "logicalName": "cr664_creditpolicyrule",
-      "schemaName": "cr664_Creditpolicyrule",
+      "logicalName": "cr664_governancepolicyrule",
+      "schemaName": "cr664_Governancepolicyrule",
       "displayName": "Credit Policy Rule",
       "ownership": "OrganizationOwned",
       "primaryNameColumn": "cr664_name",
@@ -254,7 +254,7 @@
       ]
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_name",
       "schemaName": "cr664_Name",
       "displayName": "Name",
@@ -263,7 +263,7 @@
       "maxLength": 200
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_policyversion",
       "schemaName": "cr664_Policyversion",
       "displayName": "Policy version",
@@ -274,7 +274,7 @@
       ]
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_ruleid",
       "schemaName": "cr664_Ruleid",
       "displayName": "Rule ID",
@@ -283,7 +283,7 @@
       "maxLength": 100
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_description",
       "schemaName": "cr664_Description",
       "displayName": "Description",
@@ -292,7 +292,7 @@
       "maxLength": 500
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_actionsjson",
       "schemaName": "cr664_Actionsjson",
       "displayName": "Actions JSON",
@@ -301,7 +301,7 @@
       "maxLength": 20000
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_conditionjson",
       "schemaName": "cr664_Conditionjson",
       "displayName": "Condition JSON",
@@ -310,7 +310,7 @@
       "maxLength": 200000
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_requirementsjson",
       "schemaName": "cr664_Requirementsjson",
       "displayName": "Requirements JSON",
@@ -319,7 +319,7 @@
       "maxLength": 200000
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_nonoverrideable",
       "schemaName": "cr664_Nonoverrideable",
       "displayName": "Non-overrideable",
@@ -327,7 +327,7 @@
       "required": true
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_ruleordinal",
       "schemaName": "cr664_Ruleordinal",
       "displayName": "Rule ordinal",
@@ -335,7 +335,7 @@
       "required": true
     },
     {
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "logicalName": "cr664_rulesha256",
       "schemaName": "cr664_Rulesha256",
       "displayName": "Rule SHA-256",
@@ -1114,8 +1114,8 @@
       "deleteBehavior": "Restrict"
     },
     {
-      "schemaName": "cr664_rel_creditpolicyrule_policyversion",
-      "fromTable": "cr664_creditpolicyrule",
+      "schemaName": "cr664_rel_governancepolicyrule_policyversion",
+      "fromTable": "cr664_governancepolicyrule",
       "fromColumn": "cr664_policyversion",
       "toTable": "cr664_creditpolicyversion",
       "required": true,
@@ -1308,7 +1308,7 @@
     },
     {
       "schemaName": "cr664_key_policyrule_id",
-      "table": "cr664_creditpolicyrule",
+      "table": "cr664_governancepolicyrule",
       "columns": [
         "cr664_policyversion",
         "cr664_ruleid"
