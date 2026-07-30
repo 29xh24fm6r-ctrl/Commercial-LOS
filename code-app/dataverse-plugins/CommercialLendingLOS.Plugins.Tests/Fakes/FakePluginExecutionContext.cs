@@ -15,6 +15,7 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
     public string MessageName { get; set; } = "Update";
     public string PrimaryEntityName { get; set; } = "cr664_loandeal";
     public int Stage { get; set; } = 20;
+    public int ExecutionMode { get; set; } = 0;
     public ParameterCollection InputParameters { get; set; } = new();
     public EntityImageCollection PreEntityImages { get; set; } = new();
     public Guid InitiatingUserId { get; set; } = Guid.NewGuid();
@@ -22,7 +23,7 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
 
     // --- Unused by the plugin under test; throw loudly if ever touched. ---
     public EntityImageCollection PostEntityImages => throw new NotSupportedException();
-    public int Mode => throw new NotSupportedException();
+    public int Mode => ExecutionMode;
     public int IsolationMode => throw new NotSupportedException();
     public int Depth => throw new NotSupportedException();
     public string RequestName => throw new NotSupportedException();
