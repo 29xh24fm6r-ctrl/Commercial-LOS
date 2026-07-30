@@ -1,5 +1,5 @@
 <#
-  Registers the configurable governance IPlugin host disabled-first.
+  Registers the configurable governance and native-ID duplicate-guard IPlugin hosts disabled-first.
 
   Safety:
   - dry-run by default;

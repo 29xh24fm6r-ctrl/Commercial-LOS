@@ -715,7 +715,7 @@ namespace CommercialLendingLOS.Plugins
                 value = value.Replace("\"" + pair.Key + "\":", "\"" + pair.Value + "\":");
             value = Regex.Replace(
                 value,
-                "\"(EffectiveFrom|EffectiveThrough)\":\"([^\"]+)\"",
+                "\"(EffectiveFrom|EffectiveThrough)\"\\s*:\\s*\"([^\"]+)\"",
                 match =>
                 {
                     var parsed = DateTimeOffset.Parse(
