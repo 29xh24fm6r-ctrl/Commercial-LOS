@@ -41,7 +41,7 @@
   },
   "schemaProvisioner": {
     "path": "scripts/dataverse/provision-bank-credit-governance-schema.ps1",
-    "sha256": "25ede79aa0dbcd86d34b4c484e4a75b13d63ef117d1593917e0a0c218aaf43c6",
+    "sha256": "de0505f8da978d8e01d70fde67a2816b03650b0894cf48d7cf84e36c4e9abdc9",
     "dryRunByDefault": true
   },
   "initialPolicy": {
