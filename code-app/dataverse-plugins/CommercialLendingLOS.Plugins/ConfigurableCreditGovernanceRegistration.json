@@ -51,7 +51,7 @@
       "entity": "cr664_loandeal",
       "message": "Update",
       "filteringAttributes": "cr664_riskratinginputs",
-      "preImageAttributes": "cr664_amount,cr664_client,cr664_collateralsummary,cr664_producttype,cr664_riskrating,cr664_industry,cr664_geography,cr664_haspolicyexception,cr664_policyexceptiontypesjson,cr664_insiderstatus,cr664_concentrationjson,cr664_governmentguaranteedprogram,cr664_criticizedclassifiedstatus"
+      "preImageAttributes": "cr664_amount,cr664_client,cr664_collateralsummary,cr664_producttypereference,cr664_risklevelreference,cr664_industry,cr664_geography,cr664_haspolicyexception,cr664_policyexceptiontypesjson,cr664_insiderstatus,cr664_concentrationjson,cr664_governmentguaranteedprogram,cr664_criticizedclassifiedstatus"
     },
     {
       "action": "Recommend",
@@ -59,7 +59,7 @@
       "entity": "cr664_loandeal",
       "message": "Update",
       "filteringAttributes": "cr664_underwritingrecommendationinputs",
-      "preImageAttributes": "cr664_amount,cr664_client,cr664_collateralsummary,cr664_producttype,cr664_riskrating,cr664_industry,cr664_geography,cr664_haspolicyexception,cr664_policyexceptiontypesjson,cr664_insiderstatus,cr664_concentrationjson,cr664_governmentguaranteedprogram,cr664_criticizedclassifiedstatus"
+      "preImageAttributes": "cr664_amount,cr664_client,cr664_collateralsummary,cr664_producttypereference,cr664_risklevelreference,cr664_industry,cr664_geography,cr664_haspolicyexception,cr664_policyexceptiontypesjson,cr664_insiderstatus,cr664_concentrationjson,cr664_governmentguaranteedprogram,cr664_criticizedclassifiedstatus"
     },
     {
       "action": "Approve",

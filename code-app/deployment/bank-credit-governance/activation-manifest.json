@@ -1,7 +1,7 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-4-native-id-fallback",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-3-plugin-host",
-  "createdAt": "2026-07-30T20:17:00Z",
+  "packageVersion": "bank-credit-governance/pr8-5-production-image-correction",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-4-native-id-fallback",
+  "createdAt": "2026-07-30T20:25:00Z",
   "activationState": "NO_GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
@@ -66,7 +66,7 @@
   },
   "registrationManifest": {
     "path": "dataverse-plugins/CommercialLendingLOS.Plugins/ConfigurableCreditGovernanceRegistration.json",
-    "sha256": "41949cda25aaa5723316c89683a1ec9fa0fc15480951a218988270a6abaff837",
+    "sha256": "a57a5fb1c08bf0d0c330cd0e7b9807a69b70d117486722906e743f7cb6718069",
     "pluginType": "CommercialLendingLOS.Plugins.ConfigurableCreditGovernancePlugin",
     "steps": 58,
     "preImages": 28,
