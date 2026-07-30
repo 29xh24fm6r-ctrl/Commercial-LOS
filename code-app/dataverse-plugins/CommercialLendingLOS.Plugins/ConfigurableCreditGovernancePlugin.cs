@@ -407,28 +407,43 @@ namespace CommercialLendingLOS.Plugins
                 Eq("cr664_versionnumber", policyRow.GetAttributeValue<int>("cr664_versionnumber")));
             if (currentPolicies.Count != 1 || !Same(Token(currentPolicies[0]), resolvedTokens["policy"]))
                 return Result(new EvaluationAppendResult { Kind = "stale-policy" });
+            var existing = Query(EvaluationTable, Eq("cr664_evaluationid", evaluation.Request.EvaluationId));
+            if (existing.Count > 1) return Result(new EvaluationAppendResult { Kind = "failed" });
+            if (existing.Count == 1)
+            {
+                var existingRow = existing[0];
+                if (existingRow.GetAttributeValue<EntityReference>("cr664_policyversion")?.Id != policyRow.Id)
+                    return Result(new EvaluationAppendResult { Kind = "stale-policy" });
+                if (
+                    existingRow.GetAttributeValue<EntityReference>("cr664_loandeal")?.Id != deal.Id ||
+                    existingRow.GetAttributeValue<EntityReference>("cr664_actor")?.Id != actorId ||
+                    !Same(existingRow.GetAttributeValue<string>("cr664_actioncode"),
+                        evaluation.Request.Action.ToString().ToUpperInvariant()) ||
+                    !Same(existingRow.GetAttributeValue<string>("cr664_correlationid"),
+                        evaluation.OperationCorrelationId))
+                    return Result(new EvaluationAppendResult { Kind = "concurrent-update-binding" });
+                if (!Same(ComparableRequestHash(existingRow.GetAttributeValue<string>("cr664_requestjson")),
+                    ComparableRequestHash(evaluation.Request)))
+                    return Result(new EvaluationAppendResult { Kind = "concurrent-update-request" });
+                if (!Same(ComparableResultHash(existingRow.GetAttributeValue<string>("cr664_resultjson")),
+                    ComparableResultHash(evaluation.Result)))
+                    return Result(new EvaluationAppendResult { Kind = "concurrent-update-result" });
+                if (!Same(ComparableSourceTokens(existingRow.GetAttributeValue<string>("cr664_sourceversiontokensjson")),
+                    ComparableSourceTokens(evaluation.SourceVersionTokens)))
+                    return Result(new EvaluationAppendResult { Kind = "concurrent-update-source" });
+                return Result(new EvaluationAppendResult
+                {
+                    Kind = "duplicate",
+                    EvaluationRecordId = existingRow.Id.ToString("D"),
+                });
+            }
+
             Entity currentDeal;
             try { currentDeal = service.Retrieve(LoanDealTable, deal.Id, new ColumnSet(true)); }
             catch { return Result(new EvaluationAppendResult { Kind = "concurrent-update" }); }
             if (!Same(Token(currentDeal), resolvedTokens["deal"]))
                 return Result(new EvaluationAppendResult { Kind = "concurrent-update" });
 
-            var existing = Query(EvaluationTable, Eq("cr664_evaluationid", evaluation.Request.EvaluationId));
-            if (existing.Count > 1) return Result(new EvaluationAppendResult { Kind = "failed" });
-            if (existing.Count == 1)
-            {
-                if (existing[0].GetAttributeValue<EntityReference>("cr664_policyversion")?.Id != policyRow.Id)
-                    return Result(new EvaluationAppendResult { Kind = "stale-policy" });
-                if (!Same(
-                    existing[0].GetAttributeValue<string>("cr664_sourceversiontokensjson"),
-                    Serialize(evaluation.SourceVersionTokens)))
-                    return Result(new EvaluationAppendResult { Kind = "concurrent-update" });
-                return Result(new EvaluationAppendResult
-                {
-                    Kind = "duplicate",
-                    EvaluationRecordId = existing[0].Id.ToString("D"),
-                });
-            }
             var requestJson = Serialize(evaluation.Request);
             var resultJson = Serialize(evaluation.Result);
             var row = new Entity(EvaluationTable)
@@ -452,6 +467,70 @@ namespace CommercialLendingLOS.Plugins
             };
             var id = service.Create(row);
             return Result(new EvaluationAppendResult { Kind = "appended", EvaluationRecordId = id.ToString("D") });
+        }
+
+        private static string ComparableRequestHash(GovernanceEvaluationRequest request)
+        {
+            if (request == null) return null;
+            var evaluatedAt = request.EvaluatedAt;
+            try
+            {
+                request.EvaluatedAt = DateTimeOffset.MinValue;
+                return Hash(Serialize(request));
+            }
+            finally
+            {
+                request.EvaluatedAt = evaluatedAt;
+            }
+        }
+
+        private static string ComparableRequestHash(string requestJson)
+        {
+            try { return ComparableRequestHash(Deserialize<GovernanceEvaluationRequest>(requestJson)); }
+            catch { return null; }
+        }
+
+        private static string ComparableResultHash(GovernanceEvaluation result)
+        {
+            if (result == null) return null;
+            var evaluatedAt = result.EvaluatedAt;
+            try
+            {
+                result.EvaluatedAt = DateTimeOffset.MinValue;
+                return Hash(Serialize(result));
+            }
+            finally
+            {
+                result.EvaluatedAt = evaluatedAt;
+            }
+        }
+
+        private static string ComparableResultHash(string resultJson)
+        {
+            try { return ComparableResultHash(Deserialize<GovernanceEvaluation>(resultJson)); }
+            catch { return null; }
+        }
+
+        private static string ComparableSourceTokens(IDictionary<string, string> tokens)
+        {
+            if (tokens == null) return null;
+            var stable = new Dictionary<string, string>(tokens, StringComparer.OrdinalIgnoreCase);
+            stable.Remove("deal");
+            var canonical = string.Join("|", stable
+                .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(pair => (pair.Key ?? string.Empty).Trim().ToLowerInvariant() + "=" +
+                    (pair.Value ?? string.Empty).Trim()));
+            return Hash(canonical);
+        }
+
+        private static string ComparableSourceTokens(string tokensJson)
+        {
+            try
+            {
+                return ComparableSourceTokens(
+                    Deserialize<Dictionary<string, string>>(tokensJson));
+            }
+            catch { return null; }
         }
 
         public void AppendActionEvidence(
@@ -760,7 +839,8 @@ namespace CommercialLendingLOS.Plugins
             System.Threading.Tasks.Task.FromResult(value);
         private static T Deserialize<T>(string value)
         {
-            var serializer = new DataContractJsonSerializer(typeof(T));
+            var serializer = new DataContractJsonSerializer(typeof(T),
+                new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true });
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(value ?? string.Empty)))
                 return (T)serializer.ReadObject(stream);
         }
