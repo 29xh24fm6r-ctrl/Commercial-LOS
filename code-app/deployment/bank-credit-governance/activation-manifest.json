@@ -1,7 +1,7 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-9-semantic-concurrency-replay",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-8-policy-snapshot-registration",
-  "createdAt": "2026-07-30T21:35:00Z",
+  "packageVersion": "bank-credit-governance/pr8-10-semantic-source-identity",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-9-semantic-concurrency-replay",
+  "createdAt": "2026-07-30T23:40:00Z",
   "activationState": "NO_GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
@@ -21,7 +21,7 @@
     "source": "https://dot.net/v1/dotnet-install.ps1"
   },
   "csharpTests": {
-    "passed": 107,
+    "passed": 108,
     "failed": 0,
     "skipped": 0,
     "configuration": "Release",
@@ -30,16 +30,16 @@
   "pluginAssembly": {
     "packagePath": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
     "entry": "CommercialLendingLOS.Plugins.dll",
-    "sha256": "453695b9ef65aaab142459c59450b9d100bc4360fcd54ddba9a3e6cad4060738",
-    "bytes": 120320,
+    "sha256": "40a44d9d8f10947175b192f7663de08bbac6fb41a3d52c14df384f23fb22b4ab",
+    "bytes": 120832,
     "targetFramework": "net462",
     "assemblyVersion": "1.0.0.0",
     "publicKeyToken": "74c842538bd8bf32"
   },
   "pluginPackage": {
     "path": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
-    "sha256": "66432eeb8c06256dd0191b299c727fb453b574652ed104dd4f6689d768524bb0",
-    "bytes": 45004
+    "sha256": "0e3c64f9602268b39b8c956d623858b1c4405266e125f95ae5e1cfd7e303a76c",
+    "bytes": 45105
   },
   "schemaPlan": {
     "path": "deployment/bank-credit-governance/dataverse-schema-plan.json",
