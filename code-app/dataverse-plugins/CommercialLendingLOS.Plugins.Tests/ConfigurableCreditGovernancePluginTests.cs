@@ -161,12 +161,30 @@ public sealed class ConfigurableCreditGovernancePluginTests
         var fixture = new Fixture();
         fixture.Execute();
         fixture.Deal.RowVersion = "deal-v2";
+        fixture.Profile.RowVersion = "profile-v2";
         fixture.Provider.Context.Stage = 20;
 
         fixture.Execute();
 
         Assert.Single(fixture.Provider.OrganizationService.Created.Where(
             value => value.LogicalName == "cr664_governanceevaluation"));
+    }
+
+    [Fact]
+    public void PreOperationRejectsAuthenticatedActorIdentityChainChange()
+    {
+        var fixture = new Fixture();
+        fixture.Execute();
+        var actor = fixture.Provider.OrganizationService.Retrieve(
+            "systemuser", fixture.ActorId, new Microsoft.Xrm.Sdk.Query.ColumnSet(true));
+        actor.RowVersion = "actor-v2";
+        actor["azureactivedirectoryobjectid"] = Guid.NewGuid();
+        fixture.Provider.Context.Stage = 20;
+
+        var error = Assert.Throws<InvalidPluginExecutionException>(fixture.Execute);
+
+        Assert.Contains("CONCURRENT_UPDATE_DETECTED", error.Message);
+        Assert.Contains("source", error.Message);
     }
 
     [Fact]
