@@ -23,6 +23,36 @@ function Assert-Hash($item, [string]$label) {
   Write-Host ("PASS {0} sha256={1}" -f $label, $actual)
 }
 
+function Assert-ZipEntryHash($item, [string]$label) {
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $packagePath = (Resolve-Path (Join-Path $repo ([string]$item.packagePath))).Path
+  $archive = [System.IO.Compression.ZipFile]::OpenRead($packagePath)
+  try {
+    $entries = @($archive.Entries | Where-Object { $_.FullName -eq [string]$item.entry })
+    if ($entries.Count -ne 1) {
+      throw "Expected exactly one $label entry '$($item.entry)'; found $($entries.Count)."
+    }
+    $stream = $entries[0].Open()
+    try {
+      $sha = [System.Security.Cryptography.SHA256]::Create()
+      try {
+        $actual = ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+      } finally {
+        $sha.Dispose()
+      }
+    } finally {
+      $stream.Dispose()
+    }
+    $expected = ([string]$item.sha256).ToLowerInvariant()
+    if ($actual -ne $expected) {
+      throw "$label hash mismatch. Expected $expected; actual $actual."
+    }
+    Write-Host ("PASS {0} sha256={1}" -f $label, $actual)
+  } finally {
+    $archive.Dispose()
+  }
+}
+
 $dotnet = (Resolve-Path (Join-Path $repo $DotnetPath)).Path
 $sdkVersion = (& $dotnet --version).Trim()
 if ($sdkVersion -ne [string]$manifest.sdk.version) {
@@ -35,12 +65,13 @@ $env:DOTNET_NOLOGO = '1'
   --configuration Release --no-restore --logger 'console;verbosity=minimal'
 if ($LASTEXITCODE -ne 0) { throw 'C# plug-in suite failed.' }
 
-# dotnet test builds the referenced plug-in project and can replace the assembly
-# at its output path. Hash every deployable input after executable validation so
-# the verifier cannot report success for bytes that the test command then changed.
-Assert-Hash $manifest.pluginAssembly 'plug-in assembly'
+# dotnet test builds the referenced plug-in project and can replace its output
+# with a byte-different strong-name build. The committed ZIP entry is the actual
+# production artifact, so hash it directly after executable source validation.
+Assert-ZipEntryHash $manifest.pluginAssembly 'plug-in assembly'
 Assert-Hash $manifest.pluginPackage 'plug-in package'
 Assert-Hash $manifest.schemaPlan 'schema plan'
+Assert-Hash $manifest.schemaProvisioner 'schema provisioner'
 Assert-Hash $manifest.initialPolicy 'initial policy'
 Assert-Hash $manifest.authorityPlan 'authority plan'
 Assert-Hash $manifest.registrationManifest 'registration manifest'

@@ -21,7 +21,8 @@
     "targetFramework": "net8.0"
   },
   "pluginAssembly": {
-    "path": "dataverse-plugins/CommercialLendingLOS.Plugins/bin/Release/net462/CommercialLendingLOS.Plugins.dll",
+    "packagePath": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
+    "entry": "CommercialLendingLOS.Plugins.dll",
     "sha256": "e32ed3fa4f071360b33886d4df1ee0aff327184417f73aa00b6953a8276172bb",
     "bytes": 82432,
     "targetFramework": "net462",
@@ -37,6 +38,11 @@
     "path": "deployment/bank-credit-governance/dataverse-schema-plan.json",
     "sha256": "8384b8ab18eedd299b5970418d5769a4abc9caa7476a2bfc65e08c948c0918c4",
     "mutationSemantics": "CREATE_MISSING_ONLY"
+  },
+  "schemaProvisioner": {
+    "path": "scripts/dataverse/provision-bank-credit-governance-schema.ps1",
+    "sha256": "25ede79aa0dbcd86d34b4c484e4a75b13d63ef117d1593917e0a0c218aaf43c6",
+    "dryRunByDefault": true
   },
   "initialPolicy": {
     "path": "deployment/bank-credit-governance/initial-ogb-policy-v1.proposed-active.json",
