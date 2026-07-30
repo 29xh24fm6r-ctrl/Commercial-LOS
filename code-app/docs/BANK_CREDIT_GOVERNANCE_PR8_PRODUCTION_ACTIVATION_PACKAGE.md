@@ -36,7 +36,7 @@ Exact proposed policy SHA-256:
 
 ## C# executable evidence
 
-The complete Release suite passes 83 of 83 tests with zero failures or skips.
+The corrected Release suite passes 92 of 92 tests with zero failures or skips.
 Required production concerns are pinned to these executable tests:
 
 | Concern | Test evidence |
@@ -87,18 +87,20 @@ powershell -File scripts/dataverse/provision-bank-credit-governance-schema.ps1 `
   -ExpectedSchemaSha256 <schemaSha256>
 
 # 2. Register the exact hashed assembly disabled for inspection.
-powershell -File scripts/dataverse/register-durable-record-governance-plugin.ps1 `
+powershell -File scripts/dataverse/register-configurable-credit-governance-plugin.ps1 `
   -Apply -RegisterDisabled `
-  -ExpectedSha256 <assemblySha256>
+  -ExpectedAssemblySha256 <assemblySha256> `
+  -ExpectedManifestSha256 <registrationManifestSha256>
 
 # 3. Import the exact hashed proposed policy as non-active administrative data,
 # verify its persisted snapshot hash, and import only Matthew-approved authority
 # rows. Empty assignment plans are a hard block.
 
 # 4. Enable plug-in steps and activate policy only after read-only reconciliation.
-powershell -File scripts/dataverse/register-durable-record-governance-plugin.ps1 `
-  -Apply `
-  -ExpectedSha256 <assemblySha256>
+powershell -File scripts/dataverse/register-configurable-credit-governance-plugin.ps1 `
+  -Apply -EnableAfterApproval `
+  -ExpectedAssemblySha256 <assemblySha256> `
+  -ExpectedManifestSha256 <registrationManifestSha256>
 
 # 5. Deploy the application build only after schema, registration, policy, and
 # authority evidence reconcile. Runtime mode remains LEGACY_ONLY until the final

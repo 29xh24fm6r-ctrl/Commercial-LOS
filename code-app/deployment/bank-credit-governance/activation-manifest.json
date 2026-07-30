@@ -1,7 +1,7 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-2",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-1",
-  "createdAt": "2026-07-30T17:32:28Z",
+  "packageVersion": "bank-credit-governance/pr8-3-plugin-host",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-2",
+  "createdAt": "2026-07-30T18:53:13Z",
   "activationState": "NO_GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
@@ -14,7 +14,7 @@
     "source": "https://dot.net/v1/dotnet-install.ps1"
   },
   "csharpTests": {
-    "passed": 83,
+    "passed": 92,
     "failed": 0,
     "skipped": 0,
     "configuration": "Release",
@@ -23,16 +23,16 @@
   "pluginAssembly": {
     "packagePath": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
     "entry": "CommercialLendingLOS.Plugins.dll",
-    "sha256": "e32ed3fa4f071360b33886d4df1ee0aff327184417f73aa00b6953a8276172bb",
-    "bytes": 82432,
+    "sha256": "16ef4bd34e7b82237460783048dc3b5f7b80e9e49394f8a4c9e8435176c650f6",
+    "bytes": 107008,
     "targetFramework": "net462",
     "assemblyVersion": "1.0.0.0",
     "publicKeyToken": "74c842538bd8bf32"
   },
   "pluginPackage": {
     "path": "deployment/bank-credit-governance/CommercialLendingLOS.Plugins.zip",
-    "sha256": "7db50c7b9af9a6786cf355778735468600703343583cbcd8a8748bc5e93878e1",
-    "bytes": 41888
+    "sha256": "dbd3534390930a67beb3b912c00bca943691105c5abb6a609f307644be2016d3",
+    "bytes": 40110
   },
   "schemaPlan": {
     "path": "deployment/bank-credit-governance/dataverse-schema-plan.json",
@@ -58,9 +58,17 @@
     "realAssignments": 0
   },
   "registrationManifest": {
-    "path": "dataverse-plugins/CommercialLendingLOS.Plugins/DurableRecordGovernanceRegistration.json",
-    "sha256": "c8128e5270cac6f9bab353bf38bcf0d4bab9ad732f3b26f8d4fb0defaa862c2f",
+    "path": "dataverse-plugins/CommercialLendingLOS.Plugins/ConfigurableCreditGovernanceRegistration.json",
+    "sha256": "65a2af32da6fcbc3f64e4cfdc507d6c7ef9b1a98f26b2d998e5f64f422f3d51a",
+    "pluginType": "CommercialLendingLOS.Plugins.ConfigurableCreditGovernancePlugin",
+    "steps": 37,
+    "initialState": "Disabled",
     "productionRegisteredByThisPackage": false
+  },
+  "registrationScript": {
+    "path": "scripts/dataverse/register-configurable-credit-governance-plugin.ps1",
+    "sha256": "5966062d67b879be7c1b51120b74141a12376921052c95e4f7991ff94378e76d",
+    "dryRunByDefault": true
   },
   "approvalRequired": [
     "OGB_OVERRIDE_INTERPRETATION",

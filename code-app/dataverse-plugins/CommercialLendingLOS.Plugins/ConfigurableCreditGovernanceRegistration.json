@@ -1,0 +1,116 @@
+{
+  "packageVersion": "bank-credit-governance/plugin-host-1",
+  "assemblyName": "CommercialLendingLOS.Plugins",
+  "pluginType": "CommercialLendingLOS.Plugins.ConfigurableCreditGovernancePlugin",
+  "bankId": "OGB",
+  "mode": 0,
+  "rank": 2,
+  "supportedDeployment": 0,
+  "initialState": "Disabled",
+  "boundaries": [
+    {
+      "action": "Originate",
+      "stages": [40],
+      "entity": "cr664_loandeal",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    },
+    {
+      "action": "Underwrite",
+      "stages": [10, 20, 40],
+      "entity": "cr664_loandeal",
+      "message": "Update",
+      "filteringAttributes": "cr664_riskratinginputs",
+      "preImageAttributes": "cr664_amount,cr664_client,cr664_collateralsummary,cr664_producttype,cr664_riskrating,cr664_industry,cr664_geography,cr664_haspolicyexception,cr664_policyexceptiontypesjson,cr664_insiderstatus,cr664_concentrationjson,cr664_governmentguaranteedprogram,cr664_criticizedclassifiedstatus"
+    },
+    {
+      "action": "Recommend",
+      "stages": [10, 20, 40],
+      "entity": "cr664_loandeal",
+      "message": "Update",
+      "filteringAttributes": "cr664_underwritingrecommendationinputs",
+      "preImageAttributes": "cr664_amount,cr664_client,cr664_collateralsummary,cr664_producttype,cr664_riskrating,cr664_industry,cr664_geography,cr664_haspolicyexception,cr664_policyexceptiontypesjson,cr664_insiderstatus,cr664_concentrationjson,cr664_governmentguaranteedprogram,cr664_criticizedclassifiedstatus"
+    },
+    {
+      "action": "Approve",
+      "stages": [10, 20, 40],
+      "entity": "cr664_creditapprovaldecision",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    },
+    {
+      "action": "ApproveException",
+      "stages": [10, 20, 40],
+      "entity": "cr664_conditionverification",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    },
+    {
+      "action": "Commit",
+      "stages": [10, 20, 40],
+      "entity": "cr664_commitmentrecord",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    },
+    {
+      "action": "Close",
+      "stages": [10, 20, 40],
+      "entity": "cr664_bookingqccheck",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    },
+    {
+      "action": "AuthorizeFunding",
+      "stages": [10, 20, 40],
+      "entity": "cr664_fundingauthorization",
+      "message": "Update",
+      "filteringAttributes": "cr664_authorizedby,cr664_secondapprovedby,cr664_approvedamount,cr664_authorizedat",
+      "preImageAttributes": "cr664_dealid,cr664_authorizedby,cr664_secondapprovedby,cr664_approvedamount,cr664_authorizedat,cr664_authorizationstatus,cr664_correlationid"
+    },
+    {
+      "action": "ConfirmDisbursement",
+      "stages": [10, 20, 40],
+      "entity": "cr664_fundingauthorization",
+      "message": "Update",
+      "filteringAttributes": "cr664_fundingdate",
+      "preImageAttributes": "cr664_dealid,cr664_fundingdate,cr664_authorizationstatus,cr664_correlationid"
+    },
+    {
+      "action": "Board",
+      "stages": [10, 20, 40],
+      "entity": "cr664_portfolioboardedloan",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    },
+    {
+      "action": "Service",
+      "stages": [10, 20, 40],
+      "entity": "cr664_portfolioboardedloan",
+      "message": "Update",
+      "filteringAttributes": "cr664_assignedservicingowner",
+      "preImageAttributes": "cr664_originatedloandeal,cr664_assignedservicingowner"
+    },
+    {
+      "action": "Modify",
+      "stages": [10, 20, 40],
+      "entity": "cr664_portfolioboardedloan",
+      "message": "Update",
+      "filteringAttributes": "cr664_extendedloanattributes,cr664_currentoutstandingprincipal,cr664_currentriskrating,cr664_loanstatus,cr664_maturitydate",
+      "preImageAttributes": "cr664_originatedloandeal,cr664_extendedloanattributes,cr664_currentoutstandingprincipal,cr664_currentriskrating,cr664_loanstatus,cr664_maturitydate"
+    },
+    {
+      "action": "Renew",
+      "stages": [10, 20, 40],
+      "entity": "cr664_portfolioboardedloanreview",
+      "message": "Create",
+      "filteringAttributes": "",
+      "preImageAttributes": ""
+    }
+  ]
+}
