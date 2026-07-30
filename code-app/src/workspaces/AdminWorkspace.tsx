@@ -30,6 +30,7 @@ import {
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, spacing, typography } from '../shared/theme';
 import { AdminCopilotSurface } from '../copilot/AdminCopilotSurface';
+import { AdminPolicyStudio } from '../admin/AdminPolicyStudio';
 
 export function AdminWorkspace() {
   return (
@@ -127,6 +128,7 @@ function AdminWorkspaceContent() {
           <RefreshStatus />
         </div>
         <ConfigurationOverview />
+        <AdminPolicyStudio actorId={upn} />
         {/* Phase 4A — admin-managed deal dropdown values (Product Type / Loan
             Structure / Pricing Type). The first admin CONFIG-write panel; writes
             are fail-closed to a resolved Dataverse identity, readback-verified,
