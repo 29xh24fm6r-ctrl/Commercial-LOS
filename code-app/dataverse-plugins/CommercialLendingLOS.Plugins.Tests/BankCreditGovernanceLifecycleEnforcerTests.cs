@@ -123,7 +123,7 @@ namespace CommercialLendingLOS.Plugins.Tests
 
         private sealed class EvaluationRepository : IBankCreditGovernanceEvaluationRepository
         {
-            public string Kind { get; set; }
+            public string Kind { get; set; } = "failed";
 
             public Task<EvaluationAppendResult> AppendEvaluation(PersistedGovernanceEvaluation evaluation) =>
                 Task.FromResult(new EvaluationAppendResult

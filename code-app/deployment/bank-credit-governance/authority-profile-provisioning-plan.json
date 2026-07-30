@@ -1,0 +1,25 @@
+{
+  "contractVersion": "bank-credit-governance/v2",
+  "bankKey": "OGB",
+  "activationState": "NO_GO",
+  "assignmentSource": "INSTITUTION_APPROVED_ROSTER_REQUIRED",
+  "titleOrWorkspaceInferencePermitted": false,
+  "assignments": [],
+  "committeeMemberships": [],
+  "temporaryDelegations": [],
+  "requiredApprovalEvidence": [
+    "Named officer identity bound uniquely to systemuser",
+    "Institution-approved governed actions",
+    "Amount and relationship-exposure limits",
+    "Product, risk, geography, industry, and exception scopes",
+    "Effective-from and optional effective-through dates",
+    "Committee identity and voting eligibility when applicable",
+    "Approver identity and approval timestamp"
+  ],
+  "blockingDiagnostics": [
+    "No real authority roster has been approved or supplied.",
+    "No production assignment may be inferred from title, security role, team, or workspace access.",
+    "No temporary delegation may exist without explicit source and expiry.",
+    "Duplicate or ambiguous identity bindings block provisioning."
+  ]
+}

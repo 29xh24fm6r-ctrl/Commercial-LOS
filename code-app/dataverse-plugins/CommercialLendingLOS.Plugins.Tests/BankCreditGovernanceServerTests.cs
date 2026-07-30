@@ -139,6 +139,7 @@ public sealed class BankCreditGovernanceServerTests
         Assert.True(BankCreditGovernanceServer.PermitsAction(response));
         Assert.Equal("snapshot-1", evaluations.Appended!.PolicySnapshotId);
         Assert.Equal("etag-1", evaluations.Appended.SourceVersionTokens["deal"]);
+        Assert.Equal("correlation-1", evaluations.Appended.OperationCorrelationId);
     }
 
     [Fact]
@@ -161,5 +162,68 @@ public sealed class BankCreditGovernanceServerTests
 
         Assert.Equal(GovernanceDecision.Block, response.Result.Decision);
         Assert.False(BankCreditGovernanceServer.PermitsAction(response));
+    }
+
+    [Theory]
+    [InlineData("stale-policy", "POLICY_VERSION_STALE")]
+    [InlineData("concurrent-update", "CONCURRENT_UPDATE_DETECTED")]
+    public async Task AtomicPersistenceRejectsStalePolicyAndConcurrentCaseUpdates(
+        string appendKind,
+        string expectedReason)
+    {
+        var evaluations = new EvaluationRepository
+        {
+            Result = new EvaluationAppendResult { Kind = appendKind },
+        };
+        var server = new BankCreditGovernanceServer(
+            new PolicyRepository
+            {
+                Resolution = new ActivePolicyResolution
+                {
+                    Kind = "resolved",
+                    Policy = Policy(),
+                    SnapshotId = "snapshot-1",
+                },
+            },
+            new EvidenceRepository { Resolution = Evidence() },
+            evaluations);
+
+        var response = await server.Evaluate(Command());
+
+        Assert.Equal(expectedReason, response.ReasonCode);
+        Assert.False(BankCreditGovernanceServer.PermitsAction(response));
+        Assert.NotNull(evaluations.Appended);
+        Assert.Equal("snapshot-1", evaluations.Appended!.PolicySnapshotId);
+        Assert.Equal("etag-1", evaluations.Appended.SourceVersionTokens["deal"]);
+    }
+
+    [Fact]
+    public async Task EvaluationPersistenceCarriesAuditCorrelationPolicyAndSourceVersions()
+    {
+        var evaluations = new EvaluationRepository
+        {
+            Result = new EvaluationAppendResult { Kind = "appended", EvaluationRecordId = "evaluation-record-1" },
+        };
+        var server = new BankCreditGovernanceServer(
+            new PolicyRepository
+            {
+                Resolution = new ActivePolicyResolution
+                {
+                    Kind = "resolved",
+                    Policy = Policy(),
+                    SnapshotId = "snapshot-1",
+                },
+            },
+            new EvidenceRepository { Resolution = Evidence() },
+            evaluations);
+
+        var response = await server.Evaluate(Command());
+
+        Assert.True(BankCreditGovernanceServer.PermitsAction(response));
+        Assert.Equal("evaluation-1", evaluations.Appended!.Request.EvaluationId);
+        Assert.Equal("correlation-1", evaluations.Appended.OperationCorrelationId);
+        Assert.Equal("snapshot-1", evaluations.Appended.PolicySnapshotId);
+        Assert.Equal("etag-1", evaluations.Appended.SourceVersionTokens["deal"]);
+        Assert.Equal(evaluations.Appended.Request.EvaluationId, evaluations.Appended.Result.EvaluationId);
     }
 }

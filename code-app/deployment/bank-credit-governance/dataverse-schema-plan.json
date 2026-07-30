@@ -1,0 +1,1367 @@
+{
+  "schemaVersion": "credit-governance/2.0.0",
+  "activationState": "NO_GO",
+  "mutationSemantics": "CREATE_MISSING_ONLY",
+  "destructiveOperations": [],
+  "expected": {
+    "tables": 10,
+    "columns": 107,
+    "relationships": 24,
+    "alternateKeys": 10
+  },
+  "tables": [
+    {
+      "logicalName": "cr664_creditgovernanceprofile",
+      "schemaName": "cr664_Creditgovernanceprofile",
+      "displayName": "Credit Governance Profile",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "MUTABLE_ADMIN",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_creditpolicyversion",
+      "schemaName": "cr664_Creditpolicyversion",
+      "displayName": "Credit Policy Version",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "IMMUTABLE_AFTER_PUBLISH",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_creditpolicyrule",
+      "schemaName": "cr664_Creditpolicyrule",
+      "displayName": "Credit Policy Rule",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "IMMUTABLE_AFTER_PUBLISH",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_governanceroleassignment",
+      "schemaName": "cr664_Governanceroleassignment",
+      "displayName": "Governance Role Assignment",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "APPEND_ONLY",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_authoritygrant",
+      "schemaName": "cr664_Authoritygrant",
+      "displayName": "Delegated Authority Grant",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "APPEND_ONLY",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_governancecommittee",
+      "schemaName": "cr664_Governancecommittee",
+      "displayName": "Governance Committee",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "MUTABLE_ADMIN",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_governancecommitteemember",
+      "schemaName": "cr664_Governancecommitteemember",
+      "displayName": "Governance Committee Membership",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "APPEND_ONLY",
+      "serverWriteOnly": false
+    },
+    {
+      "logicalName": "cr664_governedactionevidence",
+      "schemaName": "cr664_Governedactionevidence",
+      "displayName": "Governed Action Evidence",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "APPEND_ONLY",
+      "serverWriteOnly": true
+    },
+    {
+      "logicalName": "cr664_governanceapprovalvote",
+      "schemaName": "cr664_Governanceapprovalvote",
+      "displayName": "Governance Approval Vote",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "APPEND_ONLY",
+      "serverWriteOnly": true
+    },
+    {
+      "logicalName": "cr664_governanceevaluation",
+      "schemaName": "cr664_Governanceevaluation",
+      "displayName": "Governance Evaluation",
+      "ownership": "OrganizationOwned",
+      "primaryNameColumn": "cr664_name",
+      "immutability": "APPEND_ONLY",
+      "serverWriteOnly": true
+    }
+  ],
+  "columns": [
+    {
+      "table": "cr664_creditgovernanceprofile",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_creditgovernanceprofile",
+      "logicalName": "cr664_bankkey",
+      "schemaName": "cr664_Bankkey",
+      "displayName": "Bank key",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_creditgovernanceprofile",
+      "logicalName": "cr664_displayname",
+      "schemaName": "cr664_Displayname",
+      "displayName": "Display name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_creditgovernanceprofile",
+      "logicalName": "cr664_profileenabled",
+      "schemaName": "cr664_Profileenabled",
+      "displayName": "Profile enabled",
+      "type": "Boolean",
+      "required": true
+    },
+    {
+      "table": "cr664_creditgovernanceprofile",
+      "logicalName": "cr664_createdat",
+      "schemaName": "cr664_Createdat",
+      "displayName": "Created at",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_policyid",
+      "schemaName": "cr664_Policyid",
+      "displayName": "Policy ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_versionnumber",
+      "schemaName": "cr664_Versionnumber",
+      "displayName": "Version number",
+      "type": "Integer",
+      "required": true
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_policystatus",
+      "schemaName": "cr664_Policystatus",
+      "displayName": "Policy status",
+      "type": "String",
+      "required": true,
+      "maxLength": 20
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_effectivefrom",
+      "schemaName": "cr664_Effectivefrom",
+      "displayName": "Effective from",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_effectivethrough",
+      "schemaName": "cr664_Effectivethrough",
+      "displayName": "Effective through",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_contractversion",
+      "schemaName": "cr664_Contractversion",
+      "displayName": "Contract version",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_snapshotjson",
+      "schemaName": "cr664_Snapshotjson",
+      "displayName": "Policy snapshot JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 1048576
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_snapshotsha256",
+      "schemaName": "cr664_Snapshotsha256",
+      "displayName": "Policy snapshot SHA-256",
+      "type": "String",
+      "required": true,
+      "maxLength": 64
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_publishedat",
+      "schemaName": "cr664_Publishedat",
+      "displayName": "Published at",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "table": "cr664_creditpolicyversion",
+      "logicalName": "cr664_publishedby",
+      "schemaName": "cr664_Publishedby",
+      "displayName": "Published by",
+      "type": "Lookup",
+      "required": false,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_policyversion",
+      "schemaName": "cr664_Policyversion",
+      "displayName": "Policy version",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditpolicyversion"
+      ]
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_ruleid",
+      "schemaName": "cr664_Ruleid",
+      "displayName": "Rule ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_description",
+      "schemaName": "cr664_Description",
+      "displayName": "Description",
+      "type": "String",
+      "required": true,
+      "maxLength": 500
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_actionsjson",
+      "schemaName": "cr664_Actionsjson",
+      "displayName": "Actions JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 20000
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_conditionjson",
+      "schemaName": "cr664_Conditionjson",
+      "displayName": "Condition JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 200000
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_requirementsjson",
+      "schemaName": "cr664_Requirementsjson",
+      "displayName": "Requirements JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 200000
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_nonoverrideable",
+      "schemaName": "cr664_Nonoverrideable",
+      "displayName": "Non-overrideable",
+      "type": "Boolean",
+      "required": true
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_ruleordinal",
+      "schemaName": "cr664_Ruleordinal",
+      "displayName": "Rule ordinal",
+      "type": "Integer",
+      "required": true
+    },
+    {
+      "table": "cr664_creditpolicyrule",
+      "logicalName": "cr664_rulesha256",
+      "schemaName": "cr664_Rulesha256",
+      "displayName": "Rule SHA-256",
+      "type": "String",
+      "required": true,
+      "maxLength": 64
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_officer",
+      "schemaName": "cr664_Officer",
+      "displayName": "Officer",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_assignmentid",
+      "schemaName": "cr664_Assignmentid",
+      "displayName": "Assignment ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_rolecode",
+      "schemaName": "cr664_Rolecode",
+      "displayName": "Role code",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_effectivefrom",
+      "schemaName": "cr664_Effectivefrom",
+      "displayName": "Effective from",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_effectivethrough",
+      "schemaName": "cr664_Effectivethrough",
+      "displayName": "Effective through",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_assignmentstate",
+      "schemaName": "cr664_Assignmentstate",
+      "displayName": "Assignment state",
+      "type": "String",
+      "required": true,
+      "maxLength": 20
+    },
+    {
+      "table": "cr664_governanceroleassignment",
+      "logicalName": "cr664_supersedesassignment",
+      "schemaName": "cr664_Supersedesassignment",
+      "displayName": "Supersedes assignment",
+      "type": "Lookup",
+      "required": false,
+      "targets": [
+        "cr664_governanceroleassignment"
+      ]
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_officer",
+      "schemaName": "cr664_Officer",
+      "displayName": "Officer",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_grantid",
+      "schemaName": "cr664_Grantid",
+      "displayName": "Grant ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_actionsjson",
+      "schemaName": "cr664_Actionsjson",
+      "displayName": "Actions JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 20000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_maximumamount",
+      "schemaName": "cr664_Maximumamount",
+      "displayName": "Maximum amount",
+      "type": "Money",
+      "required": false
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_maximumrelationshipexposure",
+      "schemaName": "cr664_Maximumrelationshipexposure",
+      "displayName": "Maximum relationship exposure",
+      "type": "Money",
+      "required": false
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_productsjson",
+      "schemaName": "cr664_Productsjson",
+      "displayName": "Products JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_riskratingsjson",
+      "schemaName": "cr664_Riskratingsjson",
+      "displayName": "Risk ratings JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_geographiesjson",
+      "schemaName": "cr664_Geographiesjson",
+      "displayName": "Geographies JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_industriesjson",
+      "schemaName": "cr664_Industriesjson",
+      "displayName": "Industries JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_exceptiontypesjson",
+      "schemaName": "cr664_Exceptiontypesjson",
+      "displayName": "Exception types JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_effectivefrom",
+      "schemaName": "cr664_Effectivefrom",
+      "displayName": "Effective from",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_effectivethrough",
+      "schemaName": "cr664_Effectivethrough",
+      "displayName": "Effective through",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_grantstate",
+      "schemaName": "cr664_Grantstate",
+      "displayName": "Grant state",
+      "type": "String",
+      "required": true,
+      "maxLength": 20
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_supersedesgrant",
+      "schemaName": "cr664_Supersedesgrant",
+      "displayName": "Supersedes grant",
+      "type": "Lookup",
+      "required": false,
+      "targets": [
+        "cr664_authoritygrant"
+      ]
+    },
+    {
+      "table": "cr664_authoritygrant",
+      "logicalName": "cr664_grantbasis",
+      "schemaName": "cr664_Grantbasis",
+      "displayName": "Grant basis",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 20000,
+      "sensitive": true
+    },
+    {
+      "table": "cr664_governancecommittee",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governancecommittee",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_governancecommittee",
+      "logicalName": "cr664_committeeid",
+      "schemaName": "cr664_Committeeid",
+      "displayName": "Committee ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governancecommittee",
+      "logicalName": "cr664_committeecode",
+      "schemaName": "cr664_Committeecode",
+      "displayName": "Committee code",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governancecommittee",
+      "logicalName": "cr664_displayname",
+      "schemaName": "cr664_Displayname",
+      "displayName": "Display name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governancecommittee",
+      "logicalName": "cr664_active",
+      "schemaName": "cr664_Active",
+      "displayName": "Active",
+      "type": "Boolean",
+      "required": true
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_committee",
+      "schemaName": "cr664_Committee",
+      "displayName": "Committee",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_governancecommittee"
+      ]
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_officer",
+      "schemaName": "cr664_Officer",
+      "displayName": "Officer",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_membershipid",
+      "schemaName": "cr664_Membershipid",
+      "displayName": "Membership ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_votingrole",
+      "schemaName": "cr664_Votingrole",
+      "displayName": "Voting role",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_mayvote",
+      "schemaName": "cr664_Mayvote",
+      "displayName": "May vote",
+      "type": "Boolean",
+      "required": true
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_effectivefrom",
+      "schemaName": "cr664_Effectivefrom",
+      "displayName": "Effective from",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_effectivethrough",
+      "schemaName": "cr664_Effectivethrough",
+      "displayName": "Effective through",
+      "type": "DateTime",
+      "required": false
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_membershipstate",
+      "schemaName": "cr664_Membershipstate",
+      "displayName": "Membership state",
+      "type": "String",
+      "required": true,
+      "maxLength": 20
+    },
+    {
+      "table": "cr664_governancecommitteemember",
+      "logicalName": "cr664_supersedesmembership",
+      "schemaName": "cr664_Supersedesmembership",
+      "displayName": "Supersedes membership",
+      "type": "Lookup",
+      "required": false,
+      "targets": [
+        "cr664_governancecommitteemember"
+      ]
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_loandeal",
+      "schemaName": "cr664_Loandeal",
+      "displayName": "Loan deal",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_loandeal"
+      ]
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_actor",
+      "schemaName": "cr664_Actor",
+      "displayName": "Actor",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_evidenceid",
+      "schemaName": "cr664_Evidenceid",
+      "displayName": "Evidence ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_actioncode",
+      "schemaName": "cr664_Actioncode",
+      "displayName": "Action code",
+      "type": "String",
+      "required": true,
+      "maxLength": 30
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_occurredat",
+      "schemaName": "cr664_Occurredat",
+      "displayName": "Occurred at",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_sourceentity",
+      "schemaName": "cr664_Sourceentity",
+      "displayName": "Source entity",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_sourcerecordid",
+      "schemaName": "cr664_Sourcerecordid",
+      "displayName": "Source record ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_correlationid",
+      "schemaName": "cr664_Correlationid",
+      "displayName": "Correlation ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governedactionevidence",
+      "logicalName": "cr664_evidencesha256",
+      "schemaName": "cr664_Evidencesha256",
+      "displayName": "Evidence SHA-256",
+      "type": "String",
+      "required": true,
+      "maxLength": 64
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_loandeal",
+      "schemaName": "cr664_Loandeal",
+      "displayName": "Loan deal",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_loandeal"
+      ]
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_voter",
+      "schemaName": "cr664_Voter",
+      "displayName": "Voter",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_committee",
+      "schemaName": "cr664_Committee",
+      "displayName": "Committee",
+      "type": "Lookup",
+      "required": false,
+      "targets": [
+        "cr664_governancecommittee"
+      ]
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_approvalid",
+      "schemaName": "cr664_Approvalid",
+      "displayName": "Approval ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_groupid",
+      "schemaName": "cr664_Groupid",
+      "displayName": "Approval group ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_decisioncode",
+      "schemaName": "cr664_Decisioncode",
+      "displayName": "Decision code",
+      "type": "String",
+      "required": true,
+      "maxLength": 20
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_actorrolesjson",
+      "schemaName": "cr664_Actorrolesjson",
+      "displayName": "Actor roles JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 100000
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_occurredat",
+      "schemaName": "cr664_Occurredat",
+      "displayName": "Occurred at",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_governanceapprovalvote",
+      "logicalName": "cr664_correlationid",
+      "schemaName": "cr664_Correlationid",
+      "displayName": "Correlation ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_name",
+      "schemaName": "cr664_Name",
+      "displayName": "Name",
+      "type": "String",
+      "required": true,
+      "maxLength": 200
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_governanceprofile",
+      "schemaName": "cr664_Governanceprofile",
+      "displayName": "Governance profile",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditgovernanceprofile"
+      ]
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_policyversion",
+      "schemaName": "cr664_Policyversion",
+      "displayName": "Policy version",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_creditpolicyversion"
+      ]
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_loandeal",
+      "schemaName": "cr664_Loandeal",
+      "displayName": "Loan deal",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "cr664_loandeal"
+      ]
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_actor",
+      "schemaName": "cr664_Actor",
+      "displayName": "Actor",
+      "type": "Lookup",
+      "required": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_evaluationid",
+      "schemaName": "cr664_Evaluationid",
+      "displayName": "Evaluation ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_contractversion",
+      "schemaName": "cr664_Contractversion",
+      "displayName": "Contract version",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_actioncode",
+      "schemaName": "cr664_Actioncode",
+      "displayName": "Action code",
+      "type": "String",
+      "required": true,
+      "maxLength": 30
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_decisioncode",
+      "schemaName": "cr664_Decisioncode",
+      "displayName": "Decision code",
+      "type": "String",
+      "required": true,
+      "maxLength": 20
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_evaluatedat",
+      "schemaName": "cr664_Evaluatedat",
+      "displayName": "Evaluated at",
+      "type": "DateTime",
+      "required": true
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_requestjson",
+      "schemaName": "cr664_Requestjson",
+      "displayName": "Request JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 1048576,
+      "sensitive": true
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_resultjson",
+      "schemaName": "cr664_Resultjson",
+      "displayName": "Result JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 1048576,
+      "sensitive": true
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_sourceversiontokensjson",
+      "schemaName": "cr664_Sourceversiontokensjson",
+      "displayName": "Source version tokens JSON",
+      "type": "Memo",
+      "required": true,
+      "maxLength": 200000
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_requestsha256",
+      "schemaName": "cr664_Requestsha256",
+      "displayName": "Request SHA-256",
+      "type": "String",
+      "required": true,
+      "maxLength": 64
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_resultsha256",
+      "schemaName": "cr664_Resultsha256",
+      "displayName": "Result SHA-256",
+      "type": "String",
+      "required": true,
+      "maxLength": 64
+    },
+    {
+      "table": "cr664_governanceevaluation",
+      "logicalName": "cr664_correlationid",
+      "schemaName": "cr664_Correlationid",
+      "displayName": "Correlation ID",
+      "type": "String",
+      "required": true,
+      "maxLength": 100
+    }
+  ],
+  "relationships": [
+    {
+      "schemaName": "cr664_rel_creditpolicyversion_governanceprofile",
+      "fromTable": "cr664_creditpolicyversion",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_creditpolicyversion_publishedby",
+      "fromTable": "cr664_creditpolicyversion",
+      "fromColumn": "cr664_publishedby",
+      "toTable": "systemuser",
+      "required": false,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_creditpolicyrule_policyversion",
+      "fromTable": "cr664_creditpolicyrule",
+      "fromColumn": "cr664_policyversion",
+      "toTable": "cr664_creditpolicyversion",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceroleassignment_governanceprofile",
+      "fromTable": "cr664_governanceroleassignment",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceroleassignment_officer",
+      "fromTable": "cr664_governanceroleassignment",
+      "fromColumn": "cr664_officer",
+      "toTable": "systemuser",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceroleassignment_supersedesassignment",
+      "fromTable": "cr664_governanceroleassignment",
+      "fromColumn": "cr664_supersedesassignment",
+      "toTable": "cr664_governanceroleassignment",
+      "required": false,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_authoritygrant_governanceprofile",
+      "fromTable": "cr664_authoritygrant",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_authoritygrant_officer",
+      "fromTable": "cr664_authoritygrant",
+      "fromColumn": "cr664_officer",
+      "toTable": "systemuser",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_authoritygrant_supersedesgrant",
+      "fromTable": "cr664_authoritygrant",
+      "fromColumn": "cr664_supersedesgrant",
+      "toTable": "cr664_authoritygrant",
+      "required": false,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governancecommittee_governanceprofile",
+      "fromTable": "cr664_governancecommittee",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governancecommitteemember_committee",
+      "fromTable": "cr664_governancecommitteemember",
+      "fromColumn": "cr664_committee",
+      "toTable": "cr664_governancecommittee",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governancecommitteemember_officer",
+      "fromTable": "cr664_governancecommitteemember",
+      "fromColumn": "cr664_officer",
+      "toTable": "systemuser",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governancecommitteemember_supersedesmembership",
+      "fromTable": "cr664_governancecommitteemember",
+      "fromColumn": "cr664_supersedesmembership",
+      "toTable": "cr664_governancecommitteemember",
+      "required": false,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governedactionevidence_governanceprofile",
+      "fromTable": "cr664_governedactionevidence",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governedactionevidence_loandeal",
+      "fromTable": "cr664_governedactionevidence",
+      "fromColumn": "cr664_loandeal",
+      "toTable": "cr664_loandeal",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governedactionevidence_actor",
+      "fromTable": "cr664_governedactionevidence",
+      "fromColumn": "cr664_actor",
+      "toTable": "systemuser",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceapprovalvote_governanceprofile",
+      "fromTable": "cr664_governanceapprovalvote",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceapprovalvote_loandeal",
+      "fromTable": "cr664_governanceapprovalvote",
+      "fromColumn": "cr664_loandeal",
+      "toTable": "cr664_loandeal",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceapprovalvote_voter",
+      "fromTable": "cr664_governanceapprovalvote",
+      "fromColumn": "cr664_voter",
+      "toTable": "systemuser",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceapprovalvote_committee",
+      "fromTable": "cr664_governanceapprovalvote",
+      "fromColumn": "cr664_committee",
+      "toTable": "cr664_governancecommittee",
+      "required": false,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceevaluation_governanceprofile",
+      "fromTable": "cr664_governanceevaluation",
+      "fromColumn": "cr664_governanceprofile",
+      "toTable": "cr664_creditgovernanceprofile",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceevaluation_policyversion",
+      "fromTable": "cr664_governanceevaluation",
+      "fromColumn": "cr664_policyversion",
+      "toTable": "cr664_creditpolicyversion",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceevaluation_loandeal",
+      "fromTable": "cr664_governanceevaluation",
+      "fromColumn": "cr664_loandeal",
+      "toTable": "cr664_loandeal",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    },
+    {
+      "schemaName": "cr664_rel_governanceevaluation_actor",
+      "fromTable": "cr664_governanceevaluation",
+      "fromColumn": "cr664_actor",
+      "toTable": "systemuser",
+      "required": true,
+      "deleteBehavior": "Restrict"
+    }
+  ],
+  "alternateKeys": [
+    {
+      "schemaName": "cr664_key_governanceprofile_bank",
+      "table": "cr664_creditgovernanceprofile",
+      "columns": [
+        "cr664_bankkey"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_policyversion_id",
+      "table": "cr664_creditpolicyversion",
+      "columns": [
+        "cr664_policyid",
+        "cr664_versionnumber"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_policyrule_id",
+      "table": "cr664_creditpolicyrule",
+      "columns": [
+        "cr664_policyversion",
+        "cr664_ruleid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_roleassignment_id",
+      "table": "cr664_governanceroleassignment",
+      "columns": [
+        "cr664_assignmentid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_authoritygrant_id",
+      "table": "cr664_authoritygrant",
+      "columns": [
+        "cr664_grantid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_committee_id",
+      "table": "cr664_governancecommittee",
+      "columns": [
+        "cr664_committeeid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_membership_id",
+      "table": "cr664_governancecommitteemember",
+      "columns": [
+        "cr664_membershipid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_actionevidence_id",
+      "table": "cr664_governedactionevidence",
+      "columns": [
+        "cr664_evidenceid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_approvalvote_id",
+      "table": "cr664_governanceapprovalvote",
+      "columns": [
+        "cr664_approvalid"
+      ]
+    },
+    {
+      "schemaName": "cr664_key_evaluation_id",
+      "table": "cr664_governanceevaluation",
+      "columns": [
+        "cr664_evaluationid"
+      ]
+    }
+  ]
+}
