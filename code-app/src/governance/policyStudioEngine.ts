@@ -355,7 +355,8 @@ export function validateStudioVersion(version: PolicyStudioVersion, at = new Dat
         )) {
         const identicalLimits =
           left.maximumAmount === right.maximumAmount &&
-          left.maximumRelationshipExposure === right.maximumRelationshipExposure;
+          left.maximumRelationshipExposure === right.maximumRelationshipExposure &&
+          left.maximumUnsecuredAmount === right.maximumUnsecuredAmount;
         diagnostics.push({
           code: identicalLimits ? 'DUPLICATE_AUTHORITY' : 'AUTHORITY_CONFLICT',
           severity: 'ERROR',

@@ -46,6 +46,8 @@ export type PolicyStatus = 'DRAFT' | 'ACTIVE' | 'RETIRED';
 export interface CreditCaseFacts {
   readonly amount: number;
   readonly totalRelationshipExposure: number;
+  /** Amount unsupported by eligible collateral; omitted is treated as unknown/fail-closed when a grant limits it. */
+  readonly unsecuredExposure?: number;
   readonly product: string;
   readonly collateral: readonly string[];
   readonly riskRating: string;
@@ -84,11 +86,14 @@ export interface DelegatedAuthorityGrant {
   readonly actions: readonly GovernedCreditAction[];
   readonly maximumAmount?: number;
   readonly maximumRelationshipExposure?: number;
+  readonly maximumUnsecuredAmount?: number;
   readonly products?: readonly string[];
   readonly riskRatings?: readonly string[];
   readonly geographies?: readonly string[];
   readonly industries?: readonly string[];
   readonly exceptionTypes?: readonly string[];
+  readonly insiderPermitted?: boolean;
+  readonly criticizedClassifiedStatuses?: readonly string[];
   readonly effectiveFrom: string;
   readonly effectiveThrough?: string;
 }
@@ -298,13 +303,12 @@ function activeGrant(
     if (grant.riskRatings && !includesNormalized(grant.riskRatings, request.facts.riskRating)) continue;
     if (grant.geographies && !includesNormalized(grant.geographies, request.facts.geography)) continue;
     if (grant.industries && !includesNormalized(grant.industries, request.facts.industry)) continue;
-    if (grant.exceptionTypes) {
-      const exceptionTypes = request.facts.policyExceptionTypes ?? [];
-      if (
-        !request.facts.hasPolicyException ||
-        !exceptionTypes.some((value) => includesNormalized(grant.exceptionTypes!, value))
-      ) continue;
-    }
+    if (request.facts.insiderStatus && !grant.insiderPermitted) continue;
+    if (
+      request.facts.criticizedClassifiedStatus &&
+      (!grant.criticizedClassifiedStatuses ||
+        !includesNormalized(grant.criticizedClassifiedStatuses, request.facts.criticizedClassifiedStatus))
+    ) continue;
     if (grant.maximumAmount !== undefined && request.facts.amount > grant.maximumAmount) {
       exceeded = true;
       continue;
@@ -314,6 +318,22 @@ function activeGrant(
       request.facts.totalRelationshipExposure > grant.maximumRelationshipExposure
     ) {
       exceeded = true;
+      continue;
+    }
+    if (
+      grant.maximumUnsecuredAmount !== undefined &&
+      (request.facts.unsecuredExposure === undefined ||
+        request.facts.unsecuredExposure > grant.maximumUnsecuredAmount)
+    ) {
+      exceeded = true;
+      continue;
+    }
+    if (
+      request.facts.hasPolicyException &&
+      (!grant.exceptionTypes ||
+        !request.facts.policyExceptionTypes?.some((exceptionType) =>
+          includesNormalized(grant.exceptionTypes!, exceptionType)))
+    ) {
       continue;
     }
     return { grant, exceeded };

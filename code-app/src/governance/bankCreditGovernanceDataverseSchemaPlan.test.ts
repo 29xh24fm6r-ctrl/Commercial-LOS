@@ -6,6 +6,7 @@ import {
   BANK_CREDIT_GOVERNANCE_COLUMNS,
   BANK_CREDIT_GOVERNANCE_RELATIONSHIPS,
   BANK_CREDIT_GOVERNANCE_TABLES,
+  GOVERNANCE_EXISTING_TABLES,
   GOVERNANCE_TABLE,
   validateBankCreditGovernanceSchemaPlan,
 } from './bankCreditGovernanceDataverseSchemaPlan';
@@ -23,6 +24,21 @@ describe('PR 2 Dataverse governance schema plan', () => {
     expect(GOVERNANCE_TABLE.policyRule).toBe('cr664_governancepolicyrule');
     expect(BANK_CREDIT_GOVERNANCE_TABLES.map((table) => table.logicalName))
       .not.toContain('cr664_creditpolicyrule');
+  });
+
+  it('adds only the missing fail-closed fact fields to the existing loan-deal table', () => {
+    expect(GOVERNANCE_EXISTING_TABLES).toEqual(['cr664_loandeal']);
+    expect(BANK_CREDIT_GOVERNANCE_COLUMNS
+      .filter((column) => column.table === 'cr664_loandeal')
+      .map((column) => column.logicalName)).toEqual([
+        'cr664_geography',
+        'cr664_haspolicyexception',
+        'cr664_policyexceptiontypesjson',
+        'cr664_insiderstatus',
+        'cr664_concentrationjson',
+        'cr664_governmentguaranteedprogram',
+        'cr664_criticizedclassifiedstatus',
+      ]);
   });
 
   it('contains no institution seed, active policy, authority assignment, or dollar value', () => {
@@ -75,6 +91,9 @@ describe('PR 2 Dataverse governance schema plan', () => {
     expect(fields).toEqual(expect.arrayContaining([
       'cr664_maximumamount',
       'cr664_maximumrelationshipexposure',
+      'cr664_maximumunsecuredamount',
+      'cr664_insiderpermitted',
+      'cr664_criticizedclassifiedstatusesjson',
       'cr664_productsjson',
       'cr664_riskratingsjson',
       'cr664_geographiesjson',

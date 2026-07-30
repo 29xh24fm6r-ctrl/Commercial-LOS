@@ -26,6 +26,7 @@ namespace CommercialLendingLOS.Plugins
     {
         public decimal Amount { get; set; }
         public decimal TotalRelationshipExposure { get; set; }
+        public decimal UnsecuredExposure { get; set; }
         public string Product { get; set; }
         public IList<string> Collateral { get; set; } = new List<string>();
         public string RiskRating { get; set; }
@@ -65,11 +66,14 @@ namespace CommercialLendingLOS.Plugins
         public IList<GovernedCreditAction> Actions { get; set; } = new List<GovernedCreditAction>();
         public decimal? MaximumAmount { get; set; }
         public decimal? MaximumRelationshipExposure { get; set; }
+        public decimal? MaximumUnsecuredAmount { get; set; }
         public IList<string> Products { get; set; }
         public IList<string> RiskRatings { get; set; }
         public IList<string> Geographies { get; set; }
         public IList<string> Industries { get; set; }
         public IList<string> ExceptionTypes { get; set; }
+        public bool InsiderPermitted { get; set; }
+        public IList<string> CriticizedClassifiedStatuses { get; set; }
         public DateTimeOffset EffectiveFrom { get; set; }
         public DateTimeOffset? EffectiveThrough { get; set; }
     }
@@ -371,10 +375,11 @@ namespace CommercialLendingLOS.Plugins
                 if (grant.RiskRatings != null && !Contains(grant.RiskRatings, request.Facts.RiskRating)) continue;
                 if (grant.Geographies != null && !Contains(grant.Geographies, request.Facts.Geography)) continue;
                 if (grant.Industries != null && !Contains(grant.Industries, request.Facts.Industry)) continue;
-                if (grant.ExceptionTypes != null &&
-                    (!request.Facts.HasPolicyException ||
-                     request.Facts.PolicyExceptionTypes == null ||
-                     !request.Facts.PolicyExceptionTypes.Any(value => Contains(grant.ExceptionTypes, value)))) continue;
+                if (request.Facts.InsiderStatus && !grant.InsiderPermitted) continue;
+                if (!string.IsNullOrWhiteSpace(request.Facts.CriticizedClassifiedStatus) &&
+                    (grant.CriticizedClassifiedStatuses == null ||
+                     !Contains(grant.CriticizedClassifiedStatuses, request.Facts.CriticizedClassifiedStatus)))
+                    continue;
                 if (grant.MaximumAmount.HasValue && request.Facts.Amount > grant.MaximumAmount.Value)
                 {
                     exceeded = true;
@@ -386,6 +391,17 @@ namespace CommercialLendingLOS.Plugins
                     exceeded = true;
                     continue;
                 }
+                if (grant.MaximumUnsecuredAmount.HasValue &&
+                    request.Facts.UnsecuredExposure > grant.MaximumUnsecuredAmount.Value)
+                {
+                    exceeded = true;
+                    continue;
+                }
+                if (request.Facts.HasPolicyException &&
+                    (grant.ExceptionTypes == null ||
+                     request.Facts.PolicyExceptionTypes == null ||
+                     !request.Facts.PolicyExceptionTypes.Any(value => Contains(grant.ExceptionTypes, value))))
+                    continue;
                 return true;
             }
             return false;

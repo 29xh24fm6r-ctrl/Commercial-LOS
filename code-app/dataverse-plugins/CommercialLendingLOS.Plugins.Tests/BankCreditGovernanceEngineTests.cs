@@ -10,6 +10,7 @@ public sealed class BankCreditGovernanceEngineTests
     {
         Amount = 500_000m,
         TotalRelationshipExposure = 750_000m,
+        UnsecuredExposure = 0m,
         Product = "CRE",
         Collateral = new[] { "real estate" },
         RiskRating = "5",
@@ -247,6 +248,49 @@ public sealed class BankCreditGovernanceEngineTests
 
         Assert.Contains(denied.Findings, item => item.Code == "DELEGATED_AUTHORITY_MISSING");
         Assert.Equal(GovernanceDecision.Permit, permitted.Decision);
+    }
+
+    [Fact]
+    public void ZeroUnsecuredAuthorityBlocksUnsecuredExposure()
+    {
+        var actor = Actor();
+        actor.AuthorityGrants.Single().MaximumUnsecuredAmount = 0m;
+        var request = Request(actor: actor);
+        request.Facts.UnsecuredExposure = 1m;
+
+        var result = BankCreditGovernanceEngine.Evaluate(request);
+
+        Assert.Equal(GovernanceDecision.Block, result.Decision);
+        Assert.Contains(result.Findings, item => item.Code == "DELEGATED_AUTHORITY_EXCEEDED");
+    }
+
+    [Fact]
+    public void EmptyExceptionAuthorityAllowsOrdinaryCreditButBlocksExceptions()
+    {
+        var actor = Actor();
+        actor.AuthorityGrants.Single().ExceptionTypes = Array.Empty<string>();
+        var ordinary = Request(actor: actor);
+        var exception = Request(actor: actor);
+        exception.Facts.HasPolicyException = true;
+        exception.Facts.PolicyExceptionTypes = new[] { "COLLATERAL" };
+
+        Assert.Equal(GovernanceDecision.Permit, BankCreditGovernanceEngine.Evaluate(ordinary).Decision);
+        Assert.Equal(GovernanceDecision.Block, BankCreditGovernanceEngine.Evaluate(exception).Decision);
+    }
+
+    [Fact]
+    public void AuthorityWithoutInsiderOrClassifiedScopeBlocksBoth()
+    {
+        var actor = Actor();
+        actor.AuthorityGrants.Single().InsiderPermitted = false;
+        actor.AuthorityGrants.Single().CriticizedClassifiedStatuses = Array.Empty<string>();
+        var insider = Request(actor: actor);
+        insider.Facts.InsiderStatus = true;
+        var classified = Request(actor: actor);
+        classified.Facts.CriticizedClassifiedStatus = "SUBSTANDARD";
+
+        Assert.Equal(GovernanceDecision.Block, BankCreditGovernanceEngine.Evaluate(insider).Decision);
+        Assert.Equal(GovernanceDecision.Block, BankCreditGovernanceEngine.Evaluate(classified).Decision);
     }
 
     [Fact]

@@ -8,7 +8,7 @@ import {
   BANK_CREDIT_GOVERNANCE_SCHEMA_VERSION,
   BANK_CREDIT_GOVERNANCE_TABLES,
 } from '../../src/governance/bankCreditGovernanceDataverseSchemaPlan';
-import { INITIAL_OGB_SHADOW_POLICY } from '../../src/governance/ogbGovernanceMigration';
+import { INITIAL_OGB_OPTION_A_POLICY } from '../../src/governance/initialOgbOptionAPolicy';
 
 const outputDirectory = resolve('deployment/bank-credit-governance');
 mkdirSync(outputDirectory, { recursive: true });
@@ -31,7 +31,7 @@ const schemaPlan = {
 };
 
 const proposedActivePolicy = {
-  ...INITIAL_OGB_SHADOW_POLICY,
+  ...INITIAL_OGB_OPTION_A_POLICY,
   status: 'ACTIVE',
 };
 

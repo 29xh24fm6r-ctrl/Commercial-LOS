@@ -86,6 +86,69 @@ describe('evaluateBankCreditGovernance', () => {
     });
   });
 
+  it('fails closed when unsecured exposure exceeds a zero-unsecured authority grant', () => {
+    const actor: GovernanceActor = {
+      ...officer,
+      authorityGrants: officer.authorityGrants.map((grant) => ({
+        ...grant,
+        maximumUnsecuredAmount: 0,
+      })),
+    };
+    const result = evaluateBankCreditGovernance(request({
+      actor,
+      facts: { ...facts, collateral: [], unsecuredExposure: facts.amount },
+    }));
+    expect(result).toMatchObject({
+      decision: 'BLOCK',
+      findings: expect.arrayContaining([
+        expect.objectContaining({ code: 'DELEGATED_AUTHORITY_EXCEEDED' }),
+      ]),
+    });
+  });
+
+  it('permits ordinary credit but denies policy exceptions when exception authority is absent', () => {
+    const actor: GovernanceActor = {
+      ...officer,
+      authorityGrants: officer.authorityGrants.map((grant) => ({
+        ...grant,
+        exceptionTypes: [],
+      })),
+    };
+    expect(evaluateBankCreditGovernance(request({ actor })).decision).toBe('PERMIT');
+    expect(evaluateBankCreditGovernance(request({
+      actor,
+      facts: {
+        ...facts,
+        hasPolicyException: true,
+        policyExceptionTypes: ['COLLATERAL'],
+      },
+    }))).toMatchObject({
+      decision: 'BLOCK',
+      findings: expect.arrayContaining([
+        expect.objectContaining({ code: 'DELEGATED_AUTHORITY_MISSING' }),
+      ]),
+    });
+  });
+
+  it('blocks insider and criticized credits when the grant has no such scope', () => {
+    const actor: GovernanceActor = {
+      ...officer,
+      authorityGrants: officer.authorityGrants.map((grant) => ({
+        ...grant,
+        insiderPermitted: false,
+        criticizedClassifiedStatuses: [],
+      })),
+    };
+    expect(evaluateBankCreditGovernance(request({
+      actor,
+      facts: { ...facts, insiderStatus: true },
+    })).decision).toBe('BLOCK');
+    expect(evaluateBankCreditGovernance(request({
+      actor,
+      facts: { ...facts, criticizedClassifiedStatus: 'SUBSTANDARD' },
+    })).decision).toBe('BLOCK');
+  });
+
   it('supports a combined lender/underwriter model with independent approval', () => {
     const independentPolicy = policy([{
       ruleId: 'independent-approval',
