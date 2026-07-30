@@ -203,6 +203,10 @@ export function assignmentToGrant(assignment: StudioAuthorityAssignment): Delega
     maximumAmount: assignment.maximumAmount,
     maximumRelationshipExposure: assignment.maximumRelationshipExposure,
     products: assignment.products.length > 0 ? assignment.products : undefined,
+    riskRatings: assignment.riskRatings.length > 0 ? assignment.riskRatings : undefined,
+    geographies: assignment.geographies.length > 0 ? assignment.geographies : undefined,
+    industries: assignment.industries.length > 0 ? assignment.industries : undefined,
+    exceptionTypes: assignment.exceptionTypes.length > 0 ? assignment.exceptionTypes : undefined,
     effectiveFrom: assignment.effectiveFrom,
     effectiveThrough: assignment.effectiveThrough,
   };

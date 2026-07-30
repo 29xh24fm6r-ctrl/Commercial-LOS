@@ -62,6 +62,23 @@ describe('PR 2 Dataverse governance schema plan', () => {
     }
   });
 
+  it('persists every delegated-authority scope certified by the engine', () => {
+    const fields = BANK_CREDIT_GOVERNANCE_COLUMNS
+      .filter((column) => column.table === GOVERNANCE_TABLE.authorityGrant)
+      .map((column) => column.logicalName);
+    expect(fields).toEqual(expect.arrayContaining([
+      'cr664_maximumamount',
+      'cr664_maximumrelationshipexposure',
+      'cr664_productsjson',
+      'cr664_riskratingsjson',
+      'cr664_geographiesjson',
+      'cr664_industriesjson',
+      'cr664_exceptiontypesjson',
+      'cr664_effectivefrom',
+      'cr664_effectivethrough',
+    ]));
+  });
+
   it('requires complete evaluation proof and protects its payload as sensitive', () => {
     const fields = BANK_CREDIT_GOVERNANCE_COLUMNS.filter((column) =>
       column.table === GOVERNANCE_TABLE.evaluation);

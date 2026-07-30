@@ -50,6 +50,8 @@ export interface CreditCaseFacts {
   readonly collateral: readonly string[];
   readonly riskRating: string;
   readonly hasPolicyException: boolean;
+  /** Named exception categories, when applicable. Empty/absent never satisfies a scoped grant. */
+  readonly policyExceptionTypes?: readonly string[];
   readonly insiderStatus: boolean;
   readonly concentration: readonly string[];
   readonly industry: string;
@@ -83,6 +85,10 @@ export interface DelegatedAuthorityGrant {
   readonly maximumAmount?: number;
   readonly maximumRelationshipExposure?: number;
   readonly products?: readonly string[];
+  readonly riskRatings?: readonly string[];
+  readonly geographies?: readonly string[];
+  readonly industries?: readonly string[];
+  readonly exceptionTypes?: readonly string[];
   readonly effectiveFrom: string;
   readonly effectiveThrough?: string;
 }
@@ -118,6 +124,11 @@ export interface ApprovalGroupRequirement {
   readonly committeeId?: string;
   readonly distinctActors: boolean;
   readonly unanimous?: boolean;
+  readonly quorumRequired?: number;
+  readonly abstentionsCountTowardQuorum?: boolean;
+  readonly recusedActorIds?: readonly string[];
+  readonly maximumAmount?: number;
+  readonly maximumRelationshipExposure?: number;
 }
 
 export interface RuleRequirements {
@@ -183,6 +194,8 @@ export type GovernanceReasonCode =
   | 'INDEPENDENCE_REQUIRED'
   | 'APPROVAL_GROUP_UNSATISFIED'
   | 'COMMITTEE_ACTION_REQUIRED'
+  | 'COMMITTEE_QUORUM_UNSATISFIED'
+  | 'COMMITTEE_AUTHORITY_EXCEEDED'
   | 'ACTION_PROHIBITED'
   | 'MANDATORY_ESCALATION';
 
@@ -282,6 +295,16 @@ function activeGrant(
     const through = grant.effectiveThrough ? instant(grant.effectiveThrough) : undefined;
     if (at === undefined || from === undefined || at < from || (through !== undefined && at > through)) continue;
     if (grant.products && !includesNormalized(grant.products, request.facts.product)) continue;
+    if (grant.riskRatings && !includesNormalized(grant.riskRatings, request.facts.riskRating)) continue;
+    if (grant.geographies && !includesNormalized(grant.geographies, request.facts.geography)) continue;
+    if (grant.industries && !includesNormalized(grant.industries, request.facts.industry)) continue;
+    if (grant.exceptionTypes) {
+      const exceptionTypes = request.facts.policyExceptionTypes ?? [];
+      if (
+        !request.facts.hasPolicyException ||
+        !exceptionTypes.some((value) => includesNormalized(grant.exceptionTypes!, value))
+      ) continue;
+    }
     if (grant.maximumAmount !== undefined && request.facts.amount > grant.maximumAmount) {
       exceeded = true;
       continue;
@@ -301,11 +324,17 @@ function activeGrant(
 function evaluateApprovalGroup(
   requirement: ApprovalGroupRequirement,
   approvals: readonly ApprovalEvidence[],
-): { satisfied: boolean; evidenceIds: readonly string[] } {
+  facts: CreditCaseFacts,
+): {
+  satisfied: boolean;
+  quorumSatisfied: boolean;
+  authorityExceeded: boolean;
+  evidenceIds: readonly string[];
+} {
   const relevant = approvals.filter((approval) => {
     if (approval.groupId !== requirement.groupId) return false;
-    if (approval.decision === 'ABSTAIN') return false;
     if (requirement.committeeId && approval.committeeId !== requirement.committeeId) return false;
+    if (requirement.recusedActorIds && includesNormalized(requirement.recusedActorIds, approval.actorId)) return false;
     if (
       requirement.eligibleRoles &&
       !approval.actorRoles.some((role) => includesNormalized(requirement.eligibleRoles!, role))
@@ -313,12 +342,28 @@ function evaluateApprovalGroup(
     return true;
   });
   const approvalsOnly = relevant.filter((approval) => approval.decision === 'APPROVE');
+  const quorumVotes = relevant.filter(
+    (approval) => approval.decision !== 'ABSTAIN' || requirement.abstentionsCountTowardQuorum,
+  );
   const count = requirement.distinctActors
     ? new Set(approvalsOnly.map((approval) => normalized(approval.actorId))).size
     : approvalsOnly.length;
-  const unanimous = !requirement.unanimous || relevant.every((approval) => approval.decision === 'APPROVE');
+  const quorumCount = requirement.distinctActors
+    ? new Set(quorumVotes.map((approval) => normalized(approval.actorId))).size
+    : quorumVotes.length;
+  const quorumSatisfied = requirement.quorumRequired === undefined ||
+    quorumCount >= requirement.quorumRequired;
+  const unanimousVotes = relevant.filter((approval) => approval.decision !== 'ABSTAIN');
+  const unanimous = !requirement.unanimous ||
+    (unanimousVotes.length > 0 && unanimousVotes.every((approval) => approval.decision === 'APPROVE'));
+  const authorityExceeded =
+    (requirement.maximumAmount !== undefined && facts.amount > requirement.maximumAmount) ||
+    (requirement.maximumRelationshipExposure !== undefined &&
+      facts.totalRelationshipExposure > requirement.maximumRelationshipExposure);
   return {
-    satisfied: count >= requirement.approvalsRequired && unanimous,
+    satisfied: count >= requirement.approvalsRequired && unanimous && quorumSatisfied && !authorityExceeded,
+    quorumSatisfied,
+    authorityExceeded,
     evidenceIds: approvalsOnly.map((approval) => approval.approvalId),
   };
 }
@@ -379,6 +424,17 @@ function validatePolicy(policy: BankCreditGovernancePolicy): readonly string[] {
       if (group.eligibleRoles?.length === 0) {
         errors.push(`rule ${ruleId} approval group ${group.groupId} has an empty eligibleRoles restriction`);
       }
+      if (
+        group.quorumRequired !== undefined &&
+        (!Number.isInteger(group.quorumRequired) || group.quorumRequired < group.approvalsRequired)
+      ) errors.push(`rule ${ruleId} approval group ${group.groupId} has an invalid quorum`);
+      if (group.maximumAmount !== undefined && (!Number.isFinite(group.maximumAmount) || group.maximumAmount < 0)) {
+        errors.push(`rule ${ruleId} approval group ${group.groupId} has an invalid maximum amount`);
+      }
+      if (
+        group.maximumRelationshipExposure !== undefined &&
+        (!Number.isFinite(group.maximumRelationshipExposure) || group.maximumRelationshipExposure < 0)
+      ) errors.push(`rule ${ruleId} approval group ${group.groupId} has an invalid maximum relationship exposure`);
       if (group.committeeId !== undefined && group.committeeId.trim().length === 0) {
         errors.push(`rule ${ruleId} approval group ${group.groupId} has a blank committeeId`);
       }
@@ -520,14 +576,25 @@ export function evaluateBankCreditGovernance(request: GovernanceEvaluationReques
       }
     }
     for (const group of requirements.approvalGroups ?? []) {
-      const result = evaluateApprovalGroup(group, request.approvals);
+      const result = evaluateApprovalGroup(group, request.approvals, request.facts);
       if (!result.satisfied) {
+        const code: GovernanceReasonCode = result.authorityExceeded
+          ? 'COMMITTEE_AUTHORITY_EXCEEDED'
+          : !result.quorumSatisfied
+            ? 'COMMITTEE_QUORUM_UNSATISFIED'
+            : group.committeeId
+              ? 'COMMITTEE_ACTION_REQUIRED'
+              : 'APPROVAL_GROUP_UNSATISFIED';
         findings.push(
           finding(
-            group.committeeId ? 'COMMITTEE_ACTION_REQUIRED' : 'APPROVAL_GROUP_UNSATISFIED',
-            group.committeeId
-              ? `Committee approval group ${group.groupId} is not satisfied.`
-              : `Approval group ${group.groupId} is not satisfied.`,
+            code,
+            result.authorityExceeded
+              ? `Approval group ${group.groupId} lacks authority for the case exposure.`
+              : !result.quorumSatisfied
+                ? `Approval group ${group.groupId} has not reached quorum.`
+                : group.committeeId
+                  ? `Committee approval group ${group.groupId} is not satisfied.`
+                  : `Approval group ${group.groupId} is not satisfied.`,
             rule,
             result.evidenceIds,
           ),
