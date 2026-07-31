@@ -1,8 +1,8 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-11-live-audit-evidence",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-10-semantic-source-identity",
-  "createdAt": "2026-07-31T00:05:00Z",
-  "activationState": "NO_GO",
+  "packageVersion": "bank-credit-governance/pr8-final-production-go-closeout",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-11-live-audit-evidence",
+  "createdAt": "2026-07-31T13:02:34Z",
+  "activationState": "GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
     "governancePolicyRuleTable": "cr664_governancepolicyrule",
@@ -56,8 +56,8 @@
     "sha256": "833f936dfddfdb3ddce8b3d7a78de62946131e96498431dfcfd772a5e96c919d",
     "policyId": "ogb-option-a-initial",
     "version": 1,
-    "productionPersisted": false,
-    "productionActivated": false
+    "productionPersisted": true,
+    "productionActivated": true
   },
   "authorityPlan": {
     "path": "deployment/bank-credit-governance/authority-profile-provisioning-plan.json",
@@ -72,7 +72,7 @@
     "preImages": 28,
     "duplicateGuardPluginType": "CommercialLendingLOS.Plugins.GovernanceNaturalKeyGuardPlugin",
     "initialState": "Disabled",
-    "productionRegisteredByThisPackage": false
+    "productionRegisteredByThisPackage": true
   },
   "registrationScript": {
     "path": "scripts/dataverse/register-configurable-credit-governance-plugin.ps1",
@@ -83,6 +83,31 @@
     "path": "scripts/dataverse/run-option-a-live-certification.ps1",
     "sha256": "0e503e0cb113017a6c665c7e41574bd6ff0eb9a7603590b21b42246c47891362",
     "automaticRollback": true
+  },
+  "productionCertification": {
+    "recordedAt": "2026-07-31T13:02:34Z",
+    "certificationKey": "OGB-GOV-CERT-20260730-04",
+    "decision": "GO",
+    "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+    "organizationUrl": "https://org3a57b8d4.crm.dynamics.com/",
+    "applicationId": "63858e09-3d0b-47c9-b1d2-65cef742fda4",
+    "applicationUrl": "https://apps.powerapps.com/play/e/5f2d77a5-de50-edeb-9d74-5b2400a2320d/app/63858e09-3d0b-47c9-b1d2-65cef742fda4",
+    "deployedAssemblySha256": "40a44d9d8f10947175b192f7663de08bbac6fb41a3d52c14df384f23fb22b4ab",
+    "enabledSteps": 58,
+    "verifiedImages": 28,
+    "policyRecordId": "b2297940-578c-f111-ab0e-70a8a59b1fe2",
+    "authorityRecordId": "e7c1b75e-578c-f111-ab0e-70a8a59b1fe2",
+    "actorSystemUserId": "e056f0e7-4a13-f111-8406-6045bd07ee56",
+    "certifiedDealId": "af7dbfef-828c-f111-ab0e-70a8a59b1fe2",
+    "certifiedBoardedLoanId": "fd90d7f5-828c-f111-ab0e-70a8a59b1fe2",
+    "lifecycleActions": 10,
+    "policyEvaluations": 10,
+    "actionEvidenceRecords": 10,
+    "timelineEvents": 10,
+    "auditRecords": 1,
+    "negativeControls": 7,
+    "fundsMoved": false,
+    "externalCommunicationsSent": false
   },
   "approvalRequired": [
     "OGB_OVERRIDE_INTERPRETATION",

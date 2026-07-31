@@ -29,6 +29,22 @@ interface ActivationManifest {
     readonly sha256: string;
     readonly automaticRollback: boolean;
   };
+  readonly productionCertification: {
+    readonly certificationKey: string;
+    readonly decision: string;
+    readonly applicationUrl: string;
+    readonly deployedAssemblySha256: string;
+    readonly enabledSteps: number;
+    readonly verifiedImages: number;
+    readonly lifecycleActions: number;
+    readonly policyEvaluations: number;
+    readonly actionEvidenceRecords: number;
+    readonly timelineEvents: number;
+    readonly auditRecords: number;
+    readonly negativeControls: number;
+    readonly fundsMoved: boolean;
+    readonly externalCommunicationsSent: boolean;
+  };
   readonly approvalRequired: readonly string[];
 }
 
@@ -59,12 +75,12 @@ describe('PR 8 production activation package', () => {
     }
   });
 
-  it('packages exactly the approved Option A policy content without claiming activation', () => {
+  it('packages exactly the approved Option A policy and records its certified activation', () => {
     const proposed = json<Record<string, unknown>>(manifest.initialPolicy.path);
     expect(proposed).toEqual({ ...INITIAL_OGB_OPTION_A_POLICY, status: 'ACTIVE' });
-    expect(manifest.initialPolicy.productionPersisted).toBe(false);
-    expect(manifest.initialPolicy.productionActivated).toBe(false);
-    expect(manifest.activationState).toBe('NO_GO');
+    expect(manifest.initialPolicy.productionPersisted).toBe(true);
+    expect(manifest.initialPolicy.productionActivated).toBe(true);
+    expect(manifest.activationState).toBe('GO');
     expect(manifest.schemaProvisioner.dryRunByDefault).toBe(true);
   });
 
@@ -97,7 +113,7 @@ describe('PR 8 production activation package', () => {
       'PRODUCTION_AUTHORITY_ASSIGNMENTS',
       'PRODUCTION_DEPLOYMENT',
     ]));
-    expect(manifest.registrationManifest.productionRegisteredByThisPackage).toBe(false);
+    expect(manifest.registrationManifest.productionRegisteredByThisPackage).toBe(true);
   });
 
   it('contains no access-token-shaped property names or bearer values', () => {
@@ -121,5 +137,24 @@ describe('PR 8 production activation package', () => {
     expect(script).toContain('cr664_outcomestatus = 788190000');
     expect(script).toContain('$audit[0]._cr664_changedby_value -ne $platformUserId');
     expect(script).not.toContain('cr664_changedbyname =');
+  });
+
+  it('records the accepted production GO evidence without claiming funds or communication', () => {
+    expect(manifest.productionCertification).toEqual(expect.objectContaining({
+      certificationKey: 'OGB-GOV-CERT-20260730-04',
+      decision: 'GO',
+      deployedAssemblySha256: '40a44d9d8f10947175b192f7663de08bbac6fb41a3d52c14df384f23fb22b4ab',
+      enabledSteps: 58,
+      verifiedImages: 28,
+      lifecycleActions: 10,
+      policyEvaluations: 10,
+      actionEvidenceRecords: 10,
+      timelineEvents: 10,
+      auditRecords: 1,
+      negativeControls: 7,
+      fundsMoved: false,
+      externalCommunicationsSent: false,
+    }));
+    expect(manifest.productionCertification.applicationUrl).toMatch(/^https:\/\/apps\.powerapps\.com\/play\//);
   });
 });
