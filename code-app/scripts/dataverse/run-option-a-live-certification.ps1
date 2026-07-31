@@ -312,16 +312,20 @@ try {
       cr664_eventtype = 788190007
       cr664_correlationid = $CertificationKey
       cr664_fieldname = 'CONFIGURABLE_GOVERNANCE_LIFECYCLE'
-      cr664_changedbyname = 'Matthew Paller'
+      cr664_changeddate = [DateTime]::UtcNow.ToString('o')
+      cr664_entityid = $dealId
+      cr664_entitytype = 788190000
+      cr664_outcomestatus = 788190000
       'cr664_LoanDeal@odata.bind' = "/cr664_loandeals($dealId)"
       'cr664_ActorUser@odata.bind' = "/cr664_users($platformUserId)"
+      'cr664_ChangedBy@odata.bind' = "/cr664_users($platformUserId)"
     } | Out-Null
   }
 
   $evaluations = @(Get-Rows "cr664_governanceevaluations?`$select=cr664_evaluationid,cr664_actioncode,cr664_decisioncode,_cr664_actor_value,_cr664_loandeal_value,cr664_requestsha256,cr664_resultsha256&`$filter=_cr664_loandeal_value eq $dealId")
   $evidence = @(Get-Rows "cr664_governedactionevidences?`$select=cr664_evidenceid,cr664_actioncode,_cr664_actor_value,_cr664_loandeal_value,cr664_evidencesha256&`$filter=_cr664_loandeal_value eq $dealId")
   $timeline = @(Get-Rows "cr664_dealtimelineevents?`$select=cr664_dealtimelineeventid,_cr664_deal_value,_cr664_eventby_value&`$filter=startswith(cr664_title,'$(Escape-OData $CertificationKey) | GOVERNANCE |')")
-  $audit = @(Get-Rows "cr664_auditevents?`$select=cr664_auditeventid,_cr664_loandeal_value,_cr664_actoruser_value&`$filter=cr664_correlationid eq '$(Escape-OData $CertificationKey)'")
+  $audit = @(Get-Rows "cr664_auditevents?`$select=cr664_auditeventid,cr664_entityid,cr664_entitytype,cr664_outcomestatus,cr664_changeddate,_cr664_loandeal_value,_cr664_actoruser_value,_cr664_changedby_value&`$filter=cr664_correlationid eq '$(Escape-OData $CertificationKey)'")
   if (
     $evaluations.Count -ne 10 -or $evidence.Count -ne 10 -or
     @($evaluations | Where-Object {
@@ -331,7 +335,14 @@ try {
     @($evidence | Where-Object {
       $_._cr664_actor_value -ne $systemUser.systemuserid -or [string]::IsNullOrWhiteSpace([string]$_.cr664_evidencesha256)
     }).Count -ne 0 -or
-    $timeline.Count -ne 10 -or $audit.Count -ne 1
+    $timeline.Count -ne 10 -or $audit.Count -ne 1 -or
+    $audit[0]._cr664_loandeal_value -ne $dealId -or
+    $audit[0]._cr664_actoruser_value -ne $platformUserId -or
+    $audit[0]._cr664_changedby_value -ne $platformUserId -or
+    $audit[0].cr664_entityid -ne $dealId -or
+    $audit[0].cr664_entitytype -ne 788190000 -or
+    $audit[0].cr664_outcomestatus -ne 788190000 -or
+    [string]::IsNullOrWhiteSpace([string]$audit[0].cr664_changeddate)
   ) { throw "Evidence reconciliation failed: evaluations=$($evaluations.Count) evidence=$($evidence.Count) timeline=$($timeline.Count) audit=$($audit.Count)." }
   $actualActions = @($evidence.cr664_actioncode | Sort-Object -Unique)
   foreach ($action in $actions) {

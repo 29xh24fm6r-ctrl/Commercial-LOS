@@ -24,6 +24,11 @@ interface ActivationManifest {
     readonly sha256: string;
     readonly productionRegisteredByThisPackage: boolean;
   };
+  readonly liveCertification: {
+    readonly path: string;
+    readonly sha256: string;
+    readonly automaticRollback: boolean;
+  };
   readonly approvalRequired: readonly string[];
 }
 
@@ -48,6 +53,7 @@ describe('PR 8 production activation package', () => {
       manifest.initialPolicy,
       manifest.authorityPlan,
       manifest.registrationManifest,
+      manifest.liveCertification,
     ]) {
       expect(sha256(item.path), item.path).toBe(item.sha256);
     }
@@ -102,5 +108,18 @@ describe('PR 8 production activation package', () => {
       manifest.authorityPlan.path,
     ].map((path) => readFileSync(path, 'utf8')).join('\n');
     expect(serialized).not.toMatch(/access[_-]?token|refresh[_-]?token|authorization\s*:\s*bearer/i);
+  });
+
+  it('writes audit actor identity through Dataverse lookups and reconciles required fields', () => {
+    const script = readFileSync(manifest.liveCertification.path, 'utf8');
+    expect(manifest.liveCertification.automaticRollback).toBe(true);
+    expect(script).toContain("'cr664_ChangedBy@odata.bind'");
+    expect(script).toContain("'cr664_ActorUser@odata.bind'");
+    expect(script).toContain('cr664_changeddate =');
+    expect(script).toContain('cr664_entityid = $dealId');
+    expect(script).toContain('cr664_entitytype = 788190000');
+    expect(script).toContain('cr664_outcomestatus = 788190000');
+    expect(script).toContain('$audit[0]._cr664_changedby_value -ne $platformUserId');
+    expect(script).not.toContain('cr664_changedbyname =');
   });
 });

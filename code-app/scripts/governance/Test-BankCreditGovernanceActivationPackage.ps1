@@ -76,6 +76,7 @@ Assert-Hash $manifest.initialPolicy 'initial policy'
 Assert-Hash $manifest.authorityPlan 'authority plan'
 Assert-Hash $manifest.registrationManifest 'registration manifest'
 Assert-Hash $manifest.registrationScript 'registration script'
+Assert-Hash $manifest.liveCertification 'live certification script'
 
 Write-Host 'PASS activation package is hash-consistent and executable.'
 Write-Host 'NO-GO: this verifier performs no Dataverse operation and grants no production approval.'
