@@ -1,7 +1,7 @@
 {
-  "packageVersion": "bank-credit-governance/pr8-10-semantic-source-identity",
-  "supersedesPackageVersion": "bank-credit-governance/pr8-9-semantic-concurrency-replay",
-  "createdAt": "2026-07-30T23:40:00Z",
+  "packageVersion": "bank-credit-governance/pr8-11-live-audit-evidence",
+  "supersedesPackageVersion": "bank-credit-governance/pr8-10-semantic-source-identity",
+  "createdAt": "2026-07-31T00:05:00Z",
   "activationState": "NO_GO",
   "productionCollisionCorrection": {
     "legacyTablePreserved": "cr664_creditpolicyrule",
@@ -78,6 +78,11 @@
     "path": "scripts/dataverse/register-configurable-credit-governance-plugin.ps1",
     "sha256": "c7b8d3de6b125819fa0a5093d8d996bb7358c7d4446cda8202d4dc355d3ddc07",
     "dryRunByDefault": true
+  },
+  "liveCertification": {
+    "path": "scripts/dataverse/run-option-a-live-certification.ps1",
+    "sha256": "0e503e0cb113017a6c665c7e41574bd6ff0eb9a7603590b21b42246c47891362",
+    "automaticRollback": true
   },
   "approvalRequired": [
     "OGB_OVERRIDE_INTERPRETATION",
