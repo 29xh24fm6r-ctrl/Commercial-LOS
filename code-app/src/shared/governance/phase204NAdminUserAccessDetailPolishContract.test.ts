@@ -67,7 +67,7 @@ describe('204N — the display module is pure (no Dataverse / network)', () => {
   });
   it('never fabricates a display name for a blank field', () => {
     // The honest blank labels are the only literals the helpers return for blanks.
-    expect(DISPLAY).toMatch(/Not selected by safe-read contract/);
+    expect(DISPLAY).toMatch(/Primary workspace not included in current read contract/);
     expect(DISPLAY).toMatch(/Not linked/);
   });
 });
@@ -78,11 +78,9 @@ describe('204N — panel polish is read-only and explains the safe-read', () => 
     expect(PANEL).toMatch(/formatProfileReference/);
     expect(PANEL).toMatch(/formatSafeReadWorkspaceName/);
   });
-  it('includes safe-read explanatory copy and (Phase 259) honest add-user operator guidance', () => {
+  it('includes safe-read explanatory copy and the governed provisioning surface', () => {
     expect(PANEL).toMatch(/intentionally not selected from Dataverse/i);
-    // Phase 259 (Remediation A): the disabled preview grant form is replaced
-    // by honest operator guidance for provisioning a new user.
-    expect(PANEL).toMatch(/provisioned by an operator/i);
+    expect(PANEL).toMatch(/GovernedUserProvisioningPanel/);
   });
   it('introduces no write call in the panel', () => {
     expect(PANEL).not.toMatch(/\bfetch\s*\(/);

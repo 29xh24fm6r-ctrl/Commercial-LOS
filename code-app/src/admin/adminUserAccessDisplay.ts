@@ -29,7 +29,7 @@ export function formatAdminAccessLevel(value: string | undefined): string {
  */
 export function formatSafeReadWorkspaceName(value: string | undefined): string {
   const trimmed = (value ?? '').trim();
-  return trimmed.length > 0 ? trimmed : 'Not selected by safe-read contract';
+  return trimmed.length > 0 ? trimmed : 'Primary workspace not included in current read contract';
 }
 
 /**
