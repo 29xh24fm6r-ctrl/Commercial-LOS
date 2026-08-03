@@ -1,0 +1,34 @@
+{
+  solutionUniqueName: CommercialLendingLOS,
+  version: 1.1.0.8,
+  managed: true,
+  packagePath: release/CommercialLendingLOS_1_1_0_8_parity_managed.zip,
+  packageSizeBytes: 2617355,
+  packageSha256: df8da5f1249c2755b7fcc11c85948b823eb2fc744c6c41034a1afdd04385f5c0,
+  source: {
+    url: https://org3a57b8d4.crm.dynamics.com,
+    environmentId: 5f2d77a5-de50-edeb-9d74-5b2400a2320d
+  },
+  target: {
+    url: https://org8c12c949.crm.dynamics.com,
+    environmentId: afec9c13-e5c5-eea6-b1f7-3f51abb7571d
+  },
+  customTableCount: 209,
+  addedTables: [
+    cr664_adverseactionrecord,
+    cr664_bookingqccheck,
+    cr664_closingdocumentmanifest,
+    cr664_commitmentrecord,
+    cr664_conditionverification,
+    cr664_creditapprovaldecision,
+    cr664_executeddocattestation,
+    cr664_fundingauthorization,
+    cr664_naicsindustrymap
+  ],
+  dataPolicy: {
+    canonicalReferenceAndConfigurationOnly: true,
+    preserveProductionIdentityAndAccess: true,
+    developerOperationalDataExcluded: true,
+    developerTestDataExcluded: true
+  }
+}

@@ -65,15 +65,17 @@ function resolveEnvUrl() {
   return undefined;
 }
 
-/** Idempotent upsert of one row by its cr664_code alternate key, with a small retry
- *  on transient (network / 429 / 5xx) failures so a flaky connection doesn't abort. */
-async function upsertRow(envUrl, token, rec) {
-  const url = `${envUrl}/api/data/v9.2/cr664_naicscodes(cr664_code='${rec.cr664_code}')`;
+/** GUID-addressed create/update. Natural-key duplicates are rejected before
+ * writes, so this seed never depends on alternate-key index activation. */
+async function writeRow(envUrl, token, action) {
+  const url = action.kind === 'create'
+    ? `${envUrl}/api/data/v9.2/cr664_naicscodes`
+    : `${envUrl}/api/data/v9.2/cr664_naicscodes(${action.id})`;
   for (let attempt = 1; attempt <= 3; attempt++) {
     let res;
     try {
       res = await fetch(url, {
-        method: 'PATCH',
+        method: action.kind === 'create' ? 'POST' : 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -81,7 +83,7 @@ async function upsertRow(envUrl, token, rec) {
           'OData-MaxVersion': '4.0',
           'OData-Version': '4.0',
         },
-        body: JSON.stringify(rec),
+        body: JSON.stringify(action.record),
       });
     } catch (e) {
       if (attempt === 3) return { ok: false, detail: `network: ${String(e)}` };
@@ -99,6 +101,51 @@ async function upsertRow(envUrl, token, rec) {
   return { ok: false, detail: 'exhausted retries' };
 }
 
+async function readExisting(envUrl, token) {
+  let url = `${envUrl}/api/data/v9.2/cr664_naicscodes?$select=cr664_naicscodeid,cr664_code,cr664_title,cr664_sectorcode,cr664_sectortitle,cr664_naicsversion,statecode`;
+  const rows = [];
+  while (url) {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+      },
+    });
+    if (!res.ok) throw new Error(`GET cr664_naicscodes failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
+    const body = await res.json();
+    rows.push(...(body.value ?? []));
+    url = body['@odata.nextLink'] ?? '';
+  }
+  return rows;
+}
+
+function planChanges(records, existing) {
+  const byCode = new Map();
+  for (const row of existing) {
+    const code = String(row.cr664_code ?? '').trim();
+    if (!code) continue;
+    const matches = byCode.get(code) ?? [];
+    matches.push(row);
+    byCode.set(code, matches);
+  }
+  const duplicates = [...byCode.entries()].filter(([, rows]) => rows.length > 1);
+  if (duplicates.length) {
+    throw new Error(`Duplicate NAICS natural keys block seeding: ${duplicates.map(([code]) => code).slice(0, 10).join(', ')}`);
+  }
+  return records.map((record) => {
+    const current = byCode.get(record.cr664_code)?.[0];
+    if (!current) return { kind: 'create', record };
+    if (current.statecode !== 0) throw new Error(`NAICS ${record.cr664_code} exists but is inactive.`);
+    const changed = ['cr664_title', 'cr664_sectorcode', 'cr664_sectortitle', 'cr664_naicsversion']
+      .some((field) => String(current[field] ?? '') !== String(record[field] ?? ''));
+    return changed
+      ? { kind: 'update', id: current.cr664_naicscodeid, record }
+      : { kind: 'noop', id: current.cr664_naicscodeid, record };
+  });
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -112,7 +159,7 @@ function banner(lines) {
 }
 
 async function main() {
-  const mode = process.argv.includes('--commit') ? 'commit' : process.argv.includes('--verify') ? 'verify' : null;
+  const mode = process.argv.includes('--commit') ? 'commit' : process.argv.includes('--verify') ? 'verify' : 'dry-run';
   if (!mode) {
     console.error(
       'Usage: node scripts/seed-naics.mjs (--verify | --commit) [--input <csv>] [--version 2022] [--out <json>]\n' +
@@ -149,14 +196,16 @@ async function main() {
   }
   console.log(`  sample: ${records.slice(0, 3).map((r) => `${r.cr664_code} ${r.cr664_title} [${r.cr664_sectorcode}]`).join(' · ')}`);
 
-  if (mode === 'verify') {
+  if (false && mode === 'verify') {
     console.log('  ✓ verify OK (no writes).');
     return;
   }
 
   // commit: always write the deterministic seed JSON (the importable artifact).
-  writeFileSync(out, JSON.stringify({ version, generatedFrom: 'official 2022 NAICS', count: records.length, records }, null, 2));
-  console.log(`  wrote seed payload: ${out} (${records.length} records)`);
+  if (mode === 'commit') {
+    writeFileSync(out, JSON.stringify({ version, generatedFrom: 'official 2022 NAICS', count: records.length, records }, null, 2));
+    console.log(`  wrote seed payload: ${out} (${records.length} records)`);
+  }
 
   // Then LOAD into Dataverse when a token is available. The whole point of --commit
   // is to make the field work, so be unmistakable about whether the table changed.
@@ -189,17 +238,33 @@ async function main() {
   }
 
   console.log(`  loading ${records.length} rows into ${envUrl} → cr664_naicscodes …`);
+  const actions = planChanges(records, await readExisting(envUrl, token));
+  const counts = {
+    create: actions.filter((a) => a.kind === 'create').length,
+    update: actions.filter((a) => a.kind === 'update').length,
+    noop: actions.filter((a) => a.kind === 'noop').length,
+  };
+  console.log(`  PLAN create=${counts.create} update=${counts.update} no-op=${counts.noop}`);
+  if (mode === 'dry-run') return;
+  if (mode === 'verify') {
+    if (counts.create || counts.update || counts.noop !== records.length) {
+      throw new Error(`NAICS verification failed: create=${counts.create} update=${counts.update} no-op=${counts.noop}.`);
+    }
+    return;
+  }
+  const writes = actions.filter((a) => a.kind !== 'noop');
   let ok = 0;
   const failures = [];
-  for (let i = 0; i < records.length; i++) {
-    const result = await upsertRow(envUrl, token, records[i]);
+  for (let i = 0; i < writes.length; i++) {
+    const result = await writeRow(envUrl, token, writes[i]);
     if (result.ok) ok++;
-    else failures.push(`${records[i].cr664_code}: ${result.detail}`);
-    if ((i + 1) % 200 === 0 || i + 1 === records.length) {
+    else failures.push(`${writes[i].record.cr664_code}: ${result.detail}`);
+    if ((i + 1) % 200 === 0 || i + 1 === writes.length) {
       console.log(`    … ${i + 1}/${records.length} (${ok} ok, ${failures.length} failed)`);
     }
   }
 
+  console.log(`  RESULT create=${counts.create} update=${counts.update} no-op=${counts.noop} applied=${ok} failed=${failures.length}`);
   if (failures.length === 0) {
     banner([
       `✓  Loaded ${ok}/${records.length} NAICS rows into cr664_naicscodes (idempotent).`,
@@ -213,7 +278,7 @@ async function main() {
   if (failures.length > 20) console.error(`    …and ${failures.length - 20} more`);
   banner([
     `⚠  Loaded ${ok}/${records.length}; ${failures.length} failed (re-run --commit to retry — it is idempotent).`,
-    '   A 401/403 means the token is wrong/expired; a 404 means the table/alternate-key',
+    '   A 401/403 means the token is wrong/expired; a 404 means the table',
     '   is not created yet (see docs/NAICS_SETUP.md §1).',
     '   STATUS: Dataverse PARTIALLY loaded.',
   ]);
