@@ -13,10 +13,34 @@ import { FeatureSurfaceRoute } from './navigation/FeatureSurfaceRoute';
 import { DesignGallery } from './design/Gallery';
 import { AppCommandPalette } from './navigation/AppCommandPalette';
 import { CrmWorkspace } from './crm/firstClass/CrmWorkspace';
+import { getDeploymentCommit } from './shared/deploymentCommit';
 
 export default function App() {
+  const deploymentCommit = getDeploymentCommit();
+
   return (
     <BrowserRouter>
+      <div
+        aria-label={`Deployed build ${deploymentCommit ?? 'unknown'}`}
+        data-testid="runtime-build-marker"
+        style={{
+          position: 'fixed',
+          right: 12,
+          top: 8,
+          zIndex: 10000,
+          border: '1px solid rgba(255,255,255,0.22)',
+          borderRadius: 999,
+          background: 'rgba(9,24,52,0.9)',
+          color: '#dce8ff',
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.04em',
+          padding: '3px 8px',
+          pointerEvents: 'none',
+        }}
+      >
+        build {deploymentCommit ?? 'unknown'}
+      </div>
       {/* App-wide ⌘K command palette (navigation-only; never writes). */}
       <AppCommandPalette />
       <Routes>

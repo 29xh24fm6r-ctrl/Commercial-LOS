@@ -1,9 +1,9 @@
 {
   "version": "1.0",
-  "appId": "63858e09-3d0b-47c9-b1d2-65cef742fda4",
-  "appDisplayName": "Commercial Lending LOS (Rebuild)",
+  "appId": "7870515e-45cb-4b37-bbd1-55fc0b1ff769",
+  "appDisplayName": "Commercial Lending LOS",
   "region": "prod",
-  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "environmentId": "afec9c13-e5c5-eea6-b1f7-3f51abb7571d",
   "description": "Source-controlled rebuild of the Commercial Lending Code App. See ../SPEC.md and ../src/Entities/ for the canonical spec and Dataverse schema.",
   "buildPath": "./dist",
   "buildEntryPoint": "index.html",
