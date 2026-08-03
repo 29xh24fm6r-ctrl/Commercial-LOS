@@ -304,6 +304,26 @@
         "portfoliomigrationcontrols": {
           "entitySetName": "cr664_portfoliomigrationcontrols",
           "logicalName": "cr664_portfoliomigrationcontrol"
+        },
+        "creditgovernanceprofiles": {
+          "entitySetName": "cr664_creditgovernanceprofiles",
+          "logicalName": "cr664_creditgovernanceprofile"
+        },
+        "creditpolicyversions": {
+          "entitySetName": "cr664_creditpolicyversions",
+          "logicalName": "cr664_creditpolicyversion"
+        },
+        "creditpolicyrules": {
+          "entitySetName": "cr664_governancepolicyrules",
+          "logicalName": "cr664_governancepolicyrule"
+        },
+        "delegatedauthoritygrants": {
+          "entitySetName": "cr664_authoritygrants",
+          "logicalName": "cr664_authoritygrant"
+        },
+        "governanceroleassignments": {
+          "entitySetName": "cr664_governanceroleassignments",
+          "logicalName": "cr664_governanceroleassignment"
         }
       },
       "environmentVariableName": ""
