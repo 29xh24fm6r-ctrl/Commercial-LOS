@@ -33,5 +33,7 @@ describe('LOS user provisioning deployment artifacts', () => {
     expect(registration).toMatch(/Invoke-RestMethod -Method Post -Uri/);
     expect(registration).toMatch(/Invoke-RestMethod -Method Patch -Uri/);
     expect(registration).not.toMatch(/Invoke-RestMethod (Get|Post|Patch) /);
+    expect(registration).not.toMatch(/Write-Host"PASS/);
+    expect(registration.match(/Write-Host "PASS/g)).toHaveLength(2);
   });
 });
