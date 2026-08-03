@@ -1,0 +1,27 @@
+{
+  "contractVersion": "ogb-email-automation-task-guard/v1",
+  "assemblyName": "CommercialLendingLOS.Plugins",
+  "pluginType": "CommercialLendingLOS.Plugins.EmailAutomationDirectTaskWriteGuardPlugin",
+  "steps": [
+    {
+      "name": "OGB Email Automation Direct Task Write Guard | Create | cr664_dealtask1",
+      "message": "Create",
+      "primaryEntity": "cr664_dealtask1",
+      "stage": 20,
+      "mode": 0,
+      "rank": 1,
+      "filteringAttributes": "",
+      "enabled": true
+    },
+    {
+      "name": "OGB Email Automation Direct Intake Write Guard | Create | cr664_emailservicerequestintake",
+      "message": "Create",
+      "primaryEntity": "cr664_emailservicerequestintake",
+      "stage": 20,
+      "mode": 0,
+      "rank": 1,
+      "filteringAttributes": "",
+      "enabled": true
+    }
+  ]
+}

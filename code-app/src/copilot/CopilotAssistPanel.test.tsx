@@ -4,6 +4,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { CopilotAssistPanel } from './CopilotAssistPanel';
 import * as adapterModule from './copilotAssistantAdapter';
 import type { CopilotDealContext, CopilotWorkspaceContext } from './copilotAssistantAdapter';
+vi.mock('../generated/services/MicrosoftCopilotStudioService', () => ({
+  MicrosoftCopilotStudioService: { ExecuteCopilotAsyncV2: vi.fn() },
+}));
 
 vi.mock('../shared/Card', () => ({
   Card: ({ children }: { children: React.ReactNode }) => <div data-testid="card">{children}</div>,

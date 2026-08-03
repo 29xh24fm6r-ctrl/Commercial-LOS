@@ -53,8 +53,18 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
     return <StatePanel title="Aggregate CRM access only" copy="Executive CRM access does not expose customer-level records. Use Insights or Reports for governed aggregate facts." />;
   }
 
-  if (recordId && section === 'companies') return <Company360 data={data} id={recordId} />;
-  if (recordId && section === 'people') return <Person360 data={data} id={recordId} />;
+  if (recordId && section === 'companies') {
+    const record = data.organizations.records.find(item => item.id === recordId);
+    return <><CrmCopilotSurface data={data} role="crm" userName={userName}
+      focus={record ? { kind: 'Company', id: record.id, title: record.title } : undefined} />
+      <Company360 data={data} id={recordId} /></>;
+  }
+  if (recordId && section === 'people') {
+    const record = data.people.records.find(item => item.id === recordId);
+    return <><CrmCopilotSurface data={data} role="crm" userName={userName}
+      focus={record ? { kind: 'Person', id: record.id, title: record.title } : undefined} />
+      <Person360 data={data} id={recordId} /></>;
+  }
 
   return (
     <div className="crmws__experience">

@@ -39,7 +39,13 @@ export type CopilotPromptKind =
   | 'next_best_action'
   | 'draft_questions'
   | 'explain_risk'
-  | 'prepare_review';
+  | 'prepare_review'
+  | 'research_party'
+  | 'build_credit_evidence_packet'
+  | 'explain_governance_route'
+  | 'relationship_intelligence'
+  | 'portfolio_monitoring'
+  | 'policy_intelligence';
 
 export type CopilotProposalActionType =
   | 'request_document'
@@ -123,6 +129,14 @@ export interface CopilotCustomApiContext {
   /** Document METADATA only (id/type/status) — never raw document content. */
   documents?: ReadonlyArray<Record<string, unknown>>;
   tasks?: ReadonlyArray<Record<string, unknown>>;
+  /** Server-resolved intelligence scope. Clients may narrow, never expand it. */
+  intelligence?: {
+    bankId: string;
+    partyIds: ReadonlyArray<string>;
+    authorizedRecordIds: ReadonlyArray<string>;
+    authorizedSourceIds: ReadonlyArray<string>;
+    governanceEvaluationId?: string;
+  };
 }
 
 export interface CopilotCustomApiPrompt {

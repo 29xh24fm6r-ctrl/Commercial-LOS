@@ -1,0 +1,45 @@
+{
+  "contractVersion": "ogb-copilot-email-service-request-schema/v1",
+  "mutationSemantics": "CREATE_MISSING_ONLY",
+  "destructiveOperations": [],
+  "tables": [
+    { "logicalName": "cr664_emailservicerequestintake", "schemaName": "cr664_EmailServiceRequestIntake", "displayName": "Email Service Request Intake", "displayCollectionName": "Email Service Request Intakes", "ownershipType": "UserOwned", "primaryNameColumn": "cr664_name", "auditEnabled": true },
+    { "logicalName": "cr664_emailautomationpermission", "schemaName": "cr664_EmailAutomationPermission", "displayName": "Email Automation Permission", "displayCollectionName": "Email Automation Permissions", "ownershipType": "OrganizationOwned", "primaryNameColumn": "cr664_name", "auditEnabled": true }
+  ],
+  "columns": [
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_name", "schemaName": "cr664_Name", "displayName": "Name", "type": "String", "maxLength": 500, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_correlationid", "schemaName": "cr664_CorrelationId", "displayName": "Correlation ID", "type": "String", "maxLength": 64, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_idempotencykey", "schemaName": "cr664_IdempotencyKey", "displayName": "Idempotency Key", "type": "String", "maxLength": 64, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_contenthash", "schemaName": "cr664_ContentHash", "displayName": "Content Hash", "type": "String", "maxLength": 64, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_mailboxid", "schemaName": "cr664_MailboxId", "displayName": "Mailbox ID", "type": "String", "maxLength": 320, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_internetmessageidhash", "schemaName": "cr664_InternetMessageIdHash", "displayName": "Internet Message ID Hash", "type": "String", "maxLength": 64, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_senderaddress", "schemaName": "cr664_SenderAddress", "displayName": "Sender Address", "type": "String", "maxLength": 320, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_receivedat", "schemaName": "cr664_ReceivedAt", "displayName": "Received At", "type": "DateTime", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_subject", "schemaName": "cr664_Subject", "displayName": "Subject", "type": "String", "maxLength": 500, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_hasattachments", "schemaName": "cr664_HasAttachments", "displayName": "Has Attachments", "type": "Boolean", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_category", "schemaName": "cr664_Category", "displayName": "Category", "type": "String", "maxLength": 80, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_confidence", "schemaName": "cr664_Confidence", "displayName": "Confidence", "type": "Decimal", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_classificationrationale", "schemaName": "cr664_ClassificationRationale", "displayName": "Classification Rationale", "type": "Memo", "maxLength": 10000, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_status", "schemaName": "cr664_Status", "displayName": "Status", "type": "String", "maxLength": 40, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_statusreason", "schemaName": "cr664_StatusReason", "displayName": "Status Reason", "type": "Memo", "maxLength": 10000, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailservicerequestintake", "logicalName": "cr664_evaluationhash", "schemaName": "cr664_EvaluationHash", "displayName": "Evaluation Hash", "type": "String", "maxLength": 64, "requiredLevel": "ApplicationRequired" },
+
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_name", "schemaName": "cr664_Name", "displayName": "Name", "type": "String", "maxLength": 500, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_mailboxid", "schemaName": "cr664_MailboxId", "displayName": "Mailbox ID", "type": "String", "maxLength": 320, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_automatictaskcreation", "schemaName": "cr664_AutomaticTaskCreation", "displayName": "Automatic Task Creation", "type": "Boolean", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_minimumconfidence", "schemaName": "cr664_MinimumConfidence", "displayName": "Minimum Confidence", "type": "Decimal", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_maximumagehours", "schemaName": "cr664_MaximumAgeHours", "displayName": "Maximum Message Age Hours", "type": "Integer", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_defaultduehours", "schemaName": "cr664_DefaultDueHours", "displayName": "Default Due Hours", "type": "Integer", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_allowedcategoriescsv", "schemaName": "cr664_AllowedCategoriesCsv", "displayName": "Allowed Categories CSV", "type": "Memo", "maxLength": 10000, "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_effectivefrom", "schemaName": "cr664_EffectiveFrom", "displayName": "Effective From", "type": "DateTime", "requiredLevel": "ApplicationRequired" },
+    { "table": "cr664_emailautomationpermission", "logicalName": "cr664_effectivethrough", "schemaName": "cr664_EffectiveThrough", "displayName": "Effective Through", "type": "DateTime", "requiredLevel": "None" }
+  ],
+  "relationships": [
+    { "schemaName": "cr664_systemuser_emailintake_serviceactor", "fromTable": "cr664_emailservicerequestintake", "fromColumn": "cr664_serviceactor", "toTable": "systemuser", "requiredLevel": "ApplicationRequired" },
+    { "schemaName": "cr664_loandeal_emailintake_deal", "fromTable": "cr664_emailservicerequestintake", "fromColumn": "cr664_deal", "toTable": "cr664_loandeal", "requiredLevel": "None" },
+    { "schemaName": "cr664_systemuser_emailintake_assignee", "fromTable": "cr664_emailservicerequestintake", "fromColumn": "cr664_assignee", "toTable": "systemuser", "requiredLevel": "None" },
+    { "schemaName": "cr664_dealtask_emailintake_task", "fromTable": "cr664_emailservicerequestintake", "fromColumn": "cr664_task", "toTable": "cr664_dealtask1", "requiredLevel": "None" },
+    { "schemaName": "cr664_systemuser_emailpermission_serviceactor", "fromTable": "cr664_emailautomationpermission", "fromColumn": "cr664_serviceactor", "toTable": "systemuser", "requiredLevel": "ApplicationRequired" },
+    { "schemaName": "cr664_user_emailpermission_coreuser", "fromTable": "cr664_emailautomationpermission", "fromColumn": "cr664_coreuser", "toTable": "cr664_user", "requiredLevel": "ApplicationRequired" }
+  ]
+}

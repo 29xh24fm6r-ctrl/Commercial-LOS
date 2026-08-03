@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CopilotAssistPanel } from './CopilotAssistPanel';
+vi.mock('../generated/services/MicrosoftCopilotStudioService', () => ({
+  MicrosoftCopilotStudioService: { ExecuteCopilotAsyncV2: vi.fn() },
+}));
 import {
   createMockConnector,
   createCopilotConnector,

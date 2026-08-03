@@ -1,0 +1,37 @@
+{
+  "contractVersion": "ogb-email-service-request-custom-api/v1",
+  "assemblyName": "CommercialLendingLOS.Plugins",
+  "pluginType": "CommercialLendingLOS.Plugins.EmailServiceRequestIntakePlugin",
+  "uniqueName": "cr664_ProcessInboundServiceRequest",
+  "displayName": "Process Governed Inbound Service Request",
+  "description": "Idempotently classifies and records an approved mailbox message and creates a monitored LOS task only when deterministic policy permits.",
+  "bindingType": 0,
+  "allowedCustomProcessingStepType": 0,
+  "isFunction": false,
+  "isPrivate": false,
+  "executePrivilegeName": "prvCreatecr664_EmailServiceRequestIntake",
+  "requestParameters": [
+    { "uniqueName": "CorrelationId", "displayName": "Correlation ID", "type": 10, "isOptional": false },
+    { "uniqueName": "MailboxId", "displayName": "Mailbox ID", "type": 10, "isOptional": false },
+    { "uniqueName": "InternetMessageId", "displayName": "Internet Message ID", "type": 10, "isOptional": false },
+    { "uniqueName": "ContentHash", "displayName": "Content Hash", "type": 10, "isOptional": false },
+    { "uniqueName": "SenderAddress", "displayName": "Sender Address", "type": 10, "isOptional": false },
+    { "uniqueName": "ReceivedAt", "displayName": "Received At", "type": 10, "isOptional": false },
+    { "uniqueName": "Subject", "displayName": "Subject", "type": 10, "isOptional": false },
+    { "uniqueName": "Category", "displayName": "Category", "type": 10, "isOptional": false },
+    { "uniqueName": "Confidence", "displayName": "Confidence", "type": 2, "isOptional": false },
+    { "uniqueName": "IsServiceRequest", "displayName": "Is Service Request", "type": 0, "isOptional": false },
+    { "uniqueName": "SuspiciousContent", "displayName": "Suspicious Content", "type": 0, "isOptional": false },
+    { "uniqueName": "UsedProtectedCharacteristic", "displayName": "Used Protected Characteristic", "type": 0, "isOptional": false },
+    { "uniqueName": "MatchStatus", "displayName": "Match Status", "type": 10, "isOptional": false },
+    { "uniqueName": "DealId", "displayName": "Deal ID", "type": 10, "isOptional": true },
+    { "uniqueName": "AssigneeSystemUserId", "displayName": "Assignee System User ID", "type": 10, "isOptional": true },
+    { "uniqueName": "RequestedDueAt", "displayName": "Requested Due At", "type": 10, "isOptional": true },
+    { "uniqueName": "SuggestedTaskTitle", "displayName": "Suggested Task Title", "type": 10, "isOptional": true },
+    { "uniqueName": "Rationale", "displayName": "Rationale", "type": 10, "isOptional": true },
+    { "uniqueName": "HasAttachments", "displayName": "Has Attachments", "type": 0, "isOptional": false }
+  ],
+  "responseProperties": [
+    { "uniqueName": "ResultJson", "displayName": "Result JSON", "type": 10 }
+  ]
+}

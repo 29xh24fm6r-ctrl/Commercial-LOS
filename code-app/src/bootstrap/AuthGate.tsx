@@ -8,6 +8,7 @@ import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 import { timed } from '../shared/observability/perfRegistry';
 
+import { CopilotGlobalLauncher } from '../copilot/CopilotGlobalLauncher';
 type GateState =
   | { kind: 'loading' }
   | { kind: 'ready'; result: BootstrapResult }
@@ -74,7 +75,10 @@ export function AuthGate() {
     case 'ready':
       return (
         <BootstrapProvider value={state.result}>
-          <Outlet />
+          <>
+            <Outlet />
+            <CopilotGlobalLauncher />
+          </>
         </BootstrapProvider>
       );
   }

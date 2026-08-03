@@ -5,6 +5,7 @@ import { buildDealCopilotContext } from './dealCopilotContext';
 import { CopilotAssistPanel } from './CopilotAssistPanel';
 import { getCopilotConnector, isCopilotSurfaceLive } from './copilotConnector';
 import type { CopilotDealAssistContext } from './copilotAssistContext';
+import { createDealCreditIntelligenceRuntime } from './creditIntelligenceRuntime';
 
 /**
  * Phase 130A — Deal cockpit Copilot connector.
@@ -101,6 +102,11 @@ export function DealCopilotAssist() {
     return getCopilotConnector().assistDeal(assistContext).proposed_actions;
   }, [context, vm]);
 
+  const intelligence = useMemo(() => createDealCreditIntelligenceRuntime({
+    dealId: deal.id,
+    partyIds: deal.clientId ? [deal.clientId] : [],
+  }), [deal.id, deal.clientId]);
+
   // Phase 261 (E) — the deal cockpit only shows Copilot when the connector is
   // actually live and usable. An unconfigured connector renders nothing here,
   // so the banker never sees a "Connector not configured" box in the cockpit.
@@ -115,6 +121,8 @@ export function DealCopilotAssist() {
       surface="deal"
       dealContext={context}
       proposedActions={proposedActions}
+      enabledIntelligenceTools={intelligence?.enabledTools}
+      runIntelligenceTool={intelligence?.run}
       defaultExpanded
     />
   );

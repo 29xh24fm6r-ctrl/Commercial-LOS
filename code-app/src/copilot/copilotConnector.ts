@@ -115,6 +115,7 @@ export interface CopilotConnector {
 export interface CopilotEnv {
   mode?: string;
   provider?: string;
+  customApiName?: string;
 }
 
 const VALID_MODES = new Set<CopilotConnectorMode>([
@@ -516,15 +517,29 @@ function readCopilotEnv(): CopilotEnv {
     return {
       mode: env?.VITE_COPILOT_MODE,
       provider: env?.VITE_COPILOT_PROVIDER,
+      customApiName: env?.VITE_COPILOT_CUSTOM_API_NAME,
     };
   } catch {
     return {};
   }
 }
 
-let _connector: CopilotConnector = createCopilotConnector(
-  resolveCopilotConnectorStatus(readCopilotEnv(), {}),
-);
+export function resolveConfiguredCopilotTransport(env: CopilotEnv): CopilotLiveTransport | undefined {
+  if (env.provider !== 'copilot_studio' || env.customApiName !== 'cr664_RunCreditIntelligence') return undefined;
+  return {
+    providerLabel: 'Microsoft Copilot Studio through governed Dataverse Custom API',
+    model: 'copilot-studio',
+  };
+}
+
+function createEnvironmentConnector(): CopilotConnector {
+  const env = readCopilotEnv();
+  return createCopilotConnector(resolveCopilotConnectorStatus(env, {
+    transport: resolveConfiguredCopilotTransport(env),
+  }));
+}
+
+let _connector: CopilotConnector = createEnvironmentConnector();
 
 export function getCopilotConnector(): CopilotConnector {
   return _connector;
@@ -550,7 +565,5 @@ export function _setCopilotConnectorForTest(connector: CopilotConnector): void {
 
 /** Test-only: reset to the env-resolved default. */
 export function _resetCopilotConnectorForTest(): void {
-  _connector = createCopilotConnector(
-    resolveCopilotConnectorStatus(readCopilotEnv(), {}),
-  );
+  _connector = createEnvironmentConnector();
 }

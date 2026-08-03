@@ -1,0 +1,102 @@
+kind: BotDefinition
+entity:
+  accessControlPolicy: GroupMembership
+  authenticationMode: Integrated
+  authenticationTrigger: Always
+  configuration: {}
+  template: kickStartTemplate-1.0.0
+
+components:
+  - kind: DialogComponent
+    managedProperties:
+      isCustomizable: false
+    displayName: Conversation Start
+    parentBotId: 3022f09d-8a8a-f111-ab10-70a8a59b1fe2
+    shareContext: {}
+    state: Active
+    status: Active
+    publisherUniqueName: DefaultPublisherorg3a57b8d4
+    schemaName: template-content.topic.ConversationStart
+    dialog:
+      beginDialog:
+        kind: OnConversationStart
+        id: main
+        actions:
+          - kind: SendActivity
+            id: governedWelcome
+            activity: OGB Governed Lending Copilot is ready. I can assist with CRM and credit research, explain governed routes, and monitor service requests. Credit governance and server-side controls remain authoritative.
+
+  - kind: DialogComponent
+    managedProperties:
+      isCustomizable: false
+    displayName: Greeting
+    parentBotId: 3022f09d-8a8a-f111-ab10-70a8a59b1fe2
+    description: Greets an authenticated lending user and states the governance boundary.
+    shareContext: {}
+    state: Active
+    status: Active
+    publisherUniqueName: DefaultPublisherorg3a57b8d4
+    schemaName: template-content.topic.Greeting
+    dialog:
+      beginDialog:
+        kind: OnRecognizedIntent
+        id: main
+        intent:
+          displayName: Greeting
+          includeInOnSelectIntent: false
+          triggerQueries:
+            - Hello
+            - Hi Copilot
+            - Help me with this loan
+        actions:
+          - kind: SendActivity
+            id: governedGreeting
+            activity: I can help research CRM parties, assemble sourced credit facts, explain policy routing, and surface monitored service requests. I cannot approve credit, change authority, move funds, or treat AI output as a credit decision.
+
+  - kind: DialogComponent
+    managedProperties:
+      isCustomizable: false
+    displayName: Governance and capabilities
+    parentBotId: 3022f09d-8a8a-f111-ab10-70a8a59b1fe2
+    description: Explains the governed Copilot capabilities and decision boundary.
+    shareContext: {}
+    state: Active
+    status: Active
+    publisherUniqueName: DefaultPublisherorg3a57b8d4
+    schemaName: template-content.topic.GovernanceCapabilities
+    dialog:
+      beginDialog:
+        kind: OnRecognizedIntent
+        id: main
+        intent:
+          displayName: Governance and capabilities
+          includeInOnSelectIntent: true
+          triggerQueries:
+            - What can you do
+            - Research this borrower
+            - Explain the approval route
+            - Show service requests
+        actions:
+          - kind: SendActivity
+            id: governedCapabilities
+            activity: Use the Copilot launcher inside the Commercial Lending LOS for authenticated, record-aware research and governed actions. Every material result must retain sources, actor identity, correlation ID, and evaluation evidence. Ambiguous identity, protected characteristics, and unsupported facts are rejected or routed to review.
+
+  - kind: DialogComponent
+    managedProperties:
+      isCustomizable: false
+    displayName: Fallback
+    parentBotId: 3022f09d-8a8a-f111-ab10-70a8a59b1fe2
+    description: Fails closed when a request cannot be safely routed.
+    shareContext: {}
+    state: Active
+    status: Active
+    publisherUniqueName: DefaultPublisherorg3a57b8d4
+    schemaName: template-content.topic.Fallback
+    dialog:
+      beginDialog:
+        kind: OnUnknownIntent
+        id: main
+        actions:
+          - kind: SendActivity
+            id: governedFallback
+            activity: I cannot safely route that request here. Open the authenticated Copilot panel in the LOS record or send the request for governed review; no credit or servicing action has been taken.

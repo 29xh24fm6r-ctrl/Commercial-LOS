@@ -1,0 +1,21 @@
+{
+  "EnvironmentVariables": [],
+  "ConnectionReferences": [
+    {
+      "LogicalName": "new_Office365OutlookCommercialLOS",
+      "ConnectionId": "bb0ad8940a96493eb89e85c2274f7251",
+      "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+    },
+    {
+      "LogicalName": "new_sharedsharepointonline_b8f0b",
+      "ConnectionId": "388d07ac9c2a4cfaacb8237d29dea866",
+      "ConnectorId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+    }
+  ],
+  "CopilotAgents": [
+    {
+      "AadGroupId": "00000000-0000-0000-0000-000000000000",
+      "Name": "cr664_OGBGovernedLendingCopilot"
+    }
+  ]
+}
