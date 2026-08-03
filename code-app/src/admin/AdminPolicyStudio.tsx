@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   addAuthorityAssignment,
   clonePolicyVersion,
@@ -26,6 +26,10 @@ import {
 } from '../governance/bankCreditGovernanceEngine';
 import { Card, CardHeader } from '../shared/Card';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import {
+  loadGovernanceRuntimeState,
+  type GovernanceRuntimeState,
+} from './governanceRuntimeHydration';
 
 const ACTIONS: readonly GovernedCreditAction[] = GOVERNED_CREDIT_ACTIONS;
 
@@ -35,12 +39,45 @@ const optionalNumber = (value: string) => value.trim() === '' ? undefined : Numb
 
 interface AdminPolicyStudioProps {
   readonly actorId: string;
+  readonly runtimeLoader?: () => Promise<GovernanceRuntimeState>;
 }
 
-export function AdminPolicyStudio({ actorId }: AdminPolicyStudioProps) {
+const loadingRuntimeState: GovernanceRuntimeState = {
+  code: 'QUERY_FAILED',
+  isGo: false,
+  diagnostic: 'Live Dataverse governance evidence is being resolved. Status remains fail-closed until hydration completes.',
+  queriedAt: '',
+  queryPhase: 'loading',
+};
+
+export function AdminPolicyStudio({ actorId, runtimeLoader = loadGovernanceRuntimeState }: AdminPolicyStudioProps) {
   const [state, setState] = useState<PolicyStudioState>(emptyPolicyStudioState);
   const [selectedVersionId, setSelectedVersionId] = useState('');
-  const [message, setMessage] = useState('No profile selected.');
+  const [message, setMessage] = useState('Choose or create a browser-local draft to begin authoring.');
+  const [runtime, setRuntime] = useState<GovernanceRuntimeState>(loadingRuntimeState);
+  const [runtimeLoading, setRuntimeLoading] = useState(true);
+
+  useEffect(() => {
+    let current = true;
+    void runtimeLoader()
+      .then((result) => {
+        if (current) setRuntime(result);
+      })
+      .catch((error: unknown) => {
+        if (!current) return;
+        setRuntime({
+          code: 'QUERY_FAILED',
+          isGo: false,
+          diagnostic: `Live governance hydration failed closed: ${error instanceof Error ? error.message : 'unknown query failure'}`,
+          queriedAt: new Date().toISOString(),
+          queryPhase: 'loader',
+        });
+      })
+      .finally(() => {
+        if (current) setRuntimeLoading(false);
+      });
+    return () => { current = false; };
+  }, [runtimeLoader]);
 
   const versions = state.profiles.flatMap((profile) => profile.versions);
   const selected = versions.find((version) => version.studioVersionId === selectedVersionId);
@@ -79,11 +116,16 @@ export function AdminPolicyStudio({ actorId }: AdminPolicyStudioProps) {
         <CardHeader
           title="Bank Credit Policy Studio"
           subtitle="Author, validate, compare, and simulate versioned delegated-authority policy."
-          trailing={<StatusPill>NO-GO · production inactive</StatusPill>}
+          trailing={(
+            <StatusPill active={!runtimeLoading && runtime.isGo} loading={runtimeLoading}>
+              {runtimeLoading ? 'CHECKING · live Dataverse' : runtime.isGo ? 'GO · production active' : `NO-GO · ${runtime.code.toLowerCase().replaceAll('_', ' ')}`}
+            </StatusPill>
+          )}
         />
+        <RuntimeEvidencePanel runtime={runtime} loading={runtimeLoading} />
         <div role="note" style={styles.noGo}>
-          This PR 4 workspace is an additive authoring preview. It performs no Dataverse mutation,
-          production activation, identity assignment, or policy approval outside this browser session.
+          Production status above is read-only and derived from live Dataverse evidence. Draft authoring
+          below is browser-local and cannot activate or mutate the production policy.
         </div>
 
         <div style={styles.grid}>
@@ -633,8 +675,73 @@ function Field({ label, children }: { readonly label: string; readonly children:
 function ActionButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button {...props} style={styles.button}>{children}</button>;
 }
-function StatusPill({ children }: { readonly children: ReactNode }) {
-  return <span style={styles.status}>{children}</span>;
+function RuntimeEvidencePanel({ runtime, loading }: { readonly runtime: GovernanceRuntimeState; readonly loading: boolean }) {
+  const evidence = runtime.evidence;
+  const currency = (value: number | undefined) => value === undefined
+    ? 'Not configured'
+    : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+
+  return (
+    <div aria-label="Live governance evidence" style={{ ...styles.runtimePanel, ...(runtime.isGo && !loading ? styles.runtimePanelGo : {}) }}>
+      <div style={styles.runtimeHeader}>
+        <div>
+          <strong>{loading ? 'Checking live governance configuration' : runtime.isGo ? 'Live governed configuration verified' : 'Live governance configuration blocked'}</strong>
+          <div style={styles.help}>{runtime.diagnostic}</div>
+        </div>
+        <span style={styles.runtimeSource}>LIVE DATAVERSE</span>
+      </div>
+      {!loading && evidence && (
+        <>
+          <div style={styles.summary}>
+            <Metric label="Governance profile" value={`${evidence.profile.displayName} (${evidence.profile.bankKey})`} />
+            <Metric label="Approved policy" value={`${evidence.policy.policyId} · v${evidence.policy.versionNumber} · ${evidence.policy.status}`} />
+            <Metric label="Active rules" value={String(evidence.rules.length)} />
+            <Metric label="Authority grants" value={String(evidence.authorities.length)} />
+          </div>
+          <div style={styles.grid}>
+            <div style={styles.panel}>
+              <h3 style={styles.heading}>Approved policy rules</h3>
+              <ol style={styles.list}>
+                {evidence.rules.map((rule) => (
+                  <li key={rule.id}>
+                    <strong>{rule.ruleId}</strong> — {rule.description}{rule.nonOverrideable ? ' · non-overrideable' : ''}
+                  </li>
+                ))}
+              </ol>
+              <div style={styles.help}>Immutable policy hash: {evidence.policy.snapshotSha256}</div>
+            </div>
+            <div style={styles.panel}>
+              <h3 style={styles.heading}>Active delegated authority</h3>
+              {evidence.authorities.map((authority) => (
+                <div key={authority.id} style={styles.evidenceItem}>
+                  <strong>{authority.officerName}</strong>
+                  <div>{authority.officerUpn}</div>
+                  <div>Individual: {currency(authority.maximumAmount)}</div>
+                  <div>Relationship: {currency(authority.maximumRelationshipExposure)}</div>
+                  <div>Unsecured: {currency(authority.maximumUnsecuredAmount)}</div>
+                </div>
+              ))}
+              <h3 style={{ ...styles.heading, marginTop: spacing.md }}>Active governance roles</h3>
+              <ul style={styles.list}>
+                {evidence.roleAssignments.map((assignment) => (
+                  <li key={assignment.id}>{assignment.officerName} · {assignment.roleCode}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </>
+      )}
+      {!loading && !runtime.isGo && (
+        <div role="alert" style={styles.blockedDiagnostic}>
+          Diagnostic: {runtime.code} · phase: {runtime.queryPhase ?? 'evaluation'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusPill({ children, active = false, loading = false }: { readonly children: ReactNode; readonly active?: boolean; readonly loading?: boolean }) {
+  return <span style={{ ...styles.status, ...(active ? styles.statusGo : loading ? styles.statusLoading : {}) }}>{children}</span>;
 }
 function Metric({ label, value }: { readonly label: string; readonly value: string }) {
   return <div><div style={styles.metricLabel}>{label}</div><div style={styles.metricValue}>{value}</div></div>;
@@ -650,6 +757,12 @@ function money(value: number | undefined) {
 const styles: Record<string, React.CSSProperties> = {
   section: { marginBottom: spacing.xl },
   noGo: { background: palette.atRiskBg, border: `1px solid ${palette.atRisk}`, borderRadius: radius.md, color: palette.text, padding: spacing.md, marginBottom: spacing.lg },
+  runtimePanel: { border: `1px solid ${palette.blocked}`, borderRadius: radius.md, background: palette.blockedBg, padding: spacing.md, marginBottom: spacing.md },
+  runtimePanelGo: { borderColor: palette.clear, background: palette.clearBg },
+  runtimeHeader: { display: 'flex', justifyContent: 'space-between', gap: spacing.md, alignItems: 'flex-start', color: palette.text },
+  runtimeSource: { fontSize: typography.size.xs, fontWeight: typography.weight.bold, letterSpacing: typography.letterSpacing.label, color: palette.textMuted, whiteSpace: 'nowrap' },
+  blockedDiagnostic: { marginTop: spacing.sm, color: palette.blockedFg, fontWeight: typography.weight.semibold },
+  evidenceItem: { color: palette.text, fontSize: typography.size.sm, lineHeight: 1.55 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.md, marginTop: spacing.md },
   panel: { border: `1px solid ${palette.border}`, borderRadius: radius.md, background: palette.surfaceAlt, padding: spacing.md, minWidth: 0 },
   heading: { margin: `0 0 ${spacing.sm}`, color: palette.text, fontSize: typography.size.base },
@@ -661,6 +774,8 @@ const styles: Record<string, React.CSSProperties> = {
   message: { minHeight: '2.5em', color: palette.textMuted, fontSize: typography.size.sm },
   help: { color: palette.textMuted, fontSize: typography.size.sm, lineHeight: typography.lineHeight.snug },
   status: { borderRadius: radius.pill, padding: `${spacing.xxs} ${spacing.sm}`, background: palette.blockedBg, color: palette.blockedFg, fontSize: typography.size.xs, fontWeight: typography.weight.bold },
+  statusGo: { background: palette.clearBg, color: palette.clearFg },
+  statusLoading: { background: palette.neutralBg, color: palette.neutralFg },
   summary: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md, background: palette.panelBg, borderRadius: radius.md },
   metricLabel: { color: palette.textSubtle, fontSize: typography.size.xs, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
   metricValue: { color: palette.text, fontWeight: typography.weight.semibold, marginTop: spacing.xxs },
