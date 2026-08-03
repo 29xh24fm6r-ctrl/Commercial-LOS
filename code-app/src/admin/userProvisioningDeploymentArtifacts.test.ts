@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const manifest = JSON.parse(readFileSync(resolve('dataverse-plugins/CommercialLendingLOS.Plugins/LosUserProvisioningCustomApiRegistration.json'), 'utf8')) as { pluginType: string; apis: { uniqueName: string; requestParameters: { uniqueName: string }[] }[] };
+const manifest = JSON.parse(readFileSync(resolve('dataverse-plugins/CommercialLendingLOS.Plugins/LosUserProvisioningCustomApiRegistration.json'), 'utf8')) as { pluginType: string; apis: { uniqueName: string; executePrivilegeName: string; requestParameters: { uniqueName: string }[] }[] };
 const plugin = readFileSync(resolve('dataverse-plugins/CommercialLendingLOS.Plugins/LosUserProvisioningCustomApiPlugin.cs'), 'utf8');
 const registration = readFileSync(resolve('scripts/dataverse/register-los-user-provisioning-custom-apis.ps1'), 'utf8');
 
@@ -12,6 +12,7 @@ describe('LOS user provisioning deployment artifacts', () => {
     expect(manifest.apis.map((x) => x.uniqueName)).toEqual(['cr664_VerifyLosUserIdentity', 'cr664_ProvisionLosUser']);
     expect(manifest.apis[0].requestParameters.map((x) => x.uniqueName)).toEqual(['Upn', 'EnvironmentId']);
     expect(manifest.apis[1].requestParameters.map((x) => x.uniqueName)).toEqual(['RequestJson']);
+    expect(manifest.apis.every((x) => x.executePrivilegeName === 'prvReadUser')).toBe(true);
   });
 
   it('pins Production, authenticates the initiating actor, uses ExecuteTransaction, and denies Super Admin', () => {

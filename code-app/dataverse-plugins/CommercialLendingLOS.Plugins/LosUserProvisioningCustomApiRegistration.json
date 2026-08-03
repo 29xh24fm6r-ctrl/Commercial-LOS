@@ -7,7 +7,7 @@
       "uniqueName": "cr664_VerifyLosUserIdentity",
       "displayName": "Verify Commercial LOS User Identity",
       "description": "Verifies an enabled Production Dataverse system user, approved base role, and existing LOS identity chain.",
-      "executePrivilegeName": "prvReadSystemUser",
+      "executePrivilegeName": "prvReadUser",
       "requestParameters": [
         { "uniqueName": "Upn", "displayName": "UPN", "type": 10, "isOptional": false },
         { "uniqueName": "EnvironmentId", "displayName": "Environment ID", "type": 10, "isOptional": false }
@@ -17,7 +17,7 @@
       "uniqueName": "cr664_ProvisionLosUser",
       "displayName": "Provision Commercial LOS User",
       "description": "Creates and verifies the complete authorized LOS identity and workspace-access chain as one governed transaction.",
-      "executePrivilegeName": "prvReadSystemUser",
+      "executePrivilegeName": "prvReadUser",
       "requestParameters": [
         { "uniqueName": "RequestJson", "displayName": "Provisioning request JSON", "type": 10, "isOptional": false }
       ]
