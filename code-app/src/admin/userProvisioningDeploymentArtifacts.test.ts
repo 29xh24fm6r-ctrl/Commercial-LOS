@@ -27,5 +27,10 @@ describe('LOS user provisioning deployment artifacts', () => {
     expect(registration).toMatch(/ExpectedManifestSha256/);
     expect(registration).toContain('https://org8c12c949.crm.dynamics.com');
     expect(registration).toMatch(/Custom API readback failed/);
+    expect(registration).toMatch(/\$ErrorActionPreference='Stop'/);
+    expect(registration).toMatch(/Invoke-RestMethod -Method Get -Uri/);
+    expect(registration).toMatch(/Invoke-RestMethod -Method Post -Uri/);
+    expect(registration).toMatch(/Invoke-RestMethod -Method Patch -Uri/);
+    expect(registration).not.toMatch(/Invoke-RestMethod (Get|Post|Patch) /);
   });
 });
