@@ -15,6 +15,7 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
     public string MessageName { get; set; } = "Update";
     public string PrimaryEntityName { get; set; } = "cr664_loandeal";
     public int Stage { get; set; } = 20;
+    public IPluginExecutionContext? Parent { get; set; }
     public int ExecutionMode { get; set; } = 0;
     public ParameterCollection InputParameters { get; set; } = new();
     public EntityImageCollection PreEntityImages { get; set; } = new();
@@ -28,7 +29,7 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
     public int Depth => throw new NotSupportedException();
     public string RequestName => throw new NotSupportedException();
     public string SecondaryEntityName => throw new NotSupportedException();
-    public ParameterCollection OutputParameters => throw new NotSupportedException();
+    public ParameterCollection OutputParameters { get; set; } = new();
     public ParameterCollection SharedVariables => throw new NotSupportedException();
     public Guid UserId => InitiatingUserId;
     public Guid BusinessUnitId => throw new NotSupportedException();
@@ -37,7 +38,7 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
     public Guid PrimaryEntityId => throw new NotSupportedException();
     public EntityReferenceCollection[] SharedVariablesTyped => throw new NotSupportedException();
     public EntityReference OwningExtension => throw new NotSupportedException();
-    public IPluginExecutionContext ParentContext => throw new NotSupportedException();
+    public IPluginExecutionContext ParentContext => Parent!;
     public Guid? RequestId => throw new NotSupportedException();
     public bool IsExecutingOffline => throw new NotSupportedException();
     public bool IsOfflinePlayback => throw new NotSupportedException();

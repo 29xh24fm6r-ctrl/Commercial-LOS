@@ -18,6 +18,23 @@
       ],
       "dataSets": {},
       "xrmConnectionReferenceLogicalName": "new_Office365OutlookCommercialLOS"
+    },
+    "3a7f539d-021e-42bb-8834-9a63c84e7111": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+      "displayName": "Microsoft Dataverse",
+      "dataSources": [
+        "commondataserviceforapps"
+      ],
+      "dataSets": {}
+    },
+    "8effd7b5-3387-4787-a448-66f4907a5a43": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+      "displayName": "Microsoft Copilot Studio",
+      "dataSources": [
+        "microsoftcopilotstudio"
+      ],
+      "authenticationType": "oauthDefault",
+      "dataSets": {}
     }
   },
   "databaseReferences": {

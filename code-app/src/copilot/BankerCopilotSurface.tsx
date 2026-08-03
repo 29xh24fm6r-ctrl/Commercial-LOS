@@ -3,15 +3,18 @@ import type { BankerWorkQueueData } from '../banker/workQueueQueries';
 import { CopilotAssistPanel } from './CopilotAssistPanel';
 import { getCopilotConnector, isCopilotSurfaceLive } from './copilotConnector';
 import { buildWorkspaceCopilotContext } from './workspaceCopilotContext';
+import { EmailServiceRequestMonitor } from './EmailServiceRequestMonitor';
 
 export function BankerCopilotSurface({
   data,
   kpis,
   userName,
+  systemUserId,
 }: {
   data: BankerWorkQueueData;
   kpis: BankerPersonalActivity;
   userName: string;
+  systemUserId?: string;
 }) {
   if (!isCopilotSurfaceLive()) return null;
 
@@ -52,6 +55,7 @@ export function BankerCopilotSurface({
         workspaceContext={workspace}
         proposedActions={proposedActions}
       />
+      {systemUserId && <EmailServiceRequestMonitor assigneeSystemUserId={systemUserId} />}
     </section>
   );
 }

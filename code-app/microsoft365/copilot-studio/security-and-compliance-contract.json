@@ -1,0 +1,32 @@
+{
+  "contractVersion": "ogb-copilot-security/v1",
+  "authentication": {
+    "agent": "Authenticate with Microsoft Entra ID and require the signed-in user.",
+    "dataverse": ["user_impersonation"],
+    "copilotConnectors": ["ExternalItem.Read.All"],
+    "microsoftGraphDelegated": ["User.Read", "Sites.Selected", "Mail.ReadBasic", "Calendars.Read", "OnlineMeetings.Read"],
+    "prohibitedApplicationPermissions": ["Mail.Read", "Chat.Read.All", "ChannelMessage.Read.All", "Sites.Read.All"],
+    "notes": "Relationship intelligence uses delegated access or source ACL-trimmed Copilot connectors. Application-wide mailbox or Teams surveillance is prohibited."
+  },
+  "dlp": {
+    "businessDataGroup": ["Microsoft Dataverse", "SharePoint", "Office 365 Outlook", "Microsoft Teams", "Azure AI Search", "Azure AI Document Intelligence", "OGB Governed Credit Intelligence"],
+    "blockedConnectors": ["HTTP with Microsoft Entra ID unless endpoint allowlisted", "Consumer social networks", "Personal cloud storage", "Unapproved generative AI providers"],
+    "endpointAllowlist": ["https://org3a57b8d4.crm.dynamics.com", "https://*.search.windows.net", "https://*.cognitiveservices.azure.com", "https://graph.microsoft.com"],
+    "crossGroupDataMovement": "blocked"
+  },
+  "purview": {
+    "sensitivityLabelMinimum": "Confidential - Credit",
+    "retention": ["credit intelligence run", "evidence", "fact", "proposal", "agent transcript", "policy evaluation"],
+    "audit": ["CopilotInteraction", "PowerPlatformAdminActivity", "DataverseAudit", "AzureFunctionRequest", "AzureAISearchQuery"],
+    "ediscovery": true,
+    "insiderRiskReview": true
+  },
+  "responsibleAi": {
+    "humanDecisionRequired": true,
+    "protectedCharacteristicsProhibited": true,
+    "unrestrictedPersonalResearchProhibited": true,
+    "citationsRequired": true,
+    "unsupportedAuthorityClaimsBlocked": true,
+    "proposalsRequireGovernedConfirmation": true
+  }
+}

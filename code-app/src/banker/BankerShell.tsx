@@ -394,7 +394,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         <div style={styles.body}>
           <section style={styles.contentArea} aria-label="Banker workspace content">
             {state.kind === 'ready' && kpis && (
-              <BankerCopilotSurface data={state.data} kpis={kpis} userName={fullName} />
+              <BankerCopilotSurface data={state.data} kpis={kpis} userName={fullName} systemUserId={systemUserId} />
             )}
             <TabBar
               active={tab}

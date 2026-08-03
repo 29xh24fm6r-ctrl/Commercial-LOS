@@ -1,7 +1,7 @@
 {
   "name": "Old Glory Bank Commercial LOS Copilot",
-  "version": "2026-07-29",
-  "purpose": "Microsoft Copilot Studio agent contract for governed, read-only and proposal-only assistance across the Commercial Lending LOS.",
+  "version": "2026-07-31",
+  "purpose": "Microsoft Copilot Studio Commercial Credit Intelligence agent for governed research, evidence preparation, relationship intelligence, monitoring, policy explanation, and proposal-only assistance.",
   "powerPlatform": {
     "tenantId": "e5d2be43-2e2c-4968-b5f3-c73dd825ee80",
     "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
@@ -124,7 +124,8 @@
       "VITE_COPILOT_MODE",
       "VITE_COPILOT_CUSTOM_API_NAME",
       "VITE_COPILOT_ENDPOINT_ALIAS",
-      "VITE_COPILOT_POLICY_VERSION"
+      "VITE_COPILOT_POLICY_VERSION",
+      "VITE_COPILOT_BANK_ID"
     ]
   },
   "policy": {
@@ -132,6 +133,8 @@
     "allowClientSecrets": false,
     "allowAutonomousWrites": false,
     "requireHumanConfirmation": true,
+    "allowCreditDecisionByCopilot": false,
+    "allowProtectedCharacteristicsAsCreditFacts": false,
     "allowedProposalActionTypes": [
       "request_document",
       "draft_borrower_message",
@@ -148,7 +151,10 @@
       "Use only authorized Dataverse context returned by cr664_RunLosCopilotAssist or configured Copilot Studio knowledge sources.",
       "Never claim an approval, covenant waiver, document receipt, borrower contact, Teams post, Outlook send, or Dataverse update has occurred unless the governed LOS system returns that fact.",
       "For write-capable intents, return proposals only. The user must confirm through the LOS governed write path.",
-      "Prefer cited evidence and clear uncertainty over unsupported confidence."
+      "Prefer cited evidence and clear uncertainty over unsupported confidence.",
+      "Classify every fact as verified source fact, CRM-provided fact, calculated fact, unverified claim, or AI inference.",
+      "Never use protected characteristics in credit analysis and never conduct unrestricted personal surveillance.",
+      "Never decide credit, assign authority, or change a risk rating. Explain only the stored server-side governance result."
     ],
     "toolsToCreate": [
       {
@@ -156,6 +162,12 @@
         "type": "Dataverse Custom API or custom connector action",
         "target": "cr664_RunLosCopilotAssist",
         "description": "Grounded LOS summarization, risk explanation, next-action, and proposal-only assistance."
+      },
+      {
+        "name": "RunGovernedCreditIntelligence",
+        "type": "Dataverse Custom API through an Entra-authenticated custom connector",
+        "target": "cr664_RunCreditIntelligence",
+        "description": "Six permission-scoped research, evidence, governance, relationship, portfolio, and policy tools returning durable hashes and citations."
       }
     ],
     "knowledgeSources": [
@@ -166,6 +178,18 @@
       {
         "name": "Approved LOS operating runbooks",
         "scope": "SharePoint or Dataverse knowledge source containing published, approved operator documentation only."
+      },
+      {
+        "name": "Permission-trimmed Microsoft 365 relationship content",
+        "scope": "Delegated Outlook, Teams, meeting, and SharePoint content visible to the signed-in user; application-wide mailbox or chat access is prohibited."
+      },
+      {
+        "name": "Azure credit evidence index",
+        "scope": "Bank-, deal-, party-, user-, and group-filtered Azure AI Search results with immutable source locators and content hashes."
+      },
+      {
+        "name": "Approved external business evidence",
+        "scope": "Allowlisted government or licensed commercial sources with permissible-purpose controls, entity-match evidence, retrieval timestamps, and contractual approval."
       }
     ],
     "channels": [
@@ -173,6 +197,16 @@
       "Microsoft Teams after tenant app approval",
       "Microsoft 365 Copilot after tenant declarative-agent approval"
     ]
+  },
+  "creditIntelligence": {
+    "customApi": "cr664_RunCreditIntelligence",
+    "serverContract": "src/copilot/creditIntelligenceCustomApiHandler.ts",
+    "auditAndEvidenceContract": "src/copilot/creditIntelligence.ts",
+    "dataverseSchemaPlan": "src/copilot/creditIntelligenceDataverseSchemaPlan.ts",
+    "workbench": "src/copilot/CreditIntelligenceWorkbench.tsx",
+    "tools": ["research_party", "build_credit_evidence_packet", "explain_governance_route", "relationship_intelligence", "portfolio_monitoring", "policy_intelligence"],
+    "sources": ["Dataverse LOS and CRM", "approved SharePoint content", "permission-scoped Microsoft Graph", "Azure AI Search", "Azure Document Intelligence", "allowlisted government business records", "licensed commercial risk data"],
+    "invariants": ["server-resolved identity and scope", "audit before retrieval or model invocation", "classified and cited facts", "protected characteristics rejected", "uncited or decision-making model output rejected", "human-validated document extraction", "human-confirmed governed proposals", "governance engine remains authoritative"]
   },
   "verification": {
     "script": "scripts/activation/verify-copilot-integration.ps1",

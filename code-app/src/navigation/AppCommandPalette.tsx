@@ -4,6 +4,7 @@ import { CommandPalette, type CommandGroup } from '../design/CommandPalette';
 import { WORKSPACE_ROUTES, WORKSPACE_DISPLAY_NAMES, type WorkspaceKey } from '../bootstrap/workspaceRoutes';
 import { FEATURE_SURFACES } from './featureSurfaces';
 import { isFeatureSurfaceFlagEnabled } from './featureSurfaceFlags';
+import { requestOpenCopilot } from '../copilot/copilotLauncherEvents';
 
 /**
  * App-wide ⌘K command palette, wired to the real router. Navigation-first
@@ -34,7 +35,17 @@ export function AppCommandPalette() {
       keywords: [s.key, 'surface', s.workspace],
       run: () => navigate(`/surfaces/${s.key}`),
     }));
-    const result: CommandGroup[] = [workspaces];
+    const copilot: CommandGroup = {
+      heading: 'Microsoft Copilot',
+      items: [{
+        id: 'open-microsoft-copilot',
+        label: 'Open Microsoft Copilot',
+        meta: 'Ctrl + Shift + C',
+        keywords: ['copilot', 'assistant', 'ai', 'research', 'credit intelligence'],
+        run: requestOpenCopilot,
+      }],
+    };
+    const result: CommandGroup[] = [copilot, workspaces];
     if (surfaceItems.length > 0) result.push({ heading: 'Surfaces', items: surfaceItems });
     return result;
   }, [navigate]);

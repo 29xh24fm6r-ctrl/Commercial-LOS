@@ -1,0 +1,24 @@
+{
+  "contractVersion": "ogb-credit-intelligence-custom-api/v1",
+  "assemblyName": "CommercialLendingLOS.Plugins",
+  "pluginType": "CommercialLendingLOS.Plugins.CreditIntelligenceCustomApiPlugin",
+  "uniqueName": "cr664_RunCreditIntelligence",
+  "displayName": "Run Governed Credit Intelligence",
+  "description": "Returns permission-scoped, evidence-linked commercial credit intelligence without making a lending decision or executing a proposed action.",
+  "bindingType": 0,
+  "allowedCustomProcessingStepType": 0,
+  "isFunction": false,
+  "isPrivate": false,
+  "executePrivilegeName": "prvReadcr664_loandeal",
+  "requestParameters": [
+    { "uniqueName": "CorrelationId", "displayName": "Correlation ID", "type": 10, "isOptional": false },
+    { "uniqueName": "Tool", "displayName": "Tool", "type": 10, "isOptional": false },
+    { "uniqueName": "BankId", "displayName": "Bank ID", "type": 10, "isOptional": false },
+    { "uniqueName": "DealId", "displayName": "Deal ID", "type": 10, "isOptional": true },
+    { "uniqueName": "GovernanceEvaluationId", "displayName": "Governance Evaluation ID", "type": 10, "isOptional": true },
+    { "uniqueName": "RequestedSourceIdsJson", "displayName": "Requested Source IDs JSON", "type": 10, "isOptional": false }
+  ],
+  "responseProperties": [
+    { "uniqueName": "ResultJson", "displayName": "Result JSON", "type": 10 }
+  ]
+}

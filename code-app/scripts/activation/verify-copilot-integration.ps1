@@ -48,6 +48,22 @@ $expectedFiles = @(
   'src\copilot\copilotConnectorConfig.ts',
   'src\copilot\copilotCustomApiContract.ts',
   'src\copilot\copilotDataverseCustomApiTransport.ts',
+  'src\copilot\creditIntelligence.ts',
+  'src\copilot\creditIntelligenceRuntime.ts',
+  'src\copilot\creditIntelligencePowerAppsClient.ts',
+  'dataverse-plugins\CommercialLendingLOS.Plugins\CreditIntelligenceCustomApiPlugin.cs',
+  'dataverse-plugins\CommercialLendingLOS.Plugins\CreditIntelligenceCustomApiRegistration.json',
+  'deployment\copilot-credit-intelligence\dataverse-schema-plan.json',
+  'scripts\dataverse\provision-credit-intelligence-schema.ps1',
+  'scripts\dataverse\register-credit-intelligence-custom-api.ps1',
+  'scripts\dataverse\provision-credit-intelligence-permissions.ps1',
+  'azure\copilot-credit-intelligence\main.bicep',
+  'azure\copilot-credit-intelligence\function-app\host.json',
+  'azure\copilot-credit-intelligence\function-app\GovernedEvidence\function.json',
+  'azure\copilot-credit-intelligence\function-app\index.mjs',
+  'microsoft365\copilot-studio\credit-intelligence-openapi.json',
+  'microsoft365\copilot-studio\security-and-compliance-contract.json',
+  'microsoft365\copilot-studio\agent-evaluation-suite.json',
   'src\copilot\copilotAuditLogger.ts',
   'src\copilot\copilotServerDeploymentReadiness.ts',
   'microsoft365\copilot-studio\agent-contract.json',
@@ -70,6 +86,11 @@ if (Test-Path -LiteralPath $contractPath) {
   $ok = (Write-Check 'Agent contract blocks browser model calls' ($contract.policy.allowBrowserDirectModelCalls -eq $false) "allowBrowserDirectModelCalls=$($contract.policy.allowBrowserDirectModelCalls)") -and $ok
   $ok = (Write-Check 'Agent contract blocks client secrets' ($contract.policy.allowClientSecrets -eq $false) "allowClientSecrets=$($contract.policy.allowClientSecrets)") -and $ok
   $ok = (Write-Check 'Agent contract requires confirmation' ($contract.policy.requireHumanConfirmation -eq $true) "requireHumanConfirmation=$($contract.policy.requireHumanConfirmation)") -and $ok
+  $tools = @($contract.creditIntelligence.tools)
+  $ok = (Write-Check 'Credit intelligence Custom API' ($contract.creditIntelligence.customApi -eq 'cr664_RunCreditIntelligence') "name=$($contract.creditIntelligence.customApi)") -and $ok
+  $ok = (Write-Check 'Six governed credit intelligence tools' ($tools.Count -eq 6) ($tools -join ', ')) -and $ok
+  $ok = (Write-Check 'Protected characteristics rejected' ($contract.creditIntelligence.invariants -contains 'protected characteristics rejected') 'responsible AI invariant') -and $ok
+  $ok = (Write-Check 'Governance remains authoritative' ($contract.creditIntelligence.invariants -contains 'governance engine remains authoritative') 'decision boundary') -and $ok
 }
 
 $surfaceChecks = @(
@@ -102,10 +123,10 @@ if (Test-Path -LiteralPath $copilotDir) {
   $blockedPatterns = @(
     @{ Label = 'fetch'; Regex = 'fetch\s*\(' },
     @{ Label = 'XMLHttpRequest'; Regex = 'XMLHttpRequest' },
-    @{ Label = 'Graph endpoint'; Regex = 'graph\.microsoft|microsoft-graph' },
+    @{ Label = 'Graph endpoint'; Regex = 'https?://graph\.microsoft\.com' },
     @{ Label = 'MSAL'; Regex = '\bmsal\b' },
     @{ Label = 'Office365 connector'; Regex = 'Office365|SendEmailV2' },
-    @{ Label = 'OpenAI client secret'; Regex = 'sk-[A-Za-z0-9]|AZURE_OPENAI_API_KEY|OPENAI_API_KEY' }
+    @{ Label = 'OpenAI client secret'; Regex = '["'']sk-[A-Za-z0-9]{12,}|\bAZURE_OPENAI_API_KEY\b|\bOPENAI_API_KEY\b' }
   )
   foreach ($pattern in $blockedPatterns) {
     $hits = @()

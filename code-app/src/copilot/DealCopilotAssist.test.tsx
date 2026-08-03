@@ -14,6 +14,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
  *   - no write affordance (no Send / Complete / Request buttons).
  */
 
+vi.mock('../generated/services/MicrosoftCopilotStudioService', () => ({
+  MicrosoftCopilotStudioService: { ExecuteCopilotAsyncV2: vi.fn() },
+}));
 const { useDealDataMock, useOptionalDealIntelligenceMock } = vi.hoisted(() => ({
   useDealDataMock: vi.fn(),
   useOptionalDealIntelligenceMock: vi.fn(),

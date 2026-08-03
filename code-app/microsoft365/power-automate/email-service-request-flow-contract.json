@@ -1,0 +1,20 @@
+{
+  "contractVersion": "ogb-power-automate-email-service-request/v1",
+  "solutionAware": true,
+  "flowName": "OGB - Governed Outlook Service Request Intake",
+  "connectionReferences": ["shared_office365_outlook", "shared_commondataserviceforapps", "copilot_studio_agent"],
+  "trigger": "When a new email arrives in a shared mailbox (V2)",
+  "settings": { "concurrencyControl": true, "degreeOfParallelism": 1, "secureInputs": true, "secureOutputs": true, "retryPolicy": "exponential" },
+  "steps": [
+    { "order": 1, "action": "validateConfiguredMailboxAndFolder" },
+    { "order": 2, "action": "computeMessageAndContentHashesInMemory" },
+    { "order": 3, "action": "invokeCopilotStructuredClassification" },
+    { "order": 4, "action": "resolveSenderCompanyDealAndAssigneeReadOnly" },
+    { "order": 5, "action": "invokeDataverseCustomApi", "operationName": "cr664_ProcessInboundServiceRequest" },
+    { "order": 6, "action": "recordFlowRunOutcomeWithoutMessageBody" }
+  ],
+  "prohibitedActions": ["Dataverse Add a new row for cr664_dealtask1", "send email", "reply to email", "delete email", "move email", "mark email read", "persist access token", "log message body"],
+  "attachmentHandling": "Retrieve an attachment individually only after malware scanning and only when a separately approved document-intake policy requires it.",
+  "duplicateHandling": "The Dataverse Custom API uses mailbox plus InternetMessageId and a deterministic native GUID. Connector duplicate delivery must return duplicate without creating a second task.",
+  "disabledByDefault": true
+}

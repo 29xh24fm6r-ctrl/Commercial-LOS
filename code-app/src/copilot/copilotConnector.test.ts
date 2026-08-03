@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveCopilotConnectorStatus,
+  resolveConfiguredCopilotTransport,
   createCopilotConnector,
   createNotConfiguredConnector,
   createMockConnector,
@@ -52,6 +53,21 @@ describe('SPEC-COPILOT — resolveCopilotConnectorStatus', () => {
     expect(s.mode).toBe('not_configured');
     expect(s.connected).toBe(false);
     expect(s.reason).toMatch(/not set/i);
+  });
+
+  it('recognizes only the exact governed Dataverse Custom API as the live Copilot Studio transport', () => {
+    expect(resolveConfiguredCopilotTransport({
+      provider: 'copilot_studio',
+      customApiName: 'cr664_RunCreditIntelligence',
+    })).toMatchObject({ model: 'copilot-studio' });
+    expect(resolveConfiguredCopilotTransport({
+      provider: 'copilot_studio',
+      customApiName: 'unapproved_action',
+    })).toBeUndefined();
+    expect(resolveConfiguredCopilotTransport({
+      provider: 'azure_openai',
+      customApiName: 'cr664_RunCreditIntelligence',
+    })).toBeUndefined();
   });
 
   it('explicit not_configured → not_configured', () => {

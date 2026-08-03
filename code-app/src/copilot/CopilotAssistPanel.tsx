@@ -10,6 +10,9 @@ import {
 import { CopilotNotConfiguredState } from './CopilotNotConfiguredState';
 import { CopilotPromptBar } from './CopilotPromptBar';
 import { CopilotResponseCard } from './CopilotResponseCard';
+import { CreditIntelligenceWorkbench } from './CreditIntelligenceWorkbench';
+import type { CreditIntelligenceResult, CreditIntelligenceTool } from './creditIntelligence';
+import { invokeOgbGovernedLendingCopilot } from './copilotStudioRuntime';
 
 type CopilotSurface = 'deal' | 'workspace';
 
@@ -26,6 +29,10 @@ interface CopilotAssistPanelProps {
   proposedActions?: CopilotProposedAction[];
   /** Collapsed by default on command surfaces. */
   defaultExpanded?: boolean;
+  /** Server-backed intelligence tools enabled for this authenticated user. */
+  enabledIntelligenceTools?: readonly CreditIntelligenceTool[];
+  /** Invokes the governed Custom API; absent means no intelligence tool is exposed. */
+  runIntelligenceTool?: (tool: CreditIntelligenceTool) => Promise<CreditIntelligenceResult>;
 }
 
 type PromptAction =
@@ -72,11 +79,16 @@ export function CopilotAssistPanel({
   workspaceContext,
   proposedActions,
   defaultExpanded = false,
+  enabledIntelligenceTools = [],
+  runIntelligenceTool,
 }: CopilotAssistPanelProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [responses, setResponses] = useState<CopilotResponse[]>([]);
+  const [promptPending, setPromptPending] = useState(false);
   const adapter = getCopilotAdapter();
   const connectorStatus = getCopilotConnector().status();
+  const connectorCanInvoke = connectorStatus.connected
+    && (connectorStatus.mode === 'live_read_only' || connectorStatus.mode === 'proposal_only');
 
   const handleAction = useCallback(
     (action: PromptAction) => {
@@ -111,22 +123,39 @@ export function CopilotAssistPanel({
   );
 
   const handlePrompt = useCallback(
-    (_prompt: string) => {
-      // In the not_configured state, map free-text prompts to the best
-      // matching local action. A live connector would forward the prompt
-      // directly.
-      if (surface === 'deal') {
-        handleAction('summarize');
-      } else {
-        handleAction('workspace-summary');
+    async (prompt: string) => {
+      if (!connectorCanInvoke) {
+        if (surface === 'deal') handleAction('summarize');
+        else handleAction('workspace-summary');
+        return;
+      }
+      setPromptPending(true);
+      try {
+        const context = surface === 'deal' ? dealContext : workspaceContext;
+        const text = await invokeOgbGovernedLendingCopilot([
+          'You are responding inside the authenticated Old Glory Bank Commercial Lending LOS.',
+          'Remain read-only. Do not approve credit, change data, or claim an action occurred.',
+          `User request: ${prompt}`,
+          `Authorized on-screen context: ${JSON.stringify(context ?? {})}`,
+        ].join('\n'));
+        setResponses(prev => [...prev, {
+          mode: 'live', text, sources: ['Microsoft Copilot Studio', 'authorized on-screen context'], isLive: true,
+        }]);
+      } catch {
+        setResponses(prev => [...prev, {
+          mode: 'live', text: 'Microsoft Copilot could not complete this request. No action or data change occurred.',
+          sources: [], isLive: false,
+        }]);
+      } finally {
+        setPromptPending(false);
       }
     },
-    [surface, handleAction],
+    [connectorCanInvoke, surface, dealContext, workspaceContext, handleAction],
   );
 
   // Legacy adapter posture (drives the honest not-configured copy +
   // the local summary path). Preserved for backward compatibility.
-  const notConfigured = adapter.mode === 'not_configured';
+  const notConfigured = adapter.mode === 'not_configured' && !connectorCanInvoke;
 
   // Governed connector posture (drives the status pill + proposals).
   const mode = connectorStatus.mode;
@@ -202,18 +231,22 @@ export function CopilotAssistPanel({
           {showProposals && (
             <ProposedActions actions={proposedActions!} />
           )}
+          {pillConnected && runIntelligenceTool && <CreditIntelligenceWorkbench
+            enabledTools={enabledIntelligenceTools}
+            runTool={runIntelligenceTool}
+          />}
 
           {responses.map((r, i) => (
             <CopilotResponseCard key={i} response={r} />
           ))}
 
-          <CopilotPromptBar onSubmit={handlePrompt} />
+          <CopilotPromptBar onSubmit={handlePrompt} disabled={promptPending} />
         </div>
       )}
 
       <CardFooter>
         <span>
-          {adapter.mode === 'not_configured'
+          {notConfigured
             ? 'Copilot connector not configured. Local summaries only. No AI. No external calls.'
             : 'Powered by Microsoft Copilot. Verify before acting.'}
         </span>

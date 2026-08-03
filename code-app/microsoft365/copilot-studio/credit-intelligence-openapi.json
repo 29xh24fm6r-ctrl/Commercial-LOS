@@ -1,0 +1,46 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "OGB Governed Credit Intelligence", "description": "Permission-scoped evidence tools for Microsoft Copilot Studio. The API cannot approve credit or execute proposed actions.", "version": "1.0" },
+  "host": "org3a57b8d4.crm.dynamics.com",
+  "basePath": "/api/data/v9.2",
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "azureAd": {
+      "type": "oauth2",
+      "flow": "accessCode",
+      "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/authorize",
+      "tokenUrl": "https://login.microsoftonline.com/common/oauth2/token",
+      "scopes": { "https://org3a57b8d4.crm.dynamics.com/user_impersonation": "Use Dataverse as the signed-in user" }
+    }
+  },
+  "security": [{ "azureAd": ["https://org3a57b8d4.crm.dynamics.com/user_impersonation"] }],
+  "paths": {
+    "/cr664_RunCreditIntelligence": {
+      "post": {
+        "operationId": "RunGovernedCreditIntelligence",
+        "summary": "Run governed commercial credit intelligence",
+        "description": "Returns only server-authorized facts, citations, hashes, and proposals. Never returns or performs a credit decision.",
+        "x-ms-visibility": "important",
+        "parameters": [{ "name": "body", "in": "body", "required": true, "schema": { "$ref": "#/definitions/Request" } }],
+        "responses": { "200": { "description": "Governed result", "schema": { "$ref": "#/definitions/Response" } }, "400": { "description": "Invalid request" }, "403": { "description": "Not authorized" }, "409": { "description": "Duplicate or ambiguous effective record" } }
+      }
+    }
+  },
+  "definitions": {
+    "Request": {
+      "type": "object",
+      "required": ["CorrelationId", "Tool", "BankId", "RequestedSourceIdsJson"],
+      "properties": {
+        "CorrelationId": { "type": "string", "format": "uuid", "x-ms-visibility": "internal" },
+        "Tool": { "type": "string", "enum": ["research_party", "build_credit_evidence_packet", "explain_governance_route", "relationship_intelligence", "portfolio_monitoring", "policy_intelligence"] },
+        "BankId": { "type": "string", "x-ms-visibility": "internal" },
+        "DealId": { "type": "string", "format": "uuid" },
+        "GovernanceEvaluationId": { "type": "string", "format": "uuid" },
+        "RequestedSourceIdsJson": { "type": "string", "x-ms-visibility": "internal" }
+      }
+    },
+    "Response": { "type": "object", "required": ["ResultJson"], "properties": { "ResultJson": { "type": "string", "description": "Immutable evidence-linked result JSON." } } }
+  }
+}
