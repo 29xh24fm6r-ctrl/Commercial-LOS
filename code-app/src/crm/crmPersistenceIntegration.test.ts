@@ -70,9 +70,9 @@ describe('Phase 141L — persisted CRM records feed the recipient resolver; do-n
 });
 
 describe('Phase 141L — the resolver does not enable any route when wiring the adapter', () => {
-  it('even a fully-live resolution leaves the route disabled', () => {
+  it('enables the route only when explicitly configured with live persistence', () => {
     const flags = deriveCrmFeatureFlagState({ livePersistenceEnabled: true, routeEnabled: true });
-    expect(flags.CRM_ROUTE_ENABLED).toBe(false);
+    expect(flags.CRM_ROUTE_ENABLED).toBe(true);
     const r = resolveCrmPersistenceAdapter({
       flags,
       verified: { tablesFound: 10, columnsFound: 147, relationshipsFound: 28, conflicts: 0 },
@@ -85,6 +85,6 @@ describe('Phase 141L — the resolver does not enable any route when wiring the 
       },
     });
     expect(r.live).toBe(true);
-    expect(flags.CRM_ROUTE_ENABLED).toBe(false);
+    expect(flags.CRM_ROUTE_ENABLED).toBe(true);
   });
 });

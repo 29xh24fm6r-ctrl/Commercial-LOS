@@ -11,7 +11,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot '_common.ps1')
+$commonPath=Join-Path $PSScriptRoot '_common.ps1'
+if(Test-Path $commonPath){. $commonPath}
+else{. (Join-Path $PSScriptRoot 'production-remediation-common.ps1')}
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $policyFullPath = (Resolve-Path (Join-Path $repo $PolicyPath)).Path
 $authorityFullPath = (Resolve-Path (Join-Path $repo $AuthorityPath)).Path
@@ -81,12 +83,18 @@ function Assert-Or-Create([string]$set, [string]$query, [hashtable]$body, [strin
   $existing = @(Get-Rows "${set}?$query")
   if ($existing.Count -gt 1) { throw "Duplicate $label records already exist." }
   if ($existing.Count -eq 0) {
+    $script:seedCounts.create++
+    Write-Host ('CREATE {0} {1}' -f $set,$label)
     Post-Row $set $body | Out-Null
+  } else {
+    $script:seedCounts.noop++
+    Write-Host ('NO-OP {0} {1}' -f $set,$label)
   }
   return Get-One (Get-Rows "${set}?$query") $label
 }
 
 try {
+  $script:seedCounts=[ordered]@{create=0;update=0;noop=0}
   $user = Get-One (Get-Rows "systemusers?`$select=systemuserid,azureactivedirectoryobjectid,isdisabled,domainname&`$filter=domainname eq 'mpaller@oldglorybank.com'") 'Matthew systemuser'
   if ($user.isdisabled -or [string]::IsNullOrWhiteSpace([string]$user.azureactivedirectoryobjectid)) {
     throw 'Matthew’s enabled systemuser-to-Entra identity chain is incomplete.'
@@ -103,6 +111,7 @@ try {
   } 'OGB governance profile'
   $profileId = [string]$profile.cr664_creditgovernanceprofileid
   if (-not $profile.cr664_profileenabled) {
+    $script:seedCounts.update++
     Patch-Row 'cr664_creditgovernanceprofiles' $profileId @{
       cr664_profileenabled = $true
       cr664_displayname = 'Old Glory Bank Commercial Lending Governance'
@@ -200,6 +209,7 @@ try {
     throw 'The active authority readback does not match the approved limits.'
   }
   Write-Host "PASS profile=$profileId policy=$policyId rules=$ordinal actor=$($user.systemuserid) authority=$($grant.cr664_authoritygrantid)"
+  Write-Host ('RESULT governance create={0} update={1} no-op={2}' -f $script:seedCounts.create,$script:seedCounts.update,$script:seedCounts.noop)
 } finally {
   $token = $null
 }
