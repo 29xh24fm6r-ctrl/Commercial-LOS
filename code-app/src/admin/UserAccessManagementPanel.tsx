@@ -13,6 +13,7 @@ import {
 } from './adminUserAccessDisplay';
 import { WorkspaceEntitlementManager } from './WorkspaceEntitlementManager';
 import { AdminAccessGrantPanel } from './AdminAccessGrantPanel';
+import { GovernedUserProvisioningPanel } from './GovernedUserProvisioningPanel';
 
 /**
  * Phase 204N — read-only detail polish. The console explains WHY workspace/profile
@@ -45,6 +46,7 @@ type LoadState =
 
 export function UserAccessManagementPanel() {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const [refreshVersion, setRefreshVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +63,7 @@ export function UserAccessManagementPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshVersion]);
 
   return (
     <section
@@ -93,7 +95,7 @@ export function UserAccessManagementPanel() {
       <EntitlementsTable state={state} />
       <WorkspaceEntitlementManager />
       <AdminAccessGrantPanel />
-      <AddUserGuidance />
+      <GovernedUserProvisioningPanel onCompleted={() => setRefreshVersion((value) => value + 1)} />
     </section>
   );
 }
@@ -230,27 +232,6 @@ function EntitlementsTable({ state }: { state: LoadState }) {
  * EXISTING user's workspace is fully governed above (Workspace entitlement).
  * This block gives operators the real, honest guidance.
  */
-function AddUserGuidance() {
-  return (
-    <div style={styles.formWrap} data-admin-user-access-add-guidance>
-      <div style={styles.formTitle}>Add a new user</div>
-      <p style={styles.blocker}>
-        New platform users are provisioned by an operator (the user’s Dataverse
-        identity and platform-user record are created with the seed/provisioning
-        process), not from this app. Once a user exists, set their primary
-        workspace above with the governed, audited{' '}
-        <strong>Workspace entitlement</strong> control, or grant them
-        additional <strong>Admin</strong> access with the{' '}
-        <strong>Grant / Revoke Admin Access</strong> control above.
-      </p>
-      <p style={styles.roleNotice} data-admin-user-access-role-notice>
-        Microsoft tenant and Dataverse security roles are assigned in the Power
-        Platform admin center, not here.
-      </p>
-    </div>
-  );
-}
-
 const styles: Record<string, CSSProperties> = {
   wrap: {
     display: 'flex',

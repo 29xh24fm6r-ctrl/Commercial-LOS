@@ -23,6 +23,7 @@ public sealed class FakeOrganizationService : IOrganizationService
     private readonly object _sync = new();
     public List<Entity> Created { get; } = new();
     public List<Entity> Updated { get; } = new();
+    public string? FailCreateLogicalName { get; set; }
 
     public void Seed(Entity entity)
     {
@@ -138,7 +139,22 @@ public sealed class FakeOrganizationService : IOrganizationService
         }
     }
     public void Delete(string entityName, Guid id) => throw new NotSupportedException();
-    public OrganizationResponse Execute(OrganizationRequest request) => throw new NotSupportedException();
+    public OrganizationResponse Execute(OrganizationRequest request)
+    {
+        if (request is ExecuteTransactionRequest transaction)
+        {
+            var response = new ExecuteTransactionResponse();
+            if (transaction.Requests.OfType<CreateRequest>().Any(item => item.Target.LogicalName == FailCreateLogicalName))
+                throw new InvalidOperationException("Injected transactional create failure.");
+            foreach (var item in transaction.Requests)
+            {
+                if (item is not CreateRequest create) throw new NotSupportedException();
+                Create(create.Target);
+            }
+            return response;
+        }
+        throw new NotSupportedException();
+    }
     public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) => throw new NotSupportedException();
     public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) => throw new NotSupportedException();
     public EntityCollection RetrieveMultiple(Microsoft.Xrm.Sdk.Query.QueryBase query) =>

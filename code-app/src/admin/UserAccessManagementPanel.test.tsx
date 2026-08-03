@@ -30,6 +30,10 @@ vi.mock('./AdminAccessGrantPanel', () => ({
   AdminAccessGrantPanel: () => <div data-testid="access-grant-panel-stub" />,
 }));
 
+vi.mock('./GovernedUserProvisioningPanel', () => ({
+  GovernedUserProvisioningPanel: () => <div data-user-provisioning="closed"><button disabled>+ Add New User</button></div>,
+}));
+
 import { loadAdminUserAccessSummary } from './adminUserAccessQueries';
 import { UserAccessManagementPanel } from './UserAccessManagementPanel';
 
@@ -122,7 +126,7 @@ describe('Phase 169B -- panel renders real read-only data', () => {
       expect(screen.getByText('No Workspace User')).toBeInTheDocument();
     });
     const usersTable = container.querySelector('[data-admin-user-access-users="table"]')!;
-    expect(within(usersTable as HTMLElement).getByText('Not selected by safe-read contract')).toBeInTheDocument();
+    expect(within(usersTable as HTMLElement).getByText('Primary workspace not included in current read contract')).toBeInTheDocument();
     expect(within(usersTable as HTMLElement).queryByText('Not selected', { exact: true })).not.toBeInTheDocument();
   });
 
@@ -136,7 +140,7 @@ describe('Phase 169B -- panel renders real read-only data', () => {
       '4fa22088-0c56-f111-bec7-70a8a59be491',
     );
     expect(container.querySelector('[data-admin-entitlement-workspace]')!.textContent).toBe(
-      'Not selected by safe-read contract',
+      'Primary workspace not included in current read contract',
     );
   });
 
@@ -151,16 +155,13 @@ describe('Phase 169B -- panel renders real read-only data', () => {
     expect(note.textContent).toMatch(/live-safe entitlement fields only/i);
   });
 
-  it('Phase 259: replaces the disabled grant-access preview form with operator guidance', async () => {
+  it('renders the governed provisioning surface', async () => {
     loadMock.mockResolvedValue(summary());
     const { container } = render(<UserAccessManagementPanel />);
     // The disabled preview form is gone.
     expect(container.querySelector('[data-admin-grant-submit]')).toBeNull();
     expect(container.querySelector('[data-admin-grant-field="email"]')).toBeNull();
-    // Honest operator guidance is shown instead.
-    const guidance = container.querySelector('[data-admin-user-access-add-guidance]');
-    expect(guidance?.textContent).toMatch(/provisioned by an operator/i);
-    expect(guidance?.textContent).toMatch(/Workspace entitlement/i);
+    expect(container.querySelector('[data-user-provisioning="closed"]')).not.toBeNull();
   });
 
   it('fails closed to "Not available" when the read rejects', async () => {
@@ -204,11 +205,11 @@ describe('Phase 169B -- panel keeps writes disabled and discloses scope', () => 
     expect(container.querySelector('[data-admin-user-access-blocker]')).toBeNull();
   });
 
-  it('shows the Power Platform admin center role notice', async () => {
+  it('keeps the Microsoft-vs-internal access boundary visible', async () => {
     loadMock.mockResolvedValue(summary());
     const { container } = render(<UserAccessManagementPanel />);
-    const notice = container.querySelector('[data-admin-user-access-role-notice]');
-    expect(notice?.textContent).toMatch(/Power Platform admin center/i);
+    const notice = container.querySelector('[data-admin-user-access-disclaimer]');
+    expect(notice?.textContent).toMatch(/Dataverse security roles/i);
   });
 
   it('has no enabled write button anywhere in the panel', async () => {

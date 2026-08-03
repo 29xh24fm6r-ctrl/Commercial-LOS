@@ -21,6 +21,7 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
     public EntityImageCollection PreEntityImages { get; set; } = new();
     public Guid InitiatingUserId { get; set; } = Guid.NewGuid();
     public Guid CorrelationId { get; set; } = Guid.NewGuid();
+    public Guid OrganizationId { get; set; } = LosUserProvisioningCustomApiPlugin.ProductionOrganizationId;
 
     // --- Unused by the plugin under test; throw loudly if ever touched. ---
     public EntityImageCollection PostEntityImages => throw new NotSupportedException();
@@ -33,7 +34,6 @@ public sealed class FakePluginExecutionContext : IPluginExecutionContext
     public ParameterCollection SharedVariables => throw new NotSupportedException();
     public Guid UserId => InitiatingUserId;
     public Guid BusinessUnitId => throw new NotSupportedException();
-    public Guid OrganizationId => throw new NotSupportedException();
     public string OrganizationName => throw new NotSupportedException();
     public Guid PrimaryEntityId => throw new NotSupportedException();
     public EntityReferenceCollection[] SharedVariablesTyped => throw new NotSupportedException();

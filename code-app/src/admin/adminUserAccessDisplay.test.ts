@@ -23,9 +23,9 @@ describe('Phase 204N — formatAdminAccessLevel', () => {
 
 describe('Phase 204N — formatSafeReadWorkspaceName', () => {
   it('explains the blank workspace via the safe-read contract', () => {
-    expect(formatSafeReadWorkspaceName(undefined)).toBe('Not selected by safe-read contract');
-    expect(formatSafeReadWorkspaceName('')).toBe('Not selected by safe-read contract');
-    expect(formatSafeReadWorkspaceName('   ')).toBe('Not selected by safe-read contract');
+    expect(formatSafeReadWorkspaceName(undefined)).toBe('Primary workspace not included in current read contract');
+    expect(formatSafeReadWorkspaceName('')).toBe('Primary workspace not included in current read contract');
+    expect(formatSafeReadWorkspaceName('   ')).toBe('Primary workspace not included in current read contract');
   });
   it('shows a present value verbatim (no fabrication)', () => {
     expect(formatSafeReadWorkspaceName('Banker Workspace')).toBe('Banker Workspace');
