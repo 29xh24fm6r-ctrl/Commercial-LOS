@@ -50,7 +50,7 @@ describe('loadDocumentRequirements', () => {
     });
     expect(result.kind).toBe('ready');
     if (result.kind === 'ready') {
-      const loanApp = result.rows.find((r) => r.documentName === 'Loan Application');
+      const loanApp = result.rows.find((r) => r.documentName === 'Business Credit Application');
       expect(loanApp).toEqual(expect.objectContaining({ id: undefined, status: 'not_assessed' }));
     }
   });

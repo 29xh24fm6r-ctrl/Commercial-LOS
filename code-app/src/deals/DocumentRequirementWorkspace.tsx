@@ -8,7 +8,8 @@ import {
   type DocumentRequirementAction,
   type DocumentRequirementRow,
 } from './documentRequirementLifecycle';
-import { deriveRequiredDocuments, type DocumentRequirementDerivationInput, type RequiredDocumentDefinition } from './documentRequirementDerivation';
+import type { DocumentRequirementDerivationInput, RequiredDocumentDefinition } from './documentRequirementDerivation';
+import { deriveDocumentIntakeRequirements } from './documentIntake/documentIntakeRequirements';
 import { loadDocumentRequirements } from './documentRequirementLiveReader';
 import { performDocumentRequirementAction, type DocumentRequirementActionOutcome } from './documentRequirementActions';
 import { buildLiveDocumentRequirementActionDeps } from './documentRequirementLiveDeps';
@@ -43,7 +44,7 @@ type LoadState =
 
 export interface DocumentRequirementWorkspaceProps {
   readonly dealId: string;
-  readonly deal: DocumentRequirementDerivationInput;
+  readonly deal: DocumentRequirementDerivationInput & { readonly documentPackageDate?: string };
   readonly banker: { readonly systemUserId: string | undefined; readonly email: string | undefined; readonly fullName: string | undefined } | null;
   /** Bubbles up so the shared Documents/Due-Diligence/Tasks-&-Actions/borrower-comm-prep
    *  read surfaces (all sourced off the same cr664_documentchecklist rows) refresh too. */
@@ -78,7 +79,7 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
     const result = await loadDocumentRequirements({ dealId, deal });
     if (!mountedRef.current) return;
     setState(result.kind === 'ready' ? { kind: 'ready', rows: result.rows } : { kind: 'failed', message: result.message });
-    if (result.kind === 'ready') onRowsLoaded?.(result.rows, deriveRequiredDocuments(deal));
+    if (result.kind === 'ready') onRowsLoaded?.(result.rows, deriveDocumentIntakeRequirements(deal));
   }, [dealId, deal, onRowsLoaded]);
 
   useEffect(() => {
