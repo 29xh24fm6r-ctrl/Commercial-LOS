@@ -38,10 +38,31 @@ function Ensure-Relationship([hashtable]$d){
   $r=New-DataverseRelationshipIfMissing -RelDef $d -OrgUrl $OrgUrl -Token $token -Apply ([bool]$Apply)
   if($r-eq'created'){$script:created++}elseif($r-eq'present'){$script:present++}else{$script:planned++}
 }
+function Test-Table([string]$table){
+  try {
+    $uri = "$api/EntityDefinitions(LogicalName='$table')?" + '$select=LogicalName'
+    Invoke-RestMethod -Headers $headers -Uri $uri | Out-Null
+    return $true
+  }
+  catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) {
+      return $false
+    }
+
+    throw
+  }
+}
+
 function Test-Key([string]$table,[string]$schema){
-  $filter=[uri]::EscapeDataString("SchemaName eq '$schema'")
-  $uri="$api/EntityDefinitions(LogicalName='$table')/Keys?"+'$select=SchemaName&$filter='+$filter
-  @((Invoke-RestMethod -Headers $headers -Uri $uri).value).Count-gt 0
+  if (-not (Test-Table $table)) {
+    return $false
+  }
+
+  $filter = [uri]::EscapeDataString("SchemaName eq '$schema'")
+  $uri = "$api/EntityDefinitions(LogicalName='$table')/Keys?" +
+    '$select=SchemaName&$filter=' + $filter
+
+  return @((Invoke-RestMethod -Headers $headers -Uri $uri).value).Count -gt 0
 }
 function Ensure-Key([hashtable]$d){
   if(Test-Key $d.table $d.schema){$script:present++;Write-Status $d.schema PASS 'exists (skip)';return}
