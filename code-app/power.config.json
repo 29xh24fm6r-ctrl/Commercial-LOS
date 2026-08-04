@@ -35,6 +35,22 @@
       ],
       "authenticationType": "oauthDefault",
       "dataSets": {}
+    },
+    "2813c4f9-1abd-4da6-8471-4ecc6a314e35": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+      "displayName": "SharePoint",
+      "dataSources": [
+        "documents"
+      ],
+      "dataSets": {
+        "https://oldglory22.sharepoint.com/sites/BusinessLending": {
+          "dataSources": {
+            "documents": {
+              "tableName": "c1a62131-7946-44b9-bb4c-b4637a16f83c"
+            }
+          }
+        }
+      }
     }
   },
   "databaseReferences": {
