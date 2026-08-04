@@ -34,14 +34,74 @@ function Ensure-Column([string]$table,[hashtable]$d){
   Invoke-RestMethod -Method Post -Headers $headers -Uri "$api/EntityDefinitions(LogicalName='$table')/Attributes" -Body ($body|ConvertTo-Json -Depth 12)|Out-Null
   $script:created++;Write-Status "$table.$($d.name)" PASS 'created'
 }
-function Ensure-Relationship([hashtable]$d){
-  $r=New-DataverseRelationshipIfMissing -RelDef $d -OrgUrl $OrgUrl -Token $token -Apply ([bool]$Apply)
-  if($r-eq'created'){$script:created++}elseif($r-eq'present'){$script:present++}else{$script:planned++}
+function Get-LookupTargets([string]$table,[string]$column){
+  $filter = [uri]::EscapeDataString("LogicalName eq '$column'")
+  $uri = "$api/EntityDefinitions(LogicalName='$table')/Attributes/Microsoft.Dynamics.CRM.LookupAttributeMetadata?" +
+    '$select=LogicalName,Targets&$filter=' + $filter
+
+  $value = @((Invoke-RestMethod -Headers $headers -Uri $uri).value)
+
+  if ($value.Count -eq 0) {
+    return @()
+  }
+
+  return @($value[0].Targets)
 }
+
+function Ensure-Relationship([hashtable]$d){
+  $targets = @(Get-LookupTargets -table $d.fromTable -column $d.fromColumn)
+
+  if ($targets.Count -gt 0) {
+    if ($targets -contains $d.toTable) {
+      $script:present++
+      Write-Status $d.schemaName PASS 'compatible lookup exists (skip)'
+      return
+    }
+
+    throw "$($d.fromTable).$($d.fromColumn) already exists but targets [$($targets -join ',')], not $($d.toTable)."
+  }
+
+  $r = New-DataverseRelationshipIfMissing `
+    -RelDef $d `
+    -OrgUrl $OrgUrl `
+    -Token $token `
+    -Apply ([bool]$Apply)
+
+  if ($r -eq 'created') {
+    $script:created++
+  }
+  elseif ($r -eq 'present') {
+    $script:present++
+  }
+  else {
+    $script:planned++
+  }
+}
+function Test-Table([string]$table){
+  try {
+    $uri = "$api/EntityDefinitions(LogicalName='$table')?" + '$select=LogicalName'
+    Invoke-RestMethod -Headers $headers -Uri $uri | Out-Null
+    return $true
+  }
+  catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) {
+      return $false
+    }
+
+    throw
+  }
+}
+
 function Test-Key([string]$table,[string]$schema){
-  $filter=[uri]::EscapeDataString("SchemaName eq '$schema'")
-  $uri="$api/EntityDefinitions(LogicalName='$table')/Keys?"+'$select=SchemaName&$filter='+$filter
-  @((Invoke-RestMethod -Headers $headers -Uri $uri).value).Count-gt 0
+  if (-not (Test-Table $table)) {
+    return $false
+  }
+
+  $filter = [uri]::EscapeDataString("SchemaName eq '$schema'")
+  $uri = "$api/EntityDefinitions(LogicalName='$table')/Keys?" +
+    '$select=SchemaName&$filter=' + $filter
+
+  return @((Invoke-RestMethod -Headers $headers -Uri $uri).value).Count -gt 0
 }
 function Ensure-Key([hashtable]$d){
   if(Test-Key $d.table $d.schema){$script:present++;Write-Status $d.schema PASS 'exists (skip)';return}

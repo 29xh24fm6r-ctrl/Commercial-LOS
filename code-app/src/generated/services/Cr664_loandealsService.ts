@@ -8,7 +8,6 @@ import type { GetEntityMetadataOptions, EntityMetadata } from '@microsoft/power-
 import type { IGetOptions, IGetAllOptions } from '../models/CommonModels';
 import type { IOperationResult } from '@microsoft/power-apps/data';
 import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesInfo';
-import { deserializeMultiSelectPicklistFields, serializeMultiSelectPicklistFields } from '@microsoft/power-apps/data';
 import { getClient } from '@microsoft/power-apps/data';
 
 
@@ -16,28 +15,21 @@ export class Cr664_loandealsService {
   private static readonly dataSourceName = 'cr664_loandeals';
 
   private static readonly client = getClient(dataSourcesInfo);
-  private static readonly multiSelectPicklistFields = ['cr664_relationshipexpansionopportunitytags'] as const;
 
   public static async create(record: Omit<Cr664_loandealsBase, 'cr664_loandealid'>): Promise<IOperationResult<Cr664_loandeals>> {
-    const result = await Cr664_loandealsService.client.createRecordAsync<Record<string, unknown>, Cr664_loandeals>(
+    const result = await Cr664_loandealsService.client.createRecordAsync<Omit<Cr664_loandealsBase, 'cr664_loandealid'>, Cr664_loandeals>(
       Cr664_loandealsService.dataSourceName,
-      serializeMultiSelectPicklistFields(record as unknown as Record<string, unknown>, Cr664_loandealsService.multiSelectPicklistFields)
+      record
     );
-    if (result.data) {
-      deserializeMultiSelectPicklistFields(result.data as unknown as Record<string, unknown>, Cr664_loandealsService.multiSelectPicklistFields);
-    }
     return result;
   }
 
   public static async update(id: string, changedFields: Partial<Omit<Cr664_loandealsBase, 'cr664_loandealid'>>): Promise<IOperationResult<Cr664_loandeals>> {
-    const result = await Cr664_loandealsService.client.updateRecordAsync<Record<string, unknown>, Cr664_loandeals>(
+    const result = await Cr664_loandealsService.client.updateRecordAsync<Partial<Omit<Cr664_loandealsBase, 'cr664_loandealid'>>, Cr664_loandeals>(
       Cr664_loandealsService.dataSourceName,
       id,
-      serializeMultiSelectPicklistFields(changedFields as unknown as Record<string, unknown>, Cr664_loandealsService.multiSelectPicklistFields)
+      changedFields
     );
-    if (result.data) {
-      deserializeMultiSelectPicklistFields(result.data as unknown as Record<string, unknown>, Cr664_loandealsService.multiSelectPicklistFields);
-    }
     return result;
   }
 
@@ -53,9 +45,6 @@ export class Cr664_loandealsService {
       id,
       options
     );
-    if (result.data) {
-      deserializeMultiSelectPicklistFields(result.data as unknown as Record<string, unknown>, Cr664_loandealsService.multiSelectPicklistFields);
-    }
     return result;
   }
 
@@ -64,7 +53,6 @@ export class Cr664_loandealsService {
       Cr664_loandealsService.dataSourceName,
       options
     );
-    result.data?.forEach(record => deserializeMultiSelectPicklistFields(record as unknown as Record<string, unknown>, Cr664_loandealsService.multiSelectPicklistFields));
     return result;
   }
 
