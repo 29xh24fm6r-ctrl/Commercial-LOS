@@ -324,6 +324,18 @@
         "governanceroleassignments": {
           "entitySetName": "cr664_governanceroleassignments",
           "logicalName": "cr664_governanceroleassignment"
+        },
+        "documentrequirementfilemappings": {
+          "entitySetName": "cr664_documentrequirementfilemaps",
+          "logicalName": "cr664_documentrequirementfilemap"
+        },
+        "documentexceptions": {
+          "entitySetName": "cr664_documentexceptions",
+          "logicalName": "cr664_documentexception"
+        },
+        "duediligencedefinitions": {
+          "entitySetName": "cr664_duediligencedefinitions",
+          "logicalName": "cr664_duediligencedefinition"
         }
       },
       "environmentVariableName": ""
