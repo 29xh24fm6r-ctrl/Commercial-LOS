@@ -1,0 +1,10 @@
+import type { CSSProperties } from 'react';
+import { DUE_DILIGENCE_CATALOG, itemShowsUpload, type DueDiligenceSectionKey } from './dueDiligenceCatalog';
+import { palette, radius, spacing, typography } from '../../shared/theme';
+const SECTION: Record<DueDiligenceSectionKey, string> = { APPLICATION_CUSTOMER: 'Application and customer due diligence', CREDIT_UNDERWRITING: 'Credit underwriting', ENTITY: 'Business entity documentation', COLLATERAL: 'Collateral documentation', REAL_ESTATE: 'Real-estate collateral', INSURANCE: 'Insurance', CLOSING: 'Closing documents', PRE_FUNDING: 'Pre-funding verification' };
+export function DueDiligenceChecklist() {
+  return <details style={styles.root} data-due-diligence-checklist><summary style={styles.summary}><strong>Due Diligence and Closing</strong><span>Required after underwriting approval</span></summary>
+    {Object.entries(SECTION).map(([key, label]) => <section key={key} style={styles.section}><h4 style={styles.title}>{label}</h4><ul style={styles.list}>{DUE_DILIGENCE_CATALOG.filter((row) => row.section === key).map((row) => <li key={row.key} style={styles.row}><span>{row.name}</span><span style={styles.type}>{row.type.replaceAll('_', ' ')}</span><button type="button" disabled aria-label={`${row.name} ${itemShowsUpload(row.type) ? 'upload unavailable' : 'completion unavailable'}`}>{itemShowsUpload(row.type) ? 'Upload' : 'Complete'}</button></li>)}</ul></section>)}
+  </details>;
+}
+const styles: Record<string, CSSProperties> = { root: { border: `1px solid ${palette.border}`, borderRadius: radius.md, padding: spacing.md, background: palette.surfaceAlt }, summary: { display: 'flex', justifyContent: 'space-between', cursor: 'pointer', color: palette.text }, section: { marginTop: spacing.md }, title: { margin: `0 0 ${spacing.xs}`, fontSize: typography.size.sm, color: palette.text }, list: { listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: spacing.xxs }, row: { display: 'grid', gridTemplateColumns: '1fr 180px 90px', gap: spacing.sm, alignItems: 'center', color: palette.text, fontSize: typography.size.sm }, type: { color: palette.textMuted, fontSize: typography.size.xs } };

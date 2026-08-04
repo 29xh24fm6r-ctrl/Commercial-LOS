@@ -47,6 +47,10 @@ import {
   type DownloadDocumentFileOutcome,
 } from './documentDownloadAction';
 import { buildLiveDocumentDownloadDeps } from './documentDownloadLiveDeps';
+import { DocumentIntakeSummary } from './documentIntake/DocumentIntakeSummary';
+import { SharePointLoanFolderCard } from './documentIntake/SharePointLoanFolderCard';
+import { DueDiligenceChecklist } from './documentIntake/DueDiligenceChecklist';
+import type { UnderwritingIntakeReadiness } from './documentIntake/documentIntakeReadiness';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
@@ -362,9 +366,20 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     outstandingCount === 0 && missingRequiredDocuments.length === 0
       ? 'clear'
       : 'atRisk';
+  const intakeReadiness: UnderwritingIntakeReadiness = {
+    status: 'CONFIGURATION_REQUIRED',
+    totalApplicable: requirementDefinitions.length,
+    received: 0,
+    pendingReview: receivedCount,
+    outstanding: Math.max(requirementDefinitions.length, outstandingCount),
+    approvedExceptions: requirementRows.filter((row) => row.status === 'waived').length,
+    blockers: ['SharePoint Online generated service and persisted folder/file schema are required before production readiness can be derived.'],
+  };
 
   return (
     <>
+      <DocumentIntakeSummary companyLegalName={deal.effectiveClientName ?? deal.clientName} dealNumber={deal.name} readiness={intakeReadiness} />
+      <SharePointLoanFolderCard status="CONFIGURATION_REQUIRED" canCreate={false} />
       <Card anchorSurface="Documents">
         <WidgetHeader
           title="Documents"
@@ -403,7 +418,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
               style={styles.addDocButton}
               data-add-required-document
             >
-              + Record receipt without file
+              + Add required document
             </button>
             {missingRequiredDocuments.length > 0 && (
               <span style={styles.docActionHint} data-add-required-document-missing>
@@ -441,6 +456,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
             collateralSummary: deal.collateralSummary,
             industry: deal.industry,
             stage: deal.stage,
+            documentPackageDate: deal.createdOn,
           }}
           banker={{ systemUserId: banker.systemUserId, email: banker.email, fullName: banker.fullName }}
           reloadToken={requirementReloadToken}
@@ -496,6 +512,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           onClose={() => setPendingReviewTaskDoc(null)}
         />
       )}
+      <DueDiligenceChecklist />
     </>
   );
 }

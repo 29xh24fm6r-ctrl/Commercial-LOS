@@ -1,0 +1,13 @@
+import { describe, expect, it, vi } from 'vitest';
+import { ensureDealSharePointFolder } from './dealSharePointFolderAction';
+import type { DealDocumentStoragePersistence } from './dealDocumentStoragePersistence';
+import type { DealSharePointDocumentPort } from './dealSharePointDocumentPort';
+import type { DealSharePointFolderIdentity } from './dealDocumentStorageTypes';
+const folder: DealSharePointFolderIdentity = { dealId: 'd1', borrowerIdentity: 'b1', siteUrl: 'https://sp', libraryName: 'Shared Documents', annualFolderPath: '/(a) Loans/2026 Loans', companyFolderPath: '/(a) Loans/2026 Loans/Acme', folderUrl: 'https://sp/f', status: 'READY', createdOn: '2026-01-01', createdBy: 'u1', lastVerifiedOn: '2026-01-01', namingSource: 'BORROWER_LEGAL_NAME', configurationVersion: '1' };
+const request = { dealId: 'd1', borrowerIdentity: 'b1', siteUrl: 'https://sp', libraryName: 'Shared Documents', annualFolderPath: folder.annualFolderPath, companyFolderPath: folder.companyFolderPath, actorSystemUserId: 'u1', correlationId: 'c1' };
+function deps(existing?: DealSharePointFolderIdentity) { let persisted = existing; const persistence: DealDocumentStoragePersistence = { loadFolder: vi.fn(async () => persisted), findFolderOwner: vi.fn(async () => undefined), persistFolder: vi.fn(async (value) => { persisted = value; }), loadActiveFile: vi.fn(), persistFile: vi.fn(), mapFileToRequirements: vi.fn(), loadExceptions: vi.fn(async () => []) }; const connector: DealSharePointDocumentPort = { ensureFolder: vi.fn(async () => ({ ok: true as const, folder, created: true })), upload: vi.fn(), verifyFolder: vi.fn(async () => true), verifyFile: vi.fn(async () => true) }; return { persistence, connector }; }
+describe('ensure deal SharePoint folder', () => {
+  it('returns the same verified persisted folder on repeat', async () => { const d = deps(folder); expect(await ensureDealSharePointFolder({ mode: 'LIVE', authorized: true, request }, d)).toMatchObject({ kind: 'ready', created: false }); expect(d.connector.ensureFolder).not.toHaveBeenCalled(); });
+  it('does not create anything in DRY_RUN', async () => { const d = deps(); expect(await ensureDealSharePointFolder({ mode: 'DRY_RUN', authorized: true, request }, d)).toMatchObject({ kind: 'dry_run' }); expect(d.connector.ensureFolder).not.toHaveBeenCalled(); });
+  it('blocks an existing path owned by another deal', async () => { const d = deps(); d.persistence.findFolderOwner = vi.fn(async () => ({ dealId: 'other', borrowerIdentity: 'other' })); expect(await ensureDealSharePointFolder({ mode: 'LIVE', authorized: true, request }, d)).toMatchObject({ kind: 'blocked' }); });
+});

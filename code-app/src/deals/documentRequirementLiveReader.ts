@@ -8,7 +8,8 @@
  * convention as every other *LiveDeps/*LiveReader module in this family.
  */
 
-import { deriveRequiredDocuments, type DocumentRequirementDerivationInput } from './documentRequirementDerivation';
+import type { DocumentRequirementDerivationInput } from './documentRequirementDerivation';
+import { deriveDocumentIntakeRequirements } from './documentIntake/documentIntakeRequirements';
 import {
   reconcileDocumentRequirements,
   type LiveDocumentChecklistRow,
@@ -52,7 +53,7 @@ function toLiveRow(raw: RawChecklistRow): LiveDocumentChecklistRow {
 
 export async function loadDocumentRequirements(input: {
   dealId: string;
-  deal: DocumentRequirementDerivationInput;
+  deal: DocumentRequirementDerivationInput & { readonly documentPackageDate?: string };
 }): Promise<DocumentRequirementLoadResult> {
   try {
     const { Cr664_documentchecklistsService } = await import(
@@ -65,7 +66,7 @@ export async function loadDocumentRequirements(input: {
       return { kind: 'failed', message: res.error?.message ?? 'Could not load document requirements.' };
     }
     const liveRows = ((res.data ?? []) as unknown as RawChecklistRow[]).map(toLiveRow);
-    const derived = deriveRequiredDocuments(input.deal);
+    const derived = deriveDocumentIntakeRequirements(input.deal);
     const rows = reconcileDocumentRequirements(derived, liveRows);
     return { kind: 'ready', rows };
   } catch (err: unknown) {
