@@ -4,7 +4,7 @@
 
 - Storage mode defaults to `DRY_RUN`.
 - The SharePoint Documents list data source is registered and `DocumentsService` is generated, but it exposes list-item CRUD onlyâ€”not folder creation or binary upload.
-- The server implementation is ready, but immutable IDs, permission evidence, connector generation/binding, configuration certification, and real-file smoke evidence are unresolved. Browser folder creation and file upload continue to fail closed.
+- The server source and SP-A3 Azure Function/IaC/custom-connector definitions are implemented. Infrastructure is not applied; runtime identity, site-scoped permission evidence, durable-store and Dataverse-authorization certification, connector registration, generated SDK inspection, final configuration hash, and real-file smoke evidence remain unresolved. Browser folder creation and file upload continue to fail closed.
 - The existing Dataverse File-column path remains visible as legacy history and does not satisfy the SharePoint-native readiness model.
 
 ## Operator sequence

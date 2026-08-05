@@ -18,5 +18,18 @@
   "graphReadbackVerified": false,
   "orphanReconciliationVerified": false,
   "resolvedOn": null,
-  "resolvedBy": null
+  "resolvedBy": null,
+  "infrastructureDefined": true,
+  "infrastructureApplied": false,
+  "runtimeIdentityResolved": false,
+  "permissionGrantApplied": false,
+  "permissionGrantReadBack": false,
+  "functionAuthenticationVerified": false,
+  "durableLedgerConfigured": false,
+  "connectorDefinitionReady": true,
+  "connectorRegistered": false,
+  "generatedSdkInspected": false,
+  "configurationHashPinned": false,
+  "realFileSmokeVerified": false,
+  "liveActivated": false
 }

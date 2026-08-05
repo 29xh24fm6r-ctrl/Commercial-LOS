@@ -1,0 +1,44 @@
+{
+    "$schema":  "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion":  "1.0.0.0",
+    "parameters":  {
+                       "environmentName":  {
+                                               "value":  "UNRESOLVED"
+                                           },
+                       "location":  {
+                                        "value":  "UNRESOLVED"
+                                    },
+                       "functionAppName":  {
+                                               "value":  "UNRESOLVED"
+                                           },
+                       "storageAccountName":  {
+                                                  "value":  "UNRESOLVED"
+                                              },
+                       "applicationInsightsName":  {
+                                                       "value":  "UNRESOLVED"
+                                                   },
+                       "allowedOrigins":  {
+                                              "value":  [
+
+                                                        ]
+                                          },
+                       "configurationVersion":  {
+                                                    "value":  "UNRESOLVED"
+                                                },
+                       "connectorIdentity":  {
+                                                 "value":  "UNRESOLVED"
+                                             },
+                       "permissionGrantEvidenceId":  {
+                                                         "value":  "UNRESOLVED"
+                                                     },
+                       "configurationHash":  {
+                                                 "value":  "UNRESOLVED"
+                                             },
+                       "dataverseAuthorizationAdapter":  {
+                                                             "value":  "UNRESOLVED"
+                                                         },
+                       "runtimeIdentity":  {
+                                               "value":  "UNRESOLVED"
+                                           }
+                   }
+}
