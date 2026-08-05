@@ -36,7 +36,7 @@ export const ORIGINATION_DOCUMENT_INTAKE_CAPABILITIES: readonly OriginationDocum
   {
     id: 'origination-sharepoint-live-storage',
     state: 'BLOCKED_EXTERNAL',
-    evidence: ['src/deals/documentStorage/dealSharePointConnectorAdapter.ts', 'src/generated/services/DocumentsService.ts', 'src/deals/documentStorage/dealSharePointNativeTransport.ts'],
-    blocker: 'DocumentsService exposes list-item CRUD only. The approved binary transport must be configured, generated, read back, and real-file certified before LIVE.',
+    evidence: ['src/deals/documentStorage/dealSharePointConnectorAdapter.ts', 'src/generated/services/DocumentsService.ts', 'src/deals/documentStorage/dealSharePointNativeTransport.ts', 'microsoft365/sharepoint-transport/host/sharePointTransportHost.ts', 'scripts/microsoft365/resolve-origination-sharepoint-identifiers.ps1'],
+    blocker: 'The authenticated server transport is implemented, but immutable Graph IDs, permission evidence, connector generation/binding, certified configuration, and a real-file smoke remain external requirements before LIVE.',
   },
 ]);
