@@ -1,0 +1,21 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "OGB Governed Origination SharePoint Transport", "version": "ogb-deal-sharepoint/v1" },
+  "servers": [{ "url": "https://UNRESOLVED" }],
+  "security": [{ "entraOAuth": [] }],
+  "components": {
+    "securitySchemes": {
+      "entraOAuth": { "type": "oauth2", "flows": { "authorizationCode": { "authorizationUrl": "https://login.microsoftonline.com/e5d2be43-2e2c-4968-b5f3-c73dd825ee80/oauth2/v2.0/authorize", "tokenUrl": "https://login.microsoftonline.com/e5d2be43-2e2c-4968-b5f3-c73dd825ee80/oauth2/v2.0/token", "scopes": {} } } }
+    },
+    "schemas": {
+      "Base": { "type": "object", "required": ["contractVersion", "dealId", "correlationId", "borrowerIdentity"], "properties": { "contractVersion": { "const": "ogb-deal-sharepoint/v1" }, "dealId": { "type": "string" }, "correlationId": { "type": "string" }, "borrowerIdentity": { "type": "string" } }, "additionalProperties": false },
+      "TransportFailure": { "type": "object", "required": ["ok", "code", "reason", "correlationId"], "properties": { "ok": { "const": false }, "code": { "type": "string" }, "reason": { "type": "string" }, "correlationId": { "type": "string" }, "fileMayExist": { "type": "boolean", "description": "True when upload may have completed but exact readback did not." } } }
+    }
+  },
+  "paths": {
+    "/api/sharepoint/ensureFolder": { "post": { "operationId": "ensureFolder", "security": [{ "entraOAuth": [] }], "parameters": [{ "in": "header", "name": "x-correlation-id", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/Base" }, { "type": "object", "required": ["borrowerLegalName", "loanYear", "annualFolderPath", "companyFolderPath"], "properties": { "borrowerLegalName": { "type": "string" }, "loanYear": { "type": "integer" }, "annualFolderPath": { "type": "string" }, "companyFolderPath": { "type": "string" } } }] } } } }, "responses": { "200": { "description": "Exact folder identity verified" }, "409": { "description": "Collision or fail-closed response" } } } },
+    "/api/sharepoint/upload": { "post": { "operationId": "upload", "security": [{ "entraOAuth": [] }], "parameters": [{ "in": "header", "name": "x-correlation-id", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/Base" }, { "type": "object", "required": ["documentId", "requirementIds", "folder", "storedFileName", "originalFileName", "mimeType", "contentBase64"], "properties": { "documentId": { "type": "string" }, "requirementIds": { "type": "array", "items": { "type": "string" } }, "folder": { "type": "object" }, "storedFileName": { "type": "string" }, "originalFileName": { "type": "string" }, "mimeType": { "type": "string" }, "contentBase64": { "type": "string", "format": "byte", "description": "Binary file bytes encoded as base64." } } }] } } } }, "responses": { "200": { "description": "Exact file identity verified" }, "409": { "description": "Collision or fail-closed response; fileMayExist may be true" } } } },
+    "/api/sharepoint/verifyFolder": { "post": { "operationId": "verifyFolder", "security": [{ "entraOAuth": [] }], "parameters": [{ "in": "header", "name": "x-correlation-id", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/Base" }, { "type": "object", "required": ["folder"], "properties": { "folder": { "type": "object" } } }] } } } }, "responses": { "200": { "description": "Folder readback verified" }, "409": { "description": "Fail closed" } } } },
+    "/api/sharepoint/verifyFile": { "post": { "operationId": "verifyFile", "security": [{ "entraOAuth": [] }], "parameters": [{ "in": "header", "name": "x-correlation-id", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/Base" }, { "type": "object", "required": ["reference"], "properties": { "reference": { "type": "object" } } }] } } } }, "responses": { "200": { "description": "File readback verified" }, "409": { "description": "Fail closed" } } } }
+  }
+}

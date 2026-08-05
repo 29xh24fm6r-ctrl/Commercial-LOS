@@ -1,4 +1,4 @@
-﻿{
+{
   "contractVersion": "ogb-deal-sharepoint/v1",
   "status": "IDENTIFIERS_RESOLVED_NOT_ACTIVATED",
   "tenantId": "e5d2be43-2e2c-4968-b5f3-c73dd825ee80",
@@ -20,5 +20,15 @@
   "graphReadbackVerified": false,
   "orphanReconciliationVerified": false,
   "realFileSmokeVerified": false,
-  "liveActivated": false
+  "liveActivated": false,
+  "infrastructureDefined": true,
+  "infrastructureApplied": false,
+  "runtimeIdentityResolved": false,
+  "permissionGrantApplied": false,
+  "permissionGrantReadBack": false,
+  "functionAuthenticationVerified": false,
+  "durableLedgerConfigured": false,
+  "connectorDefinitionReady": true,
+  "connectorRegistered": false,
+  "configurationHashPinned": false
 }
