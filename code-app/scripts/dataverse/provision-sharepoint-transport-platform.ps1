@@ -78,8 +78,20 @@ $columns=@(
   @{n='cr664_lastreconciledon';l='Last Reconciled On';t='DateTime';r=$false}
 )
 if($columns.Count -ne 22){throw 'Internal column plan must contain exactly 22 columns.'}
-function Get-Column([string]$n){
-  try{ApiGet ("EntityDefinitions(LogicalName='$TableName')/Attributes(LogicalName='$n')?"+'$select=LogicalName,AttributeType,MaxLength,RequiredLevel')}catch{if($_.Exception.Response.StatusCode.value__ -eq 404){return $null};throw}
+function Get-Column([string]$n,[string]$type){
+  try {
+    if($type -eq 'String'){
+      $path = "EntityDefinitions(LogicalName='$TableName')/Attributes(LogicalName='$n')/Microsoft.Dynamics.CRM.StringAttributeMetadata?" +
+        '$select=LogicalName,AttributeType,MaxLength,RequiredLevel'
+    } else {
+      $path = "EntityDefinitions(LogicalName='$TableName')/Attributes(LogicalName='$n')?" +
+        '$select=LogicalName,AttributeType,RequiredLevel'
+    }
+    ApiGet $path
+  } catch {
+    if($_.Exception.Response.StatusCode.value__ -eq 404){return $null}
+    throw
+  }
 }
 function Assert-Column($a,$p){
   if([string]$a.AttributeType -ne [string]$p.t){throw "$TableName.$($p.n) type is $($a.AttributeType), expected $($p.t)."}
@@ -105,7 +117,17 @@ function Get-Key{
   $rows=@((ApiGet ("EntityDefinitions(LogicalName='$TableName')/Keys?"+'$select=SchemaName,KeyAttributes,EntityKeyIndexStatus,MetadataId&$filter='+$filter)).value)
   if($rows.Count -eq 0){return $null};if($rows.Count -ne 1){throw "Key $KeyName is ambiguous."};$rows[0]
 }
-function KeyStatus($s){switch([int]$s){0{'Pending'}1{'In Progress'}2{'Active'}3{'Failed'}default{"Unknown ($s)"}}}
+function KeyStatus($s){
+  $value = [string]$s
+
+  switch -Regex ($value.Trim()) {
+    '^(0|Pending)$' { return 'Pending' }
+    '^(1|In Progress|InProgress)$' { return 'In Progress' }
+    '^(2|Active)$' { return 'Active' }
+    '^(3|Failed)$' { return 'Failed' }
+    default { return "Unknown ($value)" }
+  }
+}
 function Assert-Key($k,[bool]$active){
   if(@($k.KeyAttributes).Count -ne 1 -or [string]$k.KeyAttributes[0] -ne 'cr664_idempotencykey'){throw 'Alternate key attributes differ.'}
   $status=KeyStatus $k.EntityKeyIndexStatus
@@ -128,7 +150,14 @@ function Ensure-Component([string]$label,[string]$id,[int]$type,[bool]$noSubs){
   if(Has-Component $type $id){Mark $label PASS 'member of CommercialLendingLOS';return}
   if($Mode -eq 'Verify'){throw "$label is not a member of CommercialLendingLOS."}
   if(-not $Apply){Mark $label PLAN 'WOULD ADD to CommercialLendingLOS';return}
-  $body=@{ComponentId=$id;ComponentType=$type;SolutionUniqueName=$TargetSolutionName;AddRequiredComponents=$true;DoNotIncludeSubcomponents=$noSubs;IncludedComponentSettingsValues=@()}
+  $doNotIncludeSubcomponents = ($type -eq 1)
+  $body=@{
+    ComponentId=$id
+    ComponentType=$type
+    SolutionUniqueName=$TargetSolutionName
+    AddRequiredComponents=$false
+    DoNotIncludeSubcomponents=$doNotIncludeSubcomponents
+  }
   try{ApiPost 'AddSolutionComponent' $body|Out-Null}catch{if(-not(Has-Component $type $id)){throw}}
   if(-not(Has-Component $type $id)){throw "$label solution registration failed."}
   Mark $label REGISTERED 'added to CommercialLendingLOS'
@@ -190,7 +219,7 @@ elseif($Mode -eq 'Verify'){throw "$TableName is missing."}
 elseif(-not $Apply){Mark $TableName PLAN 'WOULD CREATE in LoanOpsExport'}
 else{New-Table;Mark $TableName CREATED 'created in LoanOpsExport';$table=Get-Table;if(-not $table){throw 'Table readback failed.'};Assert-Table $table}
 foreach($p in $columns){
-  $a=if(Get-Table){Get-Column $p.n}else{$null}
+  $a=if(Get-Table){Get-Column $p.n $p.t}else{$null}
   if($a){Assert-Column $a $p;Mark "$TableName.$($p.n)" PASS 'column exists and matches'}
   elseif($Mode -eq 'Verify'){throw "$TableName.$($p.n) is missing."}
   elseif(-not $Apply){Mark "$TableName.$($p.n)" PLAN "WOULD CREATE $($p.t)"}
