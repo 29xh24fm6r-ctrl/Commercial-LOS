@@ -38,7 +38,7 @@ export interface DealSharePointDocumentPort {
 
 export const unavailableDealSharePointDocumentPort: DealSharePointDocumentPort = {
   async ensureFolder() {
-    return { ok: false, kind: 'configuration_required', reason: 'SharePoint Online generated service is not registered for this Code App.' };
+    return { ok: false, kind: 'configuration_required', reason: 'The SharePoint list data source is registered, but the governed Power Automate folder transport is not configured.' };
   },
   async upload() {
     return { ok: false, kind: 'configuration_required', reason: 'The SharePoint list data source is registered, but a verified binary file transport is not configured.', fileMayExist: false };

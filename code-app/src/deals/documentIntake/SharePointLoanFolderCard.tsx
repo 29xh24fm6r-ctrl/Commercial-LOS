@@ -7,7 +7,7 @@ export function SharePointLoanFolderCard({ status, folder, canCreate, onCreate, 
   const open = () => { if (folder?.status === 'READY' && folder.folderUrl) window.open(folder.folderUrl, '_blank', 'noopener,noreferrer'); };
   const copy = async () => { if (folder?.status === 'READY' && folder.folderUrl) await navigator.clipboard.writeText(folder.folderUrl); };
   return <section style={styles.card} aria-label="SharePoint loan folder" data-sharepoint-loan-folder-status={status}>
-    <div><p style={styles.eyebrow}>SharePoint loan folder</p><h3 style={styles.title}>{LABEL[status]}</h3><p style={styles.detail}>{folder?.companyFolderPath ?? 'Business Lending / Shared Documents / (a) Loans — generated connector not registered.'}</p></div>
+    <div><p style={styles.eyebrow}>SharePoint loan folder</p><h3 style={styles.title}>{LABEL[status]}</h3><p style={styles.detail}>{folder?.companyFolderPath ?? 'Business Lending / Documents / (a) Loans — list data source registered; live file transport not configured.'}</p></div>
     <div style={styles.actions}>
       {status === 'NOT_CREATED' && <button disabled={!canCreate} onClick={onCreate}>Create SharePoint Loan Folder</button>}
       {status === 'FAILED' && <button disabled={!canCreate} onClick={onRetry}>Retry Folder Creation</button>}
