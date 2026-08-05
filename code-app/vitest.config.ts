@@ -35,7 +35,10 @@ export default defineConfig({
     // opt into jsdom via `// @vitest-environment jsdom` at the top
     // of the file (used by ResolveFlagModal.test.tsx).
     environment: 'node',
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: [
+      'src/**/*.{test,spec}.{ts,tsx}',
+      'microsoft365/sharepoint-transport/**/*.{test,spec}.ts',
+    ],
     setupFiles: ['src/setupTests.ts'],
     // Phase 66 stability bump. Several jsdom + userEvent.type tests
     // intermittently hit the Vitest 5s default ceiling under heavy

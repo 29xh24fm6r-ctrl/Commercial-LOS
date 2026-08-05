@@ -1,0 +1,22 @@
+{
+  "contractVersion": "ogb-deal-sharepoint/v1",
+  "status": "UNRESOLVED_DO_NOT_ACTIVATE",
+  "tenantId": null,
+  "graphSiteId": null,
+  "graphDriveId": null,
+  "governedRootItemId": null,
+  "verifiedRootPath": "/(a) Loans",
+  "siteUrl": "https://oldglory22.sharepoint.com/sites/BusinessLending",
+  "libraryId": "c1a62131-7946-44b9-bb4c-b4637a16f83c",
+  "connectorIdentity": null,
+  "runtimeIdentity": null,
+  "permissionGrantEvidenceId": null,
+  "configurationVersion": null,
+  "configurationHash": null,
+  "authenticatedActorResolutionVerified": false,
+  "serverAuthorizationVerified": false,
+  "graphReadbackVerified": false,
+  "orphanReconciliationVerified": false,
+  "resolvedOn": null,
+  "resolvedBy": null
+}

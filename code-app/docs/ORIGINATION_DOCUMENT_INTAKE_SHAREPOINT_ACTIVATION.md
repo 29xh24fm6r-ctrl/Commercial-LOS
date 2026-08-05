@@ -1,20 +1,21 @@
-# Origination Document Intake — SharePoint activation
+# Origination Document Intake â€” SharePoint activation
 
 ## Current state
 
 - Storage mode defaults to `DRY_RUN`.
-- The SharePoint Documents list data source is registered and `DocumentsService` is generated, but it exposes list-item CRUD only—not folder creation or binary upload.
-- Folder creation and file upload fail closed.
+- The SharePoint Documents list data source is registered and `DocumentsService` is generated, but it exposes list-item CRUD onlyâ€”not folder creation or binary upload.
+- The server implementation is ready, but immutable IDs, permission evidence, connector generation/binding, configuration certification, and real-file smoke evidence are unresolved. Browser folder creation and file upload continue to fail closed.
 - The existing Dataverse File-column path remains visible as legacy history and does not satisfy the SharePoint-native readiness model.
 
 ## Operator sequence
 
 1. Preserve the registered Business Lending `DocumentsService`; do not use its generic `create` method as binary upload.
-2. Configure the approved authenticated Microsoft-native boundary described in `microsoft365/power-automate/origination-sharepoint-file-transport-contract.json`.
-3. Resolve and pin the real Graph site ID and drive ID, verify server-side user/deal authorization, and configure idempotency plus orphan reconciliation.
-4. Add the resulting connector/flow data source and regenerate the Code App SDK. Do not edit `src/generated` manually.
-5. Record the exact generated service and operation signatures, then implement the thin `DealSharePointNativeClient` wrapper without guessing names.
-6. Pin the verified configuration hash and complete configuration/readback checks in `dealSharePointNativeTransport.ts`.
+2. Run the read-only `scripts/microsoft365/resolve-origination-sharepoint-identifiers.ps1` discovery and approve its machine-readable evidence.
+3. Provision the implemented `microsoft365/sharepoint-transport` boundary with Entra authentication and least-privilege Graph site access.
+4. Resolve and pin the real Graph site ID and drive ID, verify server-side user/deal authorization, and configure idempotency plus orphan reconciliation.
+5. Add the resulting connector/flow data source and regenerate the Code App SDK. Do not edit `src/generated` manually.
+6. Record the exact generated service and operation signatures, then implement the thin `DealSharePointNativeClient` wrapper without guessing names.
+7. Pin the verified configuration hash and complete configuration/readback checks in `dealSharePointNativeTransport.ts`.
 8. Configure the independent gates only after readback:
    - `VITE_DEAL_DOCUMENT_STORAGE_MODE=LIVE`
    - `DEAL_SHAREPOINT_FOLDER_CREATION_ENABLED=true`
