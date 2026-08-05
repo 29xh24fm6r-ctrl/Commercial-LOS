@@ -1,37 +1,74 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
-  [ValidateSet('Export','Unpack','Validate','Pack','Import','Publish','Verify')][string]$Action='Validate',
+  [ValidateSet('Export','Validate','Pack','Import','Publish','Verify')][string]$Action='Validate',
   [string]$EnvironmentUrl='https://org3a57b8d4.crm.dynamics.com',
   [string]$SolutionName='CommercialLendingLOS',
   [string]$SolutionFolder,
   [string]$PackagePath,
+  [string]$PlatformGeneratedComponentFolder,
   [switch]$Apply
 )
 $ErrorActionPreference='Stop'
 $repoRoot=(Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 if(-not $SolutionFolder){$SolutionFolder=Join-Path $repoRoot 'power-platform\solutions\CommercialLendingLOS'}
-if(-not $PackagePath){$PackagePath=Join-Path $repoRoot 'artifacts\CommercialLendingLOS_PA1_unmanaged.zip'}
-$expected='https://org3a57b8d4.crm.dynamics.com'
-if($EnvironmentUrl.TrimEnd('/') -ne $expected){ throw "Target environment must be explicit and equal $expected" }
-$mutating=$Action -in @('Export','Import','Publish')
-if($mutating -and -not $Apply){ throw "$Action requires -Apply. No tenant mutation was performed." }
-$flow=Join-Path $SolutionFolder 'Workflows\OGBOriginationSharePointTransport-9448AC11-F490-F111-8076-7CED8D3BAFD4.json'
-$recon=Join-Path $SolutionFolder 'Workflows\OGBOriginationSharePointTransportReconciliation-F4637494-69F5-4D79-9F8B-0BE46A36E71F.json'
-function Test-Source {
- $f=Get-Content $flow -Raw|ConvertFrom-Json; $r=Get-Content $recon -Raw|ConvertFrom-Json
- $required=@('operation','dealId','correlationId','idempotencyKey')
- if((Compare-Object $required $f.properties.definition.triggers.manual.inputs.schema.required)){throw 'Trigger required fields differ.'}
- if($f.properties.definition.actions.Governed_fail_closed_response.inputs.errorCode -ne 'AUTHORIZATION_ADAPTER_UNRESOLVED'){throw 'Flow is not fail closed.'}
- if($r.properties.definition.triggers.recurrence.recurrence.startTime -ne '2099-01-01T00:00:00Z'){throw 'Reconciliation is not development-safe.'}
- if((Get-Content $SolutionFolder\Other\Customizations.xml -Raw) -match 'connectionId|access.token|client.secret'){throw 'Possible secret or connection ID found.'}
- [pscustomobject]@{valid=$true;transportMode='DRY_RUN';liveEnabled=$false;workflowId='9448ac11-f490-f111-8076-7ced8d3bafd4';reconciliationWorkflowId='f4637494-69f5-4d79-9f8b-0be46a36e71f'}
+if(-not $PackagePath){$PackagePath=Join-Path $repoRoot 'artifacts\CommercialLendingLOS_PA2_unmanaged.zip'}
+$expectedEnvironment='https://org3a57b8d4.crm.dynamics.com'
+if($EnvironmentUrl.TrimEnd('/') -ne $expectedEnvironment){throw "Environment lock failed. Expected $expectedEnvironment"}
+if($Action -in @('Import','Publish') -and -not $Apply){throw "$Action requires -Apply. No tenant mutation was performed."}
+$flowNames=@(
+ 'OGBOriginationSharePointTransport-9448AC11-F490-F111-8076-7CED8D3BAFD4.json',
+ 'OGBOriginationSharePointTransportReconciliation-F4637494-69F5-4D79-9F8B-0BE46A36E71F.json'
+)
+$manifestPath=Join-Path $SolutionFolder 'PowerAutomateOwned\activation-manifest.json'
+function Test-Pa2Source {
+ if(-not(Test-Path $manifestPath)){throw 'PA-2 activation manifest is missing.'}
+ $manifest=Get-Content $manifestPath -Raw|ConvertFrom-Json
+ if($manifest.defaultTransportMode -ne 'DRY_RUN'){throw 'DRY_RUN must remain the source default.'}
+ if($manifest.environmentLock -ne $expectedEnvironment){throw 'Manifest environment lock differs.'}
+ if($manifest.ledger.schemaName -ne 'new_ogbsharepointtransportledger'){throw 'Ledger declaration differs.'}
+ if($manifest.ledger.uniqueKey.Count -ne 1 -or $manifest.ledger.uniqueKey[0] -ne 'new_idempotencykey'){throw 'Ledger idempotency key differs.'}
+ foreach($name in $flowNames){if(-not(Test-Path (Join-Path $SolutionFolder "Workflows\$name"))){throw "Missing curated workflow $name"}}
+ $transport=Get-Content (Join-Path $SolutionFolder "Workflows\$($flowNames[0])") -Raw|ConvertFrom-Json
+ if($transport.properties.definition.actions.Governed_fail_closed_response.inputs.errorCode -ne 'ACTOR_IDENTITY_CONTEXT_UNAVAILABLE'){throw 'Transport is not blocked on trusted actor context.'}
+ if($transport.properties.definition.actions.Governed_fail_closed_response.inputs.contractVersion -ne 'ogb-deal-sharepoint/v2'){throw 'Contract version differs.'}
+ $reconciliation=Get-Content (Join-Path $SolutionFolder "Workflows\$($flowNames[1])") -Raw|ConvertFrom-Json
+ if($reconciliation.properties.definition.triggers.recurrence.recurrence.startTime -ne '2099-01-01T00:00:00Z'){throw 'Reconciliation is not development-safe.'}
+ $forbidden=Get-ChildItem $SolutionFolder -Directory|Where-Object Name -in @('CanvasApps','Entities','WebResources','Roles','OptionSets')
+ if($forbidden){throw "Curated overlay contains forbidden full-solution directories: $($forbidden.Name -join ', ')"}
+ $text=(Get-Content $manifestPath -Raw)+(Get-Content (Join-Path $SolutionFolder 'Workflows\*.json') -Raw)
+ if($text -match '(?i)access[_-]?token|client[_-]?secret|password|connectionId'){throw 'Possible secret or instance connection ID found.'}
+ [pscustomobject]@{valid=$true;environment=$expectedEnvironment;transportMode='DRY_RUN';liveEnabled=$false;workflowCount=2;requiresPlatformGeneratedArtifacts=$manifest.platformGeneratedArtifactsRequired}
+}
+function Copy-PaOwnedOverlay([string]$Destination) {
+ $workflowDestination=Join-Path $Destination 'Workflows';New-Item -ItemType Directory -Force $workflowDestination|Out-Null
+ foreach($name in $flowNames){Copy-Item -LiteralPath (Join-Path $SolutionFolder "Workflows\$name") -Destination (Join-Path $workflowDestination $name) -Force}
+ if(-not $PlatformGeneratedComponentFolder){throw 'Pack requires -PlatformGeneratedComponentFolder containing reviewed platform exports for environment variables, ledger, and connector actions.'}
+ if(-not(Test-Path $PlatformGeneratedComponentFolder)){throw 'Platform-generated component folder was not found.'}
+ Copy-Item -Path (Join-Path $PlatformGeneratedComponentFolder '*') -Destination $Destination -Recurse -Force
 }
 switch($Action){
- 'Export' { pac solution export --environment $EnvironmentUrl --name $SolutionName --path $PackagePath --overwrite }
- 'Unpack' { pac solution unpack --zipfile $PackagePath --folder $SolutionFolder --packagetype Unmanaged }
- 'Validate' { Test-Source|ConvertTo-Json }
- 'Pack' { Test-Source|Out-Null; New-Item -ItemType Directory -Force ([IO.Path]::GetDirectoryName($PackagePath))|Out-Null; pac solution pack --folder $SolutionFolder --zipfile $PackagePath --packagetype Unmanaged }
- 'Import' { pac solution import --environment $EnvironmentUrl --path $PackagePath --publish-changes }
- 'Publish' { pac solution publish --environment $EnvironmentUrl }
- 'Verify' { pac solution list --environment $EnvironmentUrl; Test-Source|ConvertTo-Json }
+ 'Export' {
+   New-Item -ItemType Directory -Force ([IO.Path]::GetDirectoryName($PackagePath))|Out-Null
+   pac solution export --environment $EnvironmentUrl --name $SolutionName --path $PackagePath --overwrite
+ }
+ 'Validate' {Test-Pa2Source|ConvertTo-Json -Depth 8}
+ 'Pack' {
+   Test-Pa2Source|Out-Null
+   if(-not $PlatformGeneratedComponentFolder){throw 'Pack requires -PlatformGeneratedComponentFolder containing reviewed platform exports for environment variables, ledger, and connector actions.'}
+   if(-not(Test-Path $PlatformGeneratedComponentFolder)){throw 'Platform-generated component folder was not found.'}
+   $temp=Join-Path ([IO.Path]::GetTempPath()) ("commercial-los-pa2-"+[guid]::NewGuid().ToString('N'))
+   New-Item -ItemType Directory -Force $temp|Out-Null
+   try {
+     $baseZip=Join-Path $temp 'base.zip';$unpacked=Join-Path $temp 'solution'
+     pac solution export --environment $EnvironmentUrl --name $SolutionName --path $baseZip --overwrite
+     pac solution unpack --zipfile $baseZip --folder $unpacked --packagetype Unmanaged
+     Copy-PaOwnedOverlay $unpacked
+     New-Item -ItemType Directory -Force ([IO.Path]::GetDirectoryName($PackagePath))|Out-Null
+     pac solution pack --folder $unpacked --zipfile $PackagePath --packagetype Unmanaged
+     Get-FileHash -Algorithm SHA256 $PackagePath|Select-Object Path,Hash
+   } finally {if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}
+ }
+ 'Import' {pac solution import --environment $EnvironmentUrl --path $PackagePath --publish-changes}
+ 'Publish' {pac solution publish --environment $EnvironmentUrl}
+ 'Verify' {pac solution list --environment $EnvironmentUrl;Test-Pa2Source|ConvertTo-Json -Depth 8}
 }

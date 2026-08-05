@@ -22,7 +22,7 @@ describe('solution-aware Power Automate transport contract',()=>{
   expect(schema.required).toEqual(['operation','dealId','correlationId','idempotencyKey']);
   expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['fileContent','expectedSize','expectedSharePointItemId','expectedUniqueId']));
   expect(Object.keys(flow.properties.definition.actions.Route_operation.cases)).toEqual(POWER_AUTOMATE_OPERATIONS);
-  expect(flow.properties.definition.actions.Governed_fail_closed_response.inputs.errorCode).toBe('AUTHORIZATION_ADAPTER_UNRESOLVED');
+  expect(flow.properties.definition.actions.Governed_fail_closed_response.inputs.errorCode).toBe('ACTOR_IDENTITY_CONTEXT_UNAVAILABLE');
   for(const field of POWER_AUTOMATE_RESPONSE_FIELDS) expect(flow.properties.definition.actions.Governed_fail_closed_response.inputs).toHaveProperty(field);
   expect(Object.keys(flow.properties.connectionReferences)).toEqual(expect.arrayContaining(['new_sharedsharepointonline_b8f0b','new_commondataserviceforapps_ogblos']));
  });

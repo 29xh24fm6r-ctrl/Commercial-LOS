@@ -25,9 +25,9 @@
         "Governed_fail_closed_response":{"type":"Compose","runAfter":{},"inputs":{
           "success":false,"operation":"@triggerBody()?['operation']","status":"BLOCKED","correlationId":"@triggerBody()?['correlationId']",
           "idempotencyKey":"@triggerBody()?['idempotencyKey']","dealId":"@triggerBody()?['dealId']",
-          "errorCode":"AUTHORIZATION_ADAPTER_UNRESOLVED","errorMessage":"Authenticated actor authorization, durable ledger, and connector readback require import, binding, and certification.",
+          "errorCode":"ACTOR_IDENTITY_CONTEXT_UNAVAILABLE","errorMessage":"The reviewed platform-generated authenticated caller mapping is not present; no SharePoint mutation was attempted.",
           "fileMayExist":false,"reconciliationRequired":false,"targetPath":"","fileName":"@triggerBody()?['fileName']",
-          "sharePointItemId":"","sharePointUniqueId":"","size":0,"etag":"","webUrl":"","completedOn":"@utcNow()","contractVersion":"ogb-deal-sharepoint/v1"
+          "sharePointItemId":"","sharePointUniqueId":"","size":0,"etag":"","webUrl":"","created":false,"completedOn":"@utcNow()","contractVersion":"ogb-deal-sharepoint/v2"
         }},
         "Validate_contract_and_governed_path":{"type":"Compose","runAfter":{"Governed_fail_closed_response":["Succeeded"]},"inputs":{
           "allowedOperations":["ensureFolder","upload","verifyFolder","verifyFile"],"governedRoot":"/(a) Loans","maxUploadBytes":26214400,

@@ -1,0 +1,28 @@
+{
+  "manifestVersion": "1.0",
+  "purpose": "Validated PA-2 source manifest; not importable Dataverse XML. Replace declarations with platform-generated export artifacts before packing.",
+  "environmentLock": "https://org3a57b8d4.crm.dynamics.com",
+  "defaultTransportMode": "DRY_RUN",
+  "connectionReferences": ["new_sharedsharepointonline_b8f0b", "new_commondataserviceforapps_ogblos"],
+  "environmentVariableSchemaNames": ["new_OGBSharePointSiteUrl","new_OGBSharePointLibraryName","new_OGBSharePointGovernedRoot","new_OGBSharePointListId","new_OGBSharePointGraphSiteId","new_OGBSharePointGraphDriveId","new_OGBSharePointGovernedRootItemId","new_OGBSharePointContractVersion","new_OGBSharePointTransportMode","new_OGBSharePointMaxUploadBytes"],
+  "ledger": {
+    "schemaName": "new_ogbsharepointtransportledger",
+    "requiredColumns": ["new_name","new_idempotencykey","new_requestfingerprint","new_operation","new_dealid","new_correlationid","new_actorupn","new_targetpath","new_status","new_sharepointitemid","new_sharepointuniqueid","new_size","new_etag","new_weburl","new_filemayexist","new_reconciliationrequired","new_errorcode","new_sanitizederrormessage","new_startedon","new_completedon"],
+    "uniqueKey": ["new_idempotencykey"],
+    "statuses": ["STARTED","FOLDER_CREATED","FILE_CREATED","VERIFY_PENDING","COMPLETED","FAILED","RECONCILIATION_REQUIRED"]
+  },
+  "authorization": {
+    "trustedActorSource": "Power Apps V2 authenticated runtime context only; never request payload fields",
+    "platformUser": ["cr664_platformuser","cr664_email","cr664_activestatus","statecode"],
+    "banker": ["cr664_banker","cr664_email","cr664_userloginmapping","cr664_activeflag","statecode"],
+    "deal": ["cr664_loandeal","cr664_loandealid","cr664_assignedbanker","statecode"],
+    "rule": "Require exactly one active platform user, exactly one active banker, active deal, and assigned banker equality. No inferred admin override."
+  },
+  "sharePointSemantics": {
+    "operations": ["ensureFolder","upload","verifyFolder","verifyFile"],
+    "collisionBehavior": "Exact-name lookup before create; reject cross-deal objects; never overwrite or auto-rename.",
+    "readback": "Require exact parent, type, IDs, size for files, ETag, and webUrl before COMPLETED.",
+    "partialFailure": "Set fileMayExist and reconciliationRequired after possible create with failed readback; reconcile before retry."
+  },
+  "platformGeneratedArtifactsRequired": ["environment-variable definitions and values","ledger entity and choice metadata","authenticated caller extraction","Dataverse authorization and ledger actions","SharePoint exact-name and binary actions","reconciliation actions"]
+}
