@@ -1,0 +1,53 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "new_sharedsharepointonline_b8f0b": {"runtimeSource":"embedded","connection":{"connectionReferenceLogicalName":"new_sharedsharepointonline_b8f0b"},"api":{"name":"shared_sharepointonline"}},
+      "new_commondataserviceforapps_ogblos": {"runtimeSource":"embedded","connection":{"connectionReferenceLogicalName":"new_commondataserviceforapps_ogblos"},"api":{"name":"shared_commondataserviceforapps"}}
+    },
+    "definition": {
+      "$schema":"https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion":"1.0.0.0",
+      "parameters":{"$authentication":{"defaultValue":{},"type":"SecureObject"}},
+      "triggers":{"manual":{"type":"Request","kind":"PowerAppV2","inputs":{"schema":{"type":"object","properties":{
+        "operation":{"title":"operation","type":"string","description":"ensureFolder, upload, verifyFolder, or verifyFile","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "dealId":{"title":"dealId","type":"string","description":"Dataverse Loan Deal GUID","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "correlationId":{"title":"correlationId","type":"string","description":"Tracing identifier","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "idempotencyKey":{"title":"idempotencyKey","type":"string","description":"Stable request identity","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "folderName":{"title":"folderName","type":"string","description":"Expected folder name only","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "fileName":{"title":"fileName","type":"string","description":"Exact file name; no overwrite or rename","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "mimeType":{"title":"mimeType","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "fileContent":{"title":"fileContent","type":"object","description":"Power Apps V2 file","x-ms-content-hint":"FILE","x-ms-dynamically-added":true,"properties":{"name":{"type":"string"},"contentBytes":{"type":"string","format":"byte"}}},
+        "expectedSize":{"title":"expectedSize","type":"number","x-ms-content-hint":"NUMBER","x-ms-dynamically-added":true},
+        "expectedSharePointItemId":{"title":"expectedSharePointItemId","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "expectedUniqueId":{"title":"expectedUniqueId","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true}
+      },"required":["operation","dealId","correlationId","idempotencyKey"]}}}},
+      "actions": {
+        "Governed_fail_closed_response":{"type":"Compose","runAfter":{},"inputs":{
+          "success":false,"operation":"@triggerBody()?['operation']","status":"BLOCKED","correlationId":"@triggerBody()?['correlationId']",
+          "idempotencyKey":"@triggerBody()?['idempotencyKey']","dealId":"@triggerBody()?['dealId']",
+          "errorCode":"AUTHORIZATION_ADAPTER_UNRESOLVED","errorMessage":"Authenticated actor authorization, durable ledger, and connector readback require import, binding, and certification.",
+          "fileMayExist":false,"reconciliationRequired":false,"targetPath":"","fileName":"@triggerBody()?['fileName']",
+          "sharePointItemId":"","sharePointUniqueId":"","size":0,"etag":"","webUrl":"","completedOn":"@utcNow()","contractVersion":"ogb-deal-sharepoint/v1"
+        }},
+        "Validate_contract_and_governed_path":{"type":"Compose","runAfter":{"Governed_fail_closed_response":["Succeeded"]},"inputs":{
+          "allowedOperations":["ensureFolder","upload","verifyFolder","verifyFile"],"governedRoot":"/(a) Loans","maxUploadBytes":26214400,
+          "reject":["..","%2e","absolute URLs","backslash traversal","control characters","empty segments","invalid SharePoint characters"],
+          "callerCannotSupply":["siteUrl","libraryName","governedRoot","authorizationResult","userRole","callerEmail","callerObjectId","overwrite","rename"]
+        }},
+        "Resolve_authenticated_actor_and_authorize_deal":{"type":"Compose","runAfter":{"Validate_contract_and_governed_path":["Succeeded"]},"inputs":{
+          "status":"UNRESOLVED_FAIL_CLOSED","trustedActorSource":"Power Apps V2 authenticated context only",
+          "dealTable":"cr664_loandeal","assignmentColumn":"cr664_assignedbanker","defaultAuthorized":false
+        }},
+        "Route_operation":{"type":"Switch","runAfter":{"Resolve_authenticated_actor_and_authorize_deal":["Succeeded"]},"expression":"@triggerBody()?['operation']","cases":{
+          "ensureFolder":{"case":"ensureFolder","actions":{"EnsureFolder_BLOCKED":{"type":"Compose","inputs":"Exact-name create/readback plan; blocked before SharePoint."}}},
+          "upload":{"case":"upload","actions":{"Upload_BLOCKED":{"type":"Compose","inputs":"Binary upload with overwrite=false; blocked before SharePoint."}}},
+          "verifyFolder":{"case":"verifyFolder","actions":{"VerifyFolder_BLOCKED":{"type":"Compose","inputs":"Exact folder/type/parent readback; blocked before SharePoint."}}},
+          "verifyFile":{"case":"verifyFile","actions":{"VerifyFile_BLOCKED":{"type":"Compose","inputs":"Exact file/type/parent/size/ID readback; blocked before SharePoint."}}}
+        },"default":{"actions":{"Reject_unknown_operation":{"type":"Compose","inputs":"UNKNOWN_OPERATION"}}}},
+        "Respond_to_Power_Apps":{"type":"Response","kind":"PowerApp","runAfter":{"Route_operation":["Succeeded","Failed","Skipped","TimedOut"]},"inputs":{"statusCode":200,"body":"@outputs('Governed_fail_closed_response')"}}
+      }
+    },
+    "templateName":null
+  },
+  "schemaVersion":"1.0.0.0"
+}
