@@ -129,7 +129,7 @@ resource auth 'Microsoft.Web/sites/config@2023-12-01' = {
     identityProviders: {
       azureActiveDirectory: {
         enabled: true
-        registration: { openIdIssuer: 'https://login.microsoftonline.com/e5d2be43-2e2c-4968-b5f3-c73dd825ee80/v2.0', clientId: connectorIdentity }
+        registration: { openIdIssuer: '${environment().authentication.loginEndpoint}e5d2be43-2e2c-4968-b5f3-c73dd825ee80/v2.0', clientId: connectorIdentity }
         validation: { allowedAudiences: [connectorIdentity] }
       }
     }
