@@ -6,6 +6,6 @@ describe('origination document-intake capability inventory', () => {
     expect(ORIGINATION_DOCUMENT_INTAKE_CAPABILITIES.find((entry) => entry.id === 'canonical-underwriting-requirements')?.state).toBe('IMPLEMENTED');
     const live = ORIGINATION_DOCUMENT_INTAKE_CAPABILITIES.find((entry) => entry.id === 'origination-sharepoint-live-storage');
     expect(live).toMatchObject({ state: 'BLOCKED_EXTERNAL' });
-    expect(live?.blocker).toMatch(/No generated SharePoint Online service/);
+    expect(live?.blocker).toMatch(/DocumentsService exposes list-item CRUD only/);
   });
 });

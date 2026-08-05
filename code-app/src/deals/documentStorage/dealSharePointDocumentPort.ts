@@ -17,7 +17,7 @@ export type FolderEnsureResult =
 
 export type SharePointUploadResult =
   | { readonly ok: true; readonly reference: DealSharePointFileReference }
-  | { readonly ok: false; readonly kind: 'configuration_required' | 'unauthorized' | 'invalid_file' | 'failed'; readonly reason: string };
+  | { readonly ok: false; readonly kind: 'configuration_required' | 'unauthorized' | 'invalid_file' | 'failed'; readonly reason: string; readonly fileMayExist?: boolean };
 
 export interface DealSharePointDocumentPort {
   ensureFolder(request: DealSharePointFolderRequest): Promise<FolderEnsureResult>;
@@ -41,7 +41,7 @@ export const unavailableDealSharePointDocumentPort: DealSharePointDocumentPort =
     return { ok: false, kind: 'configuration_required', reason: 'SharePoint Online generated service is not registered for this Code App.' };
   },
   async upload() {
-    return { ok: false, kind: 'configuration_required', reason: 'SharePoint Online generated service is not registered for this Code App.' };
+    return { ok: false, kind: 'configuration_required', reason: 'The SharePoint list data source is registered, but a verified binary file transport is not configured.', fileMayExist: false };
   },
   async verifyFolder() { return false; },
   async verifyFile() { return false; },
