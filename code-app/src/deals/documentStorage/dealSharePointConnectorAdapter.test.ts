@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { buildDealSharePointConnectorAdapter, DEAL_SHAREPOINT_CONNECTOR_REGISTRATION } from './dealSharePointConnectorAdapter';
 
 describe('generated SharePoint connector activation gate', () => {
-  it('is unavailable and never fabricates LIVE success before generated signatures exist', async () => {
-    expect(DEAL_SHAREPOINT_CONNECTOR_REGISTRATION.registered).toBe(false);
+  it('distinguishes registered list CRUD from an unavailable binary transport', async () => {
+    expect(DEAL_SHAREPOINT_CONNECTOR_REGISTRATION.dataSourceRegistered).toBe(true);
+    expect(DEAL_SHAREPOINT_CONNECTOR_REGISTRATION.generatedServiceName).toBe('DocumentsService');
+    expect(DEAL_SHAREPOINT_CONNECTOR_REGISTRATION.inspectedOperations).toContain('create');
+    expect(DEAL_SHAREPOINT_CONNECTOR_REGISTRATION.binaryTransportConfigured).toBe(false);
     const adapter = buildDealSharePointConnectorAdapter();
     expect((await adapter.ensureFolder({} as never)).ok).toBe(false);
     expect((await adapter.upload({} as never)).ok).toBe(false);
