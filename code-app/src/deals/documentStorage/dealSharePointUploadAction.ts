@@ -50,7 +50,7 @@ export async function uploadDealDocumentToSharePoint(input: {
   if (!result.ok) {
     await deps.metadata.persistFailed({ dealId: input.dealId, documentId: input.documentId, correlationId: input.correlationId, reason: result.reason });
     await deps.metadata.emitAudit({ dealId: input.dealId, documentId: input.documentId, correlationId: input.correlationId, event: 'DealDocumentSharePointUploadFailed', detail: result.reason });
-    return { kind: 'blocked', reason: result.reason, fileMayExist: false };
+    return { kind: 'blocked', reason: result.reason, fileMayExist: result.fileMayExist === true };
   }
   const expectedMappings = [...input.requirementIds].sort().join('|');
   const actualMappings = [...result.reference.requirementIds].sort().join('|');

@@ -29,6 +29,11 @@ describe('SharePoint requirement upload', () => {
     expect(await uploadDealDocumentToSharePoint(input, d)).toMatchObject({ kind: 'blocked', fileMayExist: false });
     expect(d.metadata.persistFailed).toHaveBeenCalled(); expect(d.metadata.persistStored).not.toHaveBeenCalled();
   });
+  it('preserves an ambiguous transport orphan signal and leaves the requirement unsatisfied', async () => {
+    const d = deps({ upload: vi.fn(async () => ({ ok: false as const, kind: 'failed' as const, reason: 'Upload response lost', fileMayExist: true })) });
+    expect(await uploadDealDocumentToSharePoint(input, d)).toMatchObject({ kind: 'blocked', fileMayExist: true });
+    expect(d.metadata.persistFailed).toHaveBeenCalled(); expect(d.metadata.persistStored).not.toHaveBeenCalled();
+  });
   it('reports possible orphan storage when metadata persistence fails', async () => {
     const d = deps({}, { persistStored: vi.fn(async () => { throw new Error('Dataverse failed'); }) });
     expect(await uploadDealDocumentToSharePoint(input, d)).toMatchObject({ kind: 'blocked', fileMayExist: true });

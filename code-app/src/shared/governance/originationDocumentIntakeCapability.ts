@@ -30,14 +30,13 @@ export const ORIGINATION_DOCUMENT_INTAKE_CAPABILITIES: readonly OriginationDocum
   },
   {
     id: 'origination-document-storage-schema',
-    state: 'PLANNED_SCHEMA',
-    evidence: ['scripts/dataverse/provision-origination-document-storage.ps1'],
-    blocker: 'Additive schema must be provisioned, published, read back, and followed by supported SDK regeneration.',
+    state: 'IMPLEMENTED',
+    evidence: ['scripts/dataverse/provision-origination-document-storage.ps1', 'src/generated/models/Cr664_documentrequirementfilemapsModel.ts'],
   },
   {
     id: 'origination-sharepoint-live-storage',
     state: 'BLOCKED_EXTERNAL',
-    evidence: ['src/deals/documentStorage/dealSharePointConnectorAdapter.ts'],
-    blocker: 'No generated SharePoint Online service exists; connector registration, consent, SDK regeneration, and a real-file smoke are required.',
+    evidence: ['src/deals/documentStorage/dealSharePointConnectorAdapter.ts', 'src/generated/services/DocumentsService.ts', 'src/deals/documentStorage/dealSharePointNativeTransport.ts'],
+    blocker: 'DocumentsService exposes list-item CRUD only. The approved binary transport must be configured, generated, read back, and real-file certified before LIVE.',
   },
 ]);

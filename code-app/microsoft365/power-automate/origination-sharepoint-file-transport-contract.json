@@ -1,0 +1,50 @@
+{
+  "contractVersion": "ogb-deal-sharepoint/v1",
+  "status": "repository_ready_external_configuration_required",
+  "transport": {
+    "preferred": "Entra-authenticated Power Automate custom connector backed by an Azure Function or equivalent approved Microsoft Graph boundary",
+    "prohibited": [
+      "anonymous HTTP trigger",
+      "browser-held Graph token",
+      "embedded client secret or function key",
+      "DocumentsService.create for binary content",
+      "guessed generated connector operation name"
+    ]
+  },
+  "target": {
+    "siteUrl": "https://oldglory22.sharepoint.com/sites/BusinessLending",
+    "libraryId": "c1a62131-7946-44b9-bb4c-b4637a16f83c",
+    "rootPath": "/(a) Loans",
+    "folderPattern": "/(a) Loans/{YYYY} Loans/{Borrower Legal Name}"
+  },
+  "operations": [
+    {
+      "semanticName": "ensureFolder",
+      "behavior": "Resolve the approved drive and root, create only missing year/company folders with conflictBehavior=fail, and read back the exact driveItem before success. Existing exact folders return created=false.",
+      "authorization": "Resolve the authenticated caller server-side and verify deal access before Graph mutation.",
+      "response": "Return exact deal, borrower, folder path, driveItem ID, webUrl, creation flag, verification time, and configuration version."
+    },
+    {
+      "semanticName": "upload",
+      "behavior": "Upload the supplied binary bytes beneath the verified company-folder driveItem with conflictBehavior=fail, then GET the resulting driveItem and verify name, size, parent, and webUrl.",
+      "authorization": "Re-resolve the authenticated caller and deal/folder binding; never trust a client-asserted role.",
+      "response": "Return exact document/deal/requirement identities, driveItem ID, webUrl, byte length, MIME type, and verification time; report fileMayExist=true on ambiguous or post-upload failure."
+    },
+    {
+      "semanticName": "verifyFolder",
+      "behavior": "GET the driveItem by pinned drive ID and item ID; verify folder facet, exact governed path, and server-side deal binding."
+    },
+    {
+      "semanticName": "verifyFile",
+      "behavior": "GET the driveItem by pinned drive ID and item ID; verify file facet, exact parent, name, size, URL, and server-side deal binding."
+    }
+  ],
+  "governance": {
+    "idempotency": "Persist and enforce correlation ID plus operation and deal ID. A replay returns the same verified identity and creates no duplicate.",
+    "collision": "Never use rename conflict behavior. A name collision must resolve to the already bound deal/borrower or fail closed.",
+    "orphanHandling": "A post-upload verification or Dataverse persistence failure records an orphan candidate keyed by correlation ID and driveItem ID; the requirement remains unsatisfied until reconciled.",
+    "audit": "Persist actor, deal, document, requirements, correlation, operation, outcome, item IDs, URLs, hashes, timestamps, and failure classification without file content or tokens.",
+    "permissions": "Use least-privilege Microsoft Graph application/delegated permission scoped to the Business Lending site; prefer Sites.Selected where the approved boundary supports it."
+  }
+}
+

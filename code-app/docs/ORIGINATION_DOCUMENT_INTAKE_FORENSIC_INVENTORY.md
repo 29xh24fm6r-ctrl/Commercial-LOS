@@ -11,7 +11,7 @@
 
 ## Generated SDK finding
 
-The current generated service directory contains Dataverse, Outlook, and Copilot services but no SharePoint Online service. No generated file was edited and no SharePoint operation name was guessed. The origination connector adapter therefore remains deliberately unavailable and LIVE operations fail closed.
+The Business Lending SharePoint Documents library is registered and generated as `DocumentsService`. Inspection proves that it exposes generic list-item CRUD only; it does not expose folder creation or binary file upload. No generated file was edited, `DocumentsService.create` is not treated as binary upload, and no connector operation name was guessed. The origination connector adapter therefore remains deliberately unavailable while the separate native file transport is configured and certified.
 
 ## Compatibility decision
 
@@ -23,4 +23,4 @@ The current generated service directory contains Dataverse, Outlook, and Copilot
 
 ## Release gates
 
-The repository implementation is safe in `DRY_RUN`. LIVE requires the generated SharePoint service, inspected signatures, the additive Dataverse schema, connector consent, and an approved real upload smoke. Until then the UI states `Configuration Required` and does not fabricate folder or file URLs.
+The repository implementation is safe in `DRY_RUN`. The Dataverse schema and SharePoint list data source are present, but LIVE still requires the authenticated native file transport, exact generated signatures, immutable configuration readback, server-side authorization, orphan reconciliation, and an approved real upload smoke. Until then the UI states `Configuration Required` and does not fabricate folder or file URLs.
