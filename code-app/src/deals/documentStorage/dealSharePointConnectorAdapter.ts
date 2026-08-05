@@ -5,9 +5,10 @@ import { unavailableDealSharePointDocumentPort } from './dealSharePointDocumentP
  * The registered SharePoint Documents data source generated DocumentsService,
  * but that service exposes list-item CRUD only. It cannot create folders or
  * upload binary content. This factory therefore remains deliberately
- * unavailable until the separately governed native transport is configured,
- * generated, inspected, and read back. Never use DocumentsService.create as
- * a binary upload mechanism and never add guessed operation names here.
+ * unavailable until the separately governed Power Automate or Azure transport
+ * is configured, generated, inspected, and read back. Data-source registration
+ * is not binary file transport. Never use DocumentsService.create as a binary
+ * upload mechanism and never add guessed operation names here.
  */
 export interface DealSharePointConnectorRegistration {
   readonly dataSourceRegistered: boolean;
