@@ -12,4 +12,10 @@ describe('Document Intake workspace', () => {
     expect(screen.getByText('Due Diligence and Closing')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open SharePoint Loan Folder' })).toBeDisabled();
   });
+  it('passes through the validation-only transport state without changing intake readiness', () => {
+    render(<DocumentIntakeWorkspace readiness={readiness} sharePointDryRun={{ available: false, detail: 'Generated client unavailable.' }}><div>Workflow</div></DocumentIntakeWorkspace>);
+    expect(screen.getByText(/DRY_RUN validation only/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Validate SharePoint Setup (No Write)' })).toBeDisabled();
+    expect(screen.getByText('Configuration Required')).toBeInTheDocument();
+  });
 });

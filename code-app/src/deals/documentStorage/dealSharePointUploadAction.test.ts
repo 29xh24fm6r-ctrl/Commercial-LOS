@@ -8,15 +8,16 @@ const reference: DealSharePointFileReference = { documentId: 'doc-1', dealId: 'd
 function deps(overrides: Partial<DealSharePointDocumentPort> = {}, metadataOverrides: Partial<DealDocumentMetadataPort> = {}) {
   const storage: DealSharePointDocumentPort = { ensureFolder: vi.fn(), upload: vi.fn(async () => ({ ok: true as const, reference })), verifyFolder: vi.fn(async () => true), verifyFile: vi.fn(async () => true), ...overrides };
   const metadata: DealDocumentMetadataPort = { persistPending: vi.fn(), persistStored: vi.fn(), persistFailed: vi.fn(), emitAudit: vi.fn(), emitTimeline: vi.fn(), ...metadataOverrides };
-  return { storage, metadata };
+  const dryRun = { validateFolder: vi.fn(), validateUpload: vi.fn(async () => ({ ok: true as const, evidence: { validationOnly: true as const, operation: 'upload' as const, correlationId: 'corr-1', idempotencyKey: 'dry-run:upload:deal-1:doc-1', requestFingerprint: 'a'.repeat(64), contentSha256: 'b'.repeat(64), targetPath: folder.companyFolderPath + '/tax.pdf', completedOn: '2026-01-01' } })) };
+  return { storage, metadata, dryRun };
 }
 const input = { mode: 'LIVE' as const, authorized: true, actorSystemUserId: 'actor-1', dealId: 'deal-1', documentId: 'doc-1', requirementIds: ['req-1'], folder, file: { originalFileName: 'tax.pdf', mimeType: 'application/pdf', content: new Uint8Array([1, 2, 3]) }, correlationId: 'corr-1' };
 
 describe('SharePoint requirement upload', () => {
   it('never stores or satisfies a DRY_RUN upload', async () => {
     const d = deps();
-    expect(await uploadDealDocumentToSharePoint({ ...input, mode: 'DRY_RUN' }, d)).toMatchObject({ kind: 'dry_run' });
-    expect(d.storage.upload).not.toHaveBeenCalled(); expect(d.metadata.persistStored).not.toHaveBeenCalled();
+    expect(await uploadDealDocumentToSharePoint({ ...input, mode: 'DRY_RUN' }, d)).toMatchObject({ kind: 'dry_run', evidence: { validationOnly: true } });
+    expect(d.dryRun.validateUpload).toHaveBeenCalled(); expect(d.storage.upload).not.toHaveBeenCalled(); expect(d.metadata.persistPending).not.toHaveBeenCalled(); expect(d.metadata.persistStored).not.toHaveBeenCalled();
   });
   it('persists stored state only after real upload and verification', async () => {
     const d = deps();

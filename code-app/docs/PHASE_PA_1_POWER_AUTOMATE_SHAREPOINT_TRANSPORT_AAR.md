@@ -19,9 +19,7 @@ Neither reference contains a connection ID. An operator must bind both to approv
 
 ## Immutable configuration contract
 
-The source contract declares these non-secret environment-variable schema names: `new_OGBSharePointSiteUrl`, `new_OGBSharePointLibraryName`, `new_OGBSharePointGovernedRoot`, `new_OGBSharePointListId`, `new_OGBSharePointGraphSiteId`, `new_OGBSharePointGraphDriveId`, `new_OGBSharePointGovernedRootItemId`, `new_OGBSharePointContractVersion`, `new_OGBSharePointTransportMode`, and `new_OGBSharePointMaxUploadBytes`.
-
-The safe values are the Business Lending site, `Documents`, `/(a) Loans`, list ID `c1a62131-7946-44b9-bb4c-b4637a16f83c`, contract `ogb-deal-sharepoint/v1`, mode `DRY_RUN`, and 25 MiB (`26214400`). These declarations are deliberately not claimed as imported Dataverse EnvironmentVariableDefinition rows in PA-1; the current XML export contained none. They must be created in Developer, re-exported, and reviewed rather than hand-inventing unsupported solution XML.
+This historical PA-1 section is superseded by the exported narrow solution. The current non-secret definitions use the exact `cr664_OGBSharePoint*` schema names, including `cr664_OGBSharePointLibraryId` (never `ListId`), contract `ogb-deal-sharepoint/v2`, and mode `DRY_RUN`. The ten definitions are present in the inspected `OGBSharePointTransport` export; stale `new_OGBSharePoint*` names are rejected.
 
 ## Request and response
 
@@ -37,9 +35,9 @@ The final folder must be derived from trusted deal data as `/(a) Loans/{YYYY} Lo
 
 ## Idempotency, collision, and reconciliation
 
-The repository contract models `STARTED`, `FOLDER_CREATED`, `FILE_CREATED`, `VERIFY_PENDING`, `COMPLETED`, `FAILED`, and `ORPHANED`, with deterministic fingerprints and collision decisions. Existing `cr664_governedactionevidence` is not a complete transport ledger: it lacks all required transport state/result/failure fields. PA-1 therefore does not pretend it is sufficient and blocks before upload. The operator must add and export an additive publisher-owned ledger with a unique idempotency key. Same-key/different-fingerprint is a collision; completed/same-fingerprint is replay; uncertain creation sets `fileMayExist=true` and `reconciliationRequired=true`. Reconciliation is read-only and may not delete, overwrite, or rename.
+The current narrow solution contains `cr664_sharepointtransportledger` and its unique `cr664_idempotencykey`. DRY_RUN uses `STARTED`, `DRY_RUN_COMPLETED`, and `FAILED`; same-key/different-fingerprint is a collision and completed/same-fingerprint is an exact replay. Reconciliation remains read-only and may not delete, overwrite, rename, or fabricate completion.
 
-`ensureFolder`, `upload`, `verifyFolder`, and `verifyFile` are routed explicitly. Their SharePoint actions remain blocked pending authorization and ledger completion. No cryptographic content-hash verification is claimed. Upload must use exact bytes and filename, maximum 25 MiB, nonzero content, and `overwrite=false`, followed by exact readback.
+`ensureFolder`, `upload`, `verifyFolder`, and `verifyFile` are routed explicitly. Their SharePoint actions remain blocked pending generated authorization/ledger integration. The current v2 successor verifies SHA-256 over exact upload bytes and includes that hash in request fingerprint material. LIVE upload still requires exact bytes/name, nonzero permitted content, `overwrite=false`, and exact readback.
 
 ## Code App status
 
@@ -48,7 +46,7 @@ The repository contract models `STARTED`, `FOLDER_CREATED`, `FILE_CREATED`, `VER
 ## Operator sequence before LIVE
 
 1. Review this changeset and packed unmanaged ZIP.
-2. In Developer, add the ten EnvironmentVariableDefinition components and an additive document-transport ledger with a unique idempotency-key alternate key; re-export/unpack them.
+2. In Developer, verify the ten exported EnvironmentVariableDefinition components and `cr664_sharepointtransportledger` unique idempotency-key alternate key; do not recreate them.
 3. Complete authenticated actor resolution from trusted runtime context and transactional Dataverse authorization/ledger actions.
 4. Implement standard SharePoint connector/REST actions using exact-name lookup, `overwrite=false`, and readback; map sanitized errors.
 5. Import only with the explicit Developer URL and `-Apply`; bind SharePoint and Dataverse references to approved operational identities.

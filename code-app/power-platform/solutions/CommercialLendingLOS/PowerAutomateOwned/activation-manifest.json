@@ -56,6 +56,7 @@
                                     "FILE_CREATE_PENDING",
                                     "FILE_CREATED",
                                     "VERIFY_PENDING",
+                                    "DRY_RUN_COMPLETED",
                                     "COMPLETED",
                                     "FAILED",
                                     "FILE_MAY_EXIST",
@@ -64,6 +65,16 @@
                                     "COLLISION"
                                 ]
                },
+    "dryRunSemantics":  {
+                             "terminalStatus":  "DRY_RUN_COMPLETED",
+                             "success":  false,
+                             "validationOnly":  true,
+                             "sharePointMutationAllowed":  false,
+                             "createsFolderIdentity":  false,
+                             "createsFileReference":  false,
+                             "satisfiesDocumentRequirement":  false,
+                             "contentHash":  "Lowercase SHA-256 of exact binary bytes is included in request fingerprint material."
+                         },
     "authorization":  {
                           "trustedActorSource":  "Power Apps V2 authenticated runtime context only; never request payload fields",
                           "platformUser":  [

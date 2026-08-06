@@ -13,32 +13,43 @@
         "dealId":{"title":"dealId","type":"string","description":"Dataverse Loan Deal GUID","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "correlationId":{"title":"correlationId","type":"string","description":"Tracing identifier","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "idempotencyKey":{"title":"idempotencyKey","type":"string","description":"Stable request identity","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
+        "annualFolderName":{"title":"annualFolderName","type":"string","description":"Governed annual folder segment","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "folderName":{"title":"folderName","type":"string","description":"Expected folder name only","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "fileName":{"title":"fileName","type":"string","description":"Exact file name; no overwrite or rename","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "mimeType":{"title":"mimeType","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "fileContent":{"title":"fileContent","type":"object","description":"Power Apps V2 file","x-ms-content-hint":"FILE","x-ms-dynamically-added":true,"properties":{"name":{"type":"string"},"contentBytes":{"type":"string","format":"byte"}}},
+        "contentSha256":{"title":"contentSha256","type":"string","description":"Lowercase SHA-256 of exact file bytes","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "expectedSize":{"title":"expectedSize","type":"number","x-ms-content-hint":"NUMBER","x-ms-dynamically-added":true},
         "expectedSharePointItemId":{"title":"expectedSharePointItemId","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
         "expectedUniqueId":{"title":"expectedUniqueId","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true}
       },"required":["operation","dealId","correlationId","idempotencyKey"]}}}},
       "actions": {
         "Governed_fail_closed_response":{"type":"Compose","runAfter":{},"inputs":{
-          "success":false,"operation":"@triggerBody()?['operation']","status":"BLOCKED","correlationId":"@triggerBody()?['correlationId']",
+          "success":false,"validationOnly":true,"operation":"@triggerBody()?['operation']","status":"BLOCKED","correlationId":"@triggerBody()?['correlationId']",
           "idempotencyKey":"@triggerBody()?['idempotencyKey']","dealId":"@triggerBody()?['dealId']",
+          "requestFingerprint":"","contentSha256":"@triggerBody()?['contentSha256']",
           "errorCode":"ACTOR_IDENTITY_CONTEXT_UNAVAILABLE","errorMessage":"The reviewed platform-generated authenticated caller mapping is not present; no SharePoint mutation was attempted.",
           "fileMayExist":false,"reconciliationRequired":false,"targetPath":"","fileName":"@triggerBody()?['fileName']",
           "sharePointItemId":"","sharePointUniqueId":"","size":0,"etag":"","webUrl":"","created":false,"completedOn":"@utcNow()","contractVersion":"ogb-deal-sharepoint/v2"
         }},
-        "Validate_contract_and_governed_path":{"type":"Compose","runAfter":{"Governed_fail_closed_response":["Succeeded"]},"inputs":{
+        "Load_exact_cr664_environment_configuration":{"type":"Compose","runAfter":{"Governed_fail_closed_response":["Succeeded"]},"inputs":{
+          "schemaNames":["cr664_OGBSharePointSiteUrl","cr664_OGBSharePointLibraryName","cr664_OGBSharePointGovernedRoot","cr664_OGBSharePointLibraryId","cr664_OGBSharePointGraphSiteId","cr664_OGBSharePointGraphDriveId","cr664_OGBSharePointGovernedRootItemId","cr664_OGBSharePointContractVersion","cr664_OGBSharePointTransportMode","cr664_OGBSharePointMaxUploadBytes"],
+          "requiredMode":"DRY_RUN","requiredContract":"ogb-deal-sharepoint/v2","rejectStalePrefix":"new_OGBSharePoint"
+        }},
+        "Validate_contract_and_governed_path":{"type":"Compose","runAfter":{"Load_exact_cr664_environment_configuration":["Succeeded"]},"inputs":{
           "allowedOperations":["ensureFolder","upload","verifyFolder","verifyFile"],"governedRoot":"/(a) Loans","maxUploadBytes":26214400,
           "reject":["..","%2e","absolute URLs","backslash traversal","control characters","empty segments","invalid SharePoint characters"],
           "callerCannotSupply":["siteUrl","libraryName","governedRoot","authorizationResult","userRole","callerEmail","callerObjectId","overwrite","rename"]
         }},
         "Resolve_authenticated_actor_and_authorize_deal":{"type":"Compose","runAfter":{"Validate_contract_and_governed_path":["Succeeded"]},"inputs":{
           "status":"UNRESOLVED_FAIL_CLOSED","trustedActorSource":"Power Apps V2 authenticated context only",
-          "dealTable":"cr664_loandeal","assignmentColumn":"cr664_assignedbanker","defaultAuthorized":false
+          "platformUserTable":"cr664_platformuser","bankerTable":"cr664_banker","dealTable":"cr664_loandeal","assignmentColumn":"cr664_assignedbanker","defaultAuthorized":false
         }},
-        "Route_operation":{"type":"Switch","runAfter":{"Resolve_authenticated_actor_and_authorize_deal":["Succeeded"]},"expression":"@triggerBody()?['operation']","cases":{
+        "Reserve_and_complete_DRY_RUN_ledger":{"type":"Compose","runAfter":{"Resolve_authenticated_actor_and_authorize_deal":["Succeeded"]},"inputs":{
+          "status":"BLOCKED_UNTIL_PLATFORM_GENERATED_ACTIONS_ARE_EXPORTED","table":"cr664_sharepointtransportledger","atomicKey":"cr664_idempotencykey",
+          "states":["STARTED","DRY_RUN_COMPLETED","FAILED"],"sharePointMutationAllowed":false
+        }},
+        "Route_operation":{"type":"Switch","runAfter":{"Reserve_and_complete_DRY_RUN_ledger":["Succeeded"]},"expression":"@triggerBody()?['operation']","cases":{
           "ensureFolder":{"case":"ensureFolder","actions":{"EnsureFolder_BLOCKED":{"type":"Compose","inputs":"Exact-name create/readback plan; blocked before SharePoint."}}},
           "upload":{"case":"upload","actions":{"Upload_BLOCKED":{"type":"Compose","inputs":"Binary upload with overwrite=false; blocked before SharePoint."}}},
           "verifyFolder":{"case":"verifyFolder","actions":{"VerifyFolder_BLOCKED":{"type":"Compose","inputs":"Exact folder/type/parent readback; blocked before SharePoint."}}},
