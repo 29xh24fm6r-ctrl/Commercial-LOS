@@ -25,8 +25,8 @@ function Test-Pa2Source {
  $manifest=Get-Content $manifestPath -Raw|ConvertFrom-Json
  if($manifest.defaultTransportMode -ne 'DRY_RUN'){throw 'DRY_RUN must remain the source default.'}
  if($manifest.environmentLock -ne $expectedEnvironment){throw 'Manifest environment lock differs.'}
- if($manifest.ledger.schemaName -ne 'new_ogbsharepointtransportledger'){throw 'Ledger declaration differs.'}
- if($manifest.ledger.uniqueKey.Count -ne 1 -or $manifest.ledger.uniqueKey[0] -ne 'new_idempotencykey'){throw 'Ledger idempotency key differs.'}
+ if($manifest.ledger.schemaName -ne 'cr664_sharepointtransportledger'){throw 'Ledger declaration differs.'}
+ if($manifest.ledger.uniqueKey.Count -ne 1 -or $manifest.ledger.uniqueKey[0] -ne 'cr664_idempotencykey'){throw 'Ledger idempotency key differs.'}
  foreach($name in $flowNames){if(-not(Test-Path (Join-Path $SolutionFolder "Workflows\$name"))){throw "Missing curated workflow $name"}}
  $transport=Get-Content (Join-Path $SolutionFolder "Workflows\$($flowNames[0])") -Raw|ConvertFrom-Json
  if($transport.properties.definition.actions.Governed_fail_closed_response.inputs.errorCode -ne 'ACTOR_IDENTITY_CONTEXT_UNAVAILABLE'){throw 'Transport is not blocked on trusted actor context.'}
@@ -40,11 +40,30 @@ function Test-Pa2Source {
  [pscustomobject]@{valid=$true;environment=$expectedEnvironment;transportMode='DRY_RUN';liveEnabled=$false;workflowCount=2;requiresPlatformGeneratedArtifacts=$manifest.platformGeneratedArtifactsRequired}
 }
 function Copy-PaOwnedOverlay([string]$Destination) {
- $workflowDestination=Join-Path $Destination 'Workflows';New-Item -ItemType Directory -Force $workflowDestination|Out-Null
- foreach($name in $flowNames){Copy-Item -LiteralPath (Join-Path $SolutionFolder "Workflows\$name") -Destination (Join-Path $workflowDestination $name) -Force}
  if(-not $PlatformGeneratedComponentFolder){throw 'Pack requires -PlatformGeneratedComponentFolder containing reviewed platform exports for environment variables, ledger, and connector actions.'}
  if(-not(Test-Path $PlatformGeneratedComponentFolder)){throw 'Platform-generated component folder was not found.'}
+
  Copy-Item -Path (Join-Path $PlatformGeneratedComponentFolder '*') -Destination $Destination -Recurse -Force
+
+ $workflowDestination=Join-Path $Destination 'Workflows'
+ New-Item -ItemType Directory -Force $workflowDestination|Out-Null
+
+ foreach($name in $flowNames){
+   $jsonSource = Join-Path $SolutionFolder "Workflows\$name"
+   $metadataName = "$name.data.xml"
+   $metadataSource = Join-Path $SolutionFolder "Workflows\$metadataName"
+
+   if(-not (Test-Path $jsonSource)){
+     throw "Missing curated workflow JSON: $jsonSource"
+   }
+
+   if(-not (Test-Path $metadataSource)){
+     throw "Missing curated workflow metadata: $metadataSource"
+   }
+
+   Copy-Item -LiteralPath $jsonSource -Destination (Join-Path $workflowDestination $name) -Force
+   Copy-Item -LiteralPath $metadataSource -Destination (Join-Path $workflowDestination $metadataName) -Force
+ }
 }
 switch($Action){
  'Export' {
