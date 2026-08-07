@@ -77,6 +77,7 @@ export * as Cr664_workspaceentitlementsesModel from './models/Cr664_workspaceent
 export * as DocumentsModel from './models/DocumentsModel';
 export * as MicrosoftCopilotStudioModel from './models/MicrosoftCopilotStudioModel';
 export * as MicrosoftDataverseModel from './models/MicrosoftDataverseModel';
+export * as OGBOriginationSharePointTransportModel from './models/OGBOriginationSharePointTransportModel';
 export * as Office365OutlookModel from './models/Office365OutlookModel';
 export * as SystemusersModel from './models/SystemusersModel';
 
@@ -153,5 +154,6 @@ export * from './services/Cr664_workspaceentitlementsesService';
 export * from './services/DocumentsService';
 export * from './services/MicrosoftCopilotStudioService';
 export * from './services/MicrosoftDataverseService';
+export * from './services/OGBOriginationSharePointTransportService';
 export * from './services/Office365OutlookService';
 export * from './services/SystemusersService';

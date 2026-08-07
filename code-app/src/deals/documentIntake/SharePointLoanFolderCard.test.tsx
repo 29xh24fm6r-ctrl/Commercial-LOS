@@ -28,4 +28,11 @@ describe('SharePoint loan folder card', () => {
     expect(screen.getByText(folder.companyFolderPath)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Open SharePoint Loan Folder' })).toBeEnabled();
   });
+
+  it('labels DRY_RUN as validation-only and disables it until the generated boundary is available', () => {
+    render(<SharePointLoanFolderCard status="CONFIGURATION_REQUIRED" canCreate={false} dryRun={{ available: false, detail: 'Generated client unavailable.' }} />);
+    expect(screen.getByText(/DRY_RUN validation only/)).toBeInTheDocument();
+    expect(screen.getByText(/Generated client unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Validate SharePoint Setup (No Write)' })).toBeDisabled();
+  });
 });

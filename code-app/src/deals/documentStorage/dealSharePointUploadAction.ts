@@ -1,6 +1,7 @@
 import type { DealSharePointDocumentPort } from './dealSharePointDocumentPort';
 import { sanitizeSharePointFileName } from './dealSharePointFolderPath';
 import type { DealDocumentStorageMode, DealDocumentUploadFile, DealSharePointFolderIdentity, DealSharePointFileReference } from './dealDocumentStorageTypes';
+import type { DealSharePointDryRunEvidence, DealSharePointDryRunPort } from './dealSharePointDryRunPort';
 
 const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED_MIME = new Set(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/jpeg', 'image/png']);
@@ -15,7 +16,7 @@ export interface DealDocumentMetadataPort {
 
 export type DealSharePointUploadOutcome =
   | { readonly kind: 'stored'; readonly reference: DealSharePointFileReference }
-  | { readonly kind: 'dry_run'; readonly reason: string }
+  | { readonly kind: 'dry_run'; readonly reason: string; readonly evidence: DealSharePointDryRunEvidence }
   | { readonly kind: 'blocked'; readonly reason: string; readonly fileMayExist: boolean };
 
 export async function uploadDealDocumentToSharePoint(input: {
@@ -31,7 +32,7 @@ export async function uploadDealDocumentToSharePoint(input: {
   readonly replacesDocumentId?: string;
   readonly replacedReference?: DealSharePointFileReference;
   readonly uploadKind?: 'REQUIREMENT' | 'ADDITIONAL';
-}, deps: { readonly storage: DealSharePointDocumentPort; readonly metadata: DealDocumentMetadataPort }): Promise<DealSharePointUploadOutcome> {
+}, deps: { readonly storage: DealSharePointDocumentPort; readonly metadata: DealDocumentMetadataPort; readonly dryRun?: DealSharePointDryRunPort }): Promise<DealSharePointUploadOutcome> {
   if (!input.authorized || !input.actorSystemUserId) return { kind: 'blocked', reason: 'Authenticated deal access is required.', fileMayExist: false };
   if (input.folder.dealId !== input.dealId) return { kind: 'blocked', reason: 'The SharePoint folder does not belong to this deal.', fileMayExist: false };
   if ((input.uploadKind ?? 'REQUIREMENT') === 'REQUIREMENT' && !input.requirementIds.length) return { kind: 'blocked', reason: 'At least one explicit requirement mapping is required.', fileMayExist: false };
@@ -42,7 +43,17 @@ export async function uploadDealDocumentToSharePoint(input: {
   let storedFileName: string;
   try { storedFileName = sanitizeSharePointFileName(input.file.originalFileName); }
   catch (error) { return { kind: 'blocked', reason: error instanceof Error ? error.message : 'Invalid filename.', fileMayExist: false }; }
-  if (input.mode === 'DRY_RUN') return { kind: 'dry_run', reason: 'DRY_RUN validated the upload intent; no folder or file was created and no requirement was satisfied.' };
+  if (input.mode === 'DRY_RUN') {
+    if (!deps.dryRun) return { kind: 'blocked', reason: 'The governed DRY_RUN transport is not configured.', fileMayExist: false };
+    const result = await deps.dryRun.validateUpload({
+      folder: input.folder, dealId: input.dealId, documentId: input.documentId,
+      actorSystemUserId: input.actorSystemUserId, correlationId: input.correlationId,
+      file: input.file, storedFileName,
+    });
+    return result.ok
+      ? { kind: 'dry_run', reason: 'Validation completed; no file was uploaded and no document requirement was satisfied.', evidence: result.evidence }
+      : { kind: 'blocked', reason: result.reason, fileMayExist: false };
+  }
   if (input.folder.status !== 'READY') return { kind: 'blocked', reason: 'The persisted SharePoint loan folder is not ready.', fileMayExist: false };
 
   await deps.metadata.persistPending({ dealId: input.dealId, documentId: input.documentId, requirementIds: input.requirementIds, correlationId: input.correlationId });

@@ -12,7 +12,7 @@ No tenant operation, solution import, publish, connector binding, application de
 - Added a generated-service runner seam that maps platform-generated `Run` output to `DealSharePointDocumentPort` without guessing a generated service or operation name.
 - Enforced immutable site/library targets, deterministic folder/upload keys, binary base64 mapping, response correlation/deal/idempotency equality, exact returned IDs/URLs, and fail-closed malformed response handling.
 - Added authorization rules based only on trusted runtime facts: exactly one active `cr664_platformuser`, exactly one active `cr664_banker`, an active `cr664_loandeal`, and equality with `cr664_assignedbanker`. No caller-supplied identity and no inferred admin override are accepted.
-- Defined the additive `new_ogbsharepointtransportledger` state model, unique idempotency key, required evidence fields, failure states, and reconciliation behavior in the curated PA-owned activation manifest.
+- Defined the additive `cr664_sharepointtransportledger` state model, unique `cr664_idempotencykey`, required evidence fields, failure states, and reconciliation behavior in the curated PA-owned activation manifest.
 - Corrected stale UI text: the SharePoint Documents list data source is registered, but live folder/binary transport is not yet configured.
 - Replaced the generic flow blocker with `ACTOR_IDENTITY_CONTEXT_UNAVAILABLE`. The checked-in flow still makes no SharePoint mutation.
 - Reworked the operator script so Export is read-only, Import/Publish require `-Apply`, the environment is locked to Developer, the repository overlay is allowlisted, pack uses a fresh full solution export in a temporary directory, and platform-generated component source is mandatory.
@@ -25,8 +25,8 @@ Pack intentionally refuses without `-PlatformGeneratedComponentFolder`. That fol
 
 ## Exact external operator steps before LIVE
 
-1. In Developer `https://org3a57b8d4.crm.dynamics.com`, create the ten environment-variable definitions declared in the activation manifest. Keep transport mode `DRY_RUN`.
-2. Create additive table `new_ogbsharepointtransportledger` with every declared column, declared statuses, and a unique key on `new_idempotencykey`. Enable audit and grant only the flow service identity the required least-privilege create/read/update access.
+1. In Developer `https://org3a57b8d4.crm.dynamics.com`, verify the ten exported environment-variable definitions declared in the activation manifest. Keep transport mode `DRY_RUN`.
+2. Verify the exported `cr664_sharepointtransportledger` table, every declared column/status, and the unique key on `cr664_idempotencykey`. Enable audit and grant only the approved flow identity the required least-privilege create/read/update access.
 3. Edit workflow `9448ac11-f490-f111-8076-7ced8d3bafd4` in Power Automate. Use the authenticated Power Apps V2 runtime context to derive the caller UPN; do not accept identity or authorization in trigger payload.
 4. Add exact Dataverse queries for active `cr664_platformuser`, active `cr664_banker`, active `cr664_loandeal`, and `cr664_assignedbanker` equality. Require unique identity rows and deny every ambiguous/missing/mismatched case.
 5. Implement transactional ledger create/read/update. On duplicate key, compare the immutable request fingerprint. Return completed evidence for an exact completed replay; reject a different fingerprint; never repeat a possible SharePoint create until reconciliation resolves the prior attempt.

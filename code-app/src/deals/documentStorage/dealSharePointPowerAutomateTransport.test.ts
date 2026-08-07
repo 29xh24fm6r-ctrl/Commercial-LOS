@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { unavailableDealSharePointDocumentPort } from './dealSharePointDocumentPort';
 import {
   buildDealSharePointPowerAutomateTransport,
+  buildDealSharePointPowerAutomateDryRunTransport,
   DEAL_SHAREPOINT_POWER_AUTOMATE_OPERATIONS,
   DEAL_SHAREPOINT_POWER_AUTOMATE_WORKFLOW_ID,
   verifyDealSharePointPowerAutomateRegistration,
@@ -32,8 +33,10 @@ describe('Power Automate SharePoint transport activation seam', () => {
   });
   it('remains fail closed by default and without generated service evidence', async () => {
     expect(verifyDealSharePointPowerAutomateRegistration({ requestedProvider: 'POWER_AUTOMATE', storageMode: 'DRY_RUN' }).ready).toBe(false);
-    const adapter = buildDealSharePointPowerAutomateTransport({ requestedProvider: 'POWER_AUTOMATE', storageMode: 'DRY_RUN' });
-    expect((await adapter.ensureFolder({} as never)).ok).toBe(false);
+    const adapter = buildDealSharePointPowerAutomateDryRunTransport({ requestedProvider: 'POWER_AUTOMATE', storageMode: 'DRY_RUN' });
+    expect((await adapter.validateFolder({} as never)).ok).toBe(false);
+    const liveAdapter = buildDealSharePointPowerAutomateTransport({ requestedProvider: 'POWER_AUTOMATE', storageMode: 'DRY_RUN' });
+    expect((await liveAdapter.ensureFolder({} as never)).ok).toBe(false);
   });
   it('requires every server and readback verification gate', () => {
     expect(verifyDealSharePointPowerAutomateRegistration({ ...verified, registration: { ...verified.registration, serverAuthorizationVerified: false } }).ready).toBe(false);
@@ -41,6 +44,11 @@ describe('Power Automate SharePoint transport activation seam', () => {
   it('uses an injected generated adapter only after every gate passes', () => {
     expect(buildDealSharePointPowerAutomateTransport(verified, unavailableDealSharePointDocumentPort)).toBe(unavailableDealSharePointDocumentPort);
     expect(verifyDealSharePointPowerAutomateRegistration(verified).ready).toBe(true);
+  });
+  it('certifies DRY_RUN without pretending SharePoint readback is required or returning a live adapter', () => {
+    const dry = { ...verified, storageMode: 'DRY_RUN', registration: { ...verified.registration, sharePointReadbackVerified: false, reconciliationVerified: false } } as const;
+    expect(verifyDealSharePointPowerAutomateRegistration(dry)).toMatchObject({ ready: true, mode: 'DRY_RUN' });
+    expect(buildDealSharePointPowerAutomateTransport(dry, unavailableDealSharePointDocumentPort)).toBe(unavailableDealSharePointDocumentPort);
   });
   it('keeps the Azure implementation available but inactive', () => {
     expect(verifyDealSharePointPowerAutomateRegistration({ ...verified, registration: { ...verified.registration, provider: 'AZURE_FUNCTION' } }).ready).toBe(false);

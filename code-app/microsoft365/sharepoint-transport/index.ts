@@ -11,5 +11,8 @@ export * from './authorization/productionDealAuthorization.js';
 export * from './graph/managedIdentityGraphClient.js';
 export * from './production/durableLedgers.js';
 export * from './production/productionHostFactory.js';
+export * from './power-automate/activationContract.js';
+export * from './power-automate/dryRunEngine.js';
+export * from './power-automate/transportContract.js';
 export * from './azure-function/src/authenticationClaims.js';
 export * from './azure-function/src/runtimeConfiguration.js';

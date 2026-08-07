@@ -49,6 +49,9 @@ import {
 import { buildLiveDocumentDownloadDeps } from './documentDownloadLiveDeps';
 import { DocumentIntakeSummary } from './documentIntake/DocumentIntakeSummary';
 import { SharePointLoanFolderCard } from './documentIntake/SharePointLoanFolderCard';
+import { deriveDealSharePointFolderPath } from './documentStorage/dealSharePointFolderPath';
+import { getDealSharePointDryRunRuntime } from './documentStorage/dealSharePointDryRunRuntime';
+import { POWER_AUTOMATE_ENVIRONMENT_CONFIGURATION } from '../../microsoft365/sharepoint-transport/power-automate/transportContract';
 import { DueDiligenceChecklist } from './documentIntake/DueDiligenceChecklist';
 import type { UnderwritingIntakeReadiness } from './documentIntake/documentIntakeReadiness';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
@@ -99,6 +102,35 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const [requirementRows, setRequirementRows] = useState<readonly DocumentRequirementRow[]>([]);
   const [requirementDefinitions, setRequirementDefinitions] = useState<readonly RequiredDocumentDefinition[]>([]);
   const [requirementReloadToken, setRequirementReloadToken] = useState(0);
+  const [sharePointDryRun, setSharePointDryRun] = useState<{ running: boolean; detail?: string; outcome?: 'validated' | 'blocked' }>({ running: false });
+
+  async function handleSharePointDryRun(): Promise<void> {
+    const runtime = getDealSharePointDryRunRuntime();
+    const companyLegalName = deal.effectiveClientName ?? deal.clientName;
+    if (!runtime.available || !banker?.systemUserId || !deal.clientId || !companyLegalName || !deal.createdOn) {
+      setSharePointDryRun({ running: false, outcome: 'blocked', detail: runtime.reasons[0] ?? 'Verified actor, borrower, and document-package facts are required.' });
+      return;
+    }
+    setSharePointDryRun({ running: true });
+    try {
+      const path = deriveDealSharePointFolderPath({
+        dealId: deal.id, borrowerIdentity: deal.clientId, companyLegalName,
+        documentPackageDate: deal.createdOn, stableDealNumber: deal.name,
+      });
+      const result = await runtime.port.validateFolder({
+        dealId: deal.id, borrowerIdentity: deal.clientId,
+        siteUrl: POWER_AUTOMATE_ENVIRONMENT_CONFIGURATION.siteUrl,
+        libraryName: POWER_AUTOMATE_ENVIRONMENT_CONFIGURATION.libraryName,
+        annualFolderPath: path.annualFolderPath, companyFolderPath: path.companyFolderPath,
+        actorSystemUserId: banker.systemUserId, correlationId: crypto.randomUUID(),
+      });
+      setSharePointDryRun(result.ok
+        ? { running: false, outcome: 'validated', detail: 'Validation-only evidence was recorded. No SharePoint folder was created.' }
+        : { running: false, outcome: 'blocked', detail: result.reason });
+    } catch (error) {
+      setSharePointDryRun({ running: false, outcome: 'blocked', detail: error instanceof Error ? error.message : 'DRY_RUN validation failed closed.' });
+    }
+  }
 
   async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
     if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
@@ -379,7 +411,17 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   return (
     <>
       <DocumentIntakeSummary companyLegalName={deal.effectiveClientName ?? deal.clientName} dealNumber={deal.name} readiness={intakeReadiness} />
-      <SharePointLoanFolderCard status="CONFIGURATION_REQUIRED" canCreate={false} />
+      <SharePointLoanFolderCard
+        status="CONFIGURATION_REQUIRED"
+        canCreate={false}
+        dryRun={{
+          available: !readOnly && Boolean(banker?.systemUserId) && getDealSharePointDryRunRuntime().available,
+          running: sharePointDryRun.running,
+          outcome: sharePointDryRun.outcome,
+          detail: sharePointDryRun.detail ?? getDealSharePointDryRunRuntime().reasons[0],
+          onValidate: () => { void handleSharePointDryRun(); },
+        }}
+      />
       <Card anchorSurface="Documents">
         <WidgetHeader
           title="Documents"
