@@ -5,6 +5,7 @@ import { unavailableDealSharePointDryRunPort } from './dealSharePointDryRunPort'
 import type { DealSharePointFolderIdentity, DealSharePointFileReference } from './dealDocumentStorageTypes';
 import { POWER_AUTOMATE_ENVIRONMENT_CONFIGURATION } from '../../../microsoft365/sharepoint-transport/power-automate/transportContract';
 import {
+  canonicalFingerprintMaterial,
   parseTransportResponse,
   sha256Hex,
   type PowerAutomateTransportRequest,
@@ -36,6 +37,12 @@ export interface DealSharePointPowerAutomateSelection {
 }
 export interface GeneratedPowerAutomateRunner { run(request: PowerAutomateTransportRequest): Promise<unknown> }
 
+type UnsignedPowerAutomateTransportRequest = Omit<PowerAutomateTransportRequest, 'requestFingerprint'>;
+
+async function signRequest(request: UnsignedPowerAutomateTransportRequest): Promise<PowerAutomateTransportRequest> {
+  return { ...request, requestFingerprint: await sha256Hex(canonicalFingerprintMaterial(request)) };
+}
+
 function lastSegment(path: string): string { return path.split('/').filter(Boolean).at(-1) ?? ''; }
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -59,8 +66,9 @@ function evidence(response: PowerAutomateTransportResponse): DealSharePointDryRu
     targetPath: response.targetPath, completedOn: response.completedOn,
   };
 }
-async function invokeDryRun(runner: GeneratedPowerAutomateRunner, request: PowerAutomateTransportRequest) {
+async function invokeDryRun(runner: GeneratedPowerAutomateRunner, unsignedRequest: UnsignedPowerAutomateTransportRequest) {
   try {
+    const request = await signRequest(unsignedRequest);
     const response = parseTransportResponse(await runner.run(request), request);
     if (response.validationOnly && response.status === 'DRY_RUN_COMPLETED') return { ok: true as const, evidence: evidence(response) };
     return { ok: false as const, code: response.errorCode || 'MALFORMED_RESPONSE', reason: response.errorMessage || 'The governed DRY_RUN request was blocked.' };
@@ -100,11 +108,11 @@ export function createGeneratedPowerAutomateDocumentPort(runner: GeneratedPowerA
   return {
     async ensureFolder(request) {
       if (!targetMatches(request.siteUrl, request.libraryName)) return { ok: false, kind: 'configuration_required', reason: 'The requested SharePoint target does not match the governed environment configuration.' };
-      const transportRequest: PowerAutomateTransportRequest = {
+      const transportRequest = await signRequest({
         operation: 'ensureFolder', dealId: request.dealId, correlationId: request.correlationId,
         idempotencyKey: 'folder:' + request.dealId,
         annualFolderName: lastSegment(request.annualFolderPath), folderName: lastSegment(request.companyFolderPath),
-      };
+      });
       try {
         const response = parseTransportResponse(await runner.run(transportRequest), transportRequest);
         if (response.validationOnly) return { ok: false, kind: 'configuration_required', reason: 'Validation-only output cannot create a SharePoint folder identity.' };
@@ -124,7 +132,7 @@ export function createGeneratedPowerAutomateDocumentPort(runner: GeneratedPowerA
     },
     async upload(input) {
       const contentSha256 = await sha256Hex(input.file.content);
-      const transportRequest: PowerAutomateTransportRequest = {
+      const transportRequest = await signRequest({
         operation: 'upload', dealId: input.dealId, correlationId: input.correlationId,
         idempotencyKey: 'upload:' + input.dealId + ':' + input.documentId,
         annualFolderName: lastSegment(input.folder.annualFolderPath),
@@ -132,7 +140,7 @@ export function createGeneratedPowerAutomateDocumentPort(runner: GeneratedPowerA
         mimeType: input.file.mimeType,
         fileContent: { name: input.storedFileName, contentBytes: bytesToBase64(input.file.content) },
         contentSha256, expectedSize: input.file.content.byteLength,
-      };
+      });
       try {
         const response = parseTransportResponse(await runner.run(transportRequest), transportRequest);
         if (response.validationOnly) return { ok: false, kind: 'configuration_required', reason: 'Validation-only output cannot satisfy a document requirement.', fileMayExist: false };
@@ -154,23 +162,23 @@ export function createGeneratedPowerAutomateDocumentPort(runner: GeneratedPowerA
       } catch { return { ok: false, kind: 'failed', reason: 'The governed SharePoint flow returned an invalid or unavailable response.', fileMayExist: false }; }
     },
     async verifyFolder(folder) {
-      const request: PowerAutomateTransportRequest = {
+      const request = await signRequest({
         operation: 'verifyFolder', dealId: folder.dealId, correlationId: crypto.randomUUID(),
         idempotencyKey: 'verify-folder:' + folder.dealId + ':' + (folder.folderItemId ?? folder.companyFolderPath),
         annualFolderName: lastSegment(folder.annualFolderPath), folderName: lastSegment(folder.companyFolderPath),
         expectedSharePointItemId: folder.folderItemId,
-      };
+      });
       try { const response = parseTransportResponse(await runner.run(request), request); return response.success && !response.validationOnly; }
       catch { return false; }
     },
     async verifyFile(reference) {
-      const request: PowerAutomateTransportRequest = {
+      const request = await signRequest({
         operation: 'verifyFile', dealId: reference.dealId, correlationId: crypto.randomUUID(),
         idempotencyKey: 'verify-file:' + reference.dealId + ':' + reference.documentId,
         annualFolderName: lastSegment(reference.folderPath.split('/').slice(0, -1).join('/')),
         folderName: lastSegment(reference.folderPath), fileName: reference.storedFileName,
         expectedSize: reference.fileSizeBytes, expectedSharePointItemId: reference.itemId,
-      };
+      });
       try { const response = parseTransportResponse(await runner.run(request), request); return response.success && !response.validationOnly; }
       catch { return false; }
     },
@@ -207,7 +215,7 @@ export function buildDealSharePointPowerAutomateDryRunTransport(
   return readiness.ready && readiness.mode === 'DRY_RUN' && generatedAdapter ? generatedAdapter : unavailableDealSharePointDryRunPort;
 }
 
-/** Generated client names remain absent until Power Apps emits the exact inspected Run signature. */
+/** LIVE remains unavailable until its mutation, readback, and reconciliation controls are certified. */
 export function buildDealSharePointPowerAutomateTransport(
   selection: DealSharePointPowerAutomateSelection,
   generatedAdapter?: DealSharePointDocumentPort,

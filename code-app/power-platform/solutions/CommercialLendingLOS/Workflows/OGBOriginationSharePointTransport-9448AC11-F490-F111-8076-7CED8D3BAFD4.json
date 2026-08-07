@@ -1,64 +1,521 @@
 {
   "properties": {
     "connectionReferences": {
-      "new_sharedsharepointonline_b8f0b": {"runtimeSource":"embedded","connection":{"connectionReferenceLogicalName":"new_sharedsharepointonline_b8f0b"},"api":{"name":"shared_sharepointonline"}},
-      "new_commondataserviceforapps_ogblos": {"runtimeSource":"embedded","connection":{"connectionReferenceLogicalName":"new_commondataserviceforapps_ogblos"},"api":{"name":"shared_commondataserviceforapps"}}
-    },
-    "definition": {
-      "$schema":"https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-      "contentVersion":"1.0.0.0",
-      "parameters":{"$authentication":{"defaultValue":{},"type":"SecureObject"}},
-      "triggers":{"manual":{"type":"Request","kind":"PowerAppV2","inputs":{"schema":{"type":"object","properties":{
-        "operation":{"title":"operation","type":"string","description":"ensureFolder, upload, verifyFolder, or verifyFile","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "dealId":{"title":"dealId","type":"string","description":"Dataverse Loan Deal GUID","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "correlationId":{"title":"correlationId","type":"string","description":"Tracing identifier","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "idempotencyKey":{"title":"idempotencyKey","type":"string","description":"Stable request identity","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "annualFolderName":{"title":"annualFolderName","type":"string","description":"Governed annual folder segment","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "folderName":{"title":"folderName","type":"string","description":"Expected folder name only","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "fileName":{"title":"fileName","type":"string","description":"Exact file name; no overwrite or rename","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "mimeType":{"title":"mimeType","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "fileContent":{"title":"fileContent","type":"object","description":"Power Apps V2 file","x-ms-content-hint":"FILE","x-ms-dynamically-added":true,"properties":{"name":{"type":"string"},"contentBytes":{"type":"string","format":"byte"}}},
-        "contentSha256":{"title":"contentSha256","type":"string","description":"Lowercase SHA-256 of exact file bytes","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "expectedSize":{"title":"expectedSize","type":"number","x-ms-content-hint":"NUMBER","x-ms-dynamically-added":true},
-        "expectedSharePointItemId":{"title":"expectedSharePointItemId","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true},
-        "expectedUniqueId":{"title":"expectedUniqueId","type":"string","x-ms-content-hint":"TEXT","x-ms-dynamically-added":true}
-      },"required":["operation","dealId","correlationId","idempotencyKey"]}}}},
-      "actions": {
-        "Governed_fail_closed_response":{"type":"Compose","runAfter":{},"inputs":{
-          "success":false,"validationOnly":true,"operation":"@triggerBody()?['operation']","status":"BLOCKED","correlationId":"@triggerBody()?['correlationId']",
-          "idempotencyKey":"@triggerBody()?['idempotencyKey']","dealId":"@triggerBody()?['dealId']",
-          "requestFingerprint":"","contentSha256":"@triggerBody()?['contentSha256']",
-          "errorCode":"ACTOR_IDENTITY_CONTEXT_UNAVAILABLE","errorMessage":"The reviewed platform-generated authenticated caller mapping is not present; no SharePoint mutation was attempted.",
-          "fileMayExist":false,"reconciliationRequired":false,"targetPath":"","fileName":"@triggerBody()?['fileName']",
-          "sharePointItemId":"","sharePointUniqueId":"","size":0,"etag":"","webUrl":"","created":false,"completedOn":"@utcNow()","contractVersion":"ogb-deal-sharepoint/v2"
-        }},
-        "Load_exact_cr664_environment_configuration":{"type":"Compose","runAfter":{"Governed_fail_closed_response":["Succeeded"]},"inputs":{
-          "schemaNames":["cr664_OGBSharePointSiteUrl","cr664_OGBSharePointLibraryName","cr664_OGBSharePointGovernedRoot","cr664_OGBSharePointLibraryId","cr664_OGBSharePointGraphSiteId","cr664_OGBSharePointGraphDriveId","cr664_OGBSharePointGovernedRootItemId","cr664_OGBSharePointContractVersion","cr664_OGBSharePointTransportMode","cr664_OGBSharePointMaxUploadBytes"],
-          "requiredMode":"DRY_RUN","requiredContract":"ogb-deal-sharepoint/v2","rejectStalePrefix":"new_OGBSharePoint"
-        }},
-        "Validate_contract_and_governed_path":{"type":"Compose","runAfter":{"Load_exact_cr664_environment_configuration":["Succeeded"]},"inputs":{
-          "allowedOperations":["ensureFolder","upload","verifyFolder","verifyFile"],"governedRoot":"/(a) Loans","maxUploadBytes":26214400,
-          "reject":["..","%2e","absolute URLs","backslash traversal","control characters","empty segments","invalid SharePoint characters"],
-          "callerCannotSupply":["siteUrl","libraryName","governedRoot","authorizationResult","userRole","callerEmail","callerObjectId","overwrite","rename"]
-        }},
-        "Resolve_authenticated_actor_and_authorize_deal":{"type":"Compose","runAfter":{"Validate_contract_and_governed_path":["Succeeded"]},"inputs":{
-          "status":"UNRESOLVED_FAIL_CLOSED","trustedActorSource":"Power Apps V2 authenticated context only",
-          "platformUserTable":"cr664_platformuser","bankerTable":"cr664_banker","dealTable":"cr664_loandeal","assignmentColumn":"cr664_assignedbanker","defaultAuthorized":false
-        }},
-        "Reserve_and_complete_DRY_RUN_ledger":{"type":"Compose","runAfter":{"Resolve_authenticated_actor_and_authorize_deal":["Succeeded"]},"inputs":{
-          "status":"BLOCKED_UNTIL_PLATFORM_GENERATED_ACTIONS_ARE_EXPORTED","table":"cr664_sharepointtransportledger","atomicKey":"cr664_idempotencykey",
-          "states":["STARTED","DRY_RUN_COMPLETED","FAILED"],"sharePointMutationAllowed":false
-        }},
-        "Route_operation":{"type":"Switch","runAfter":{"Reserve_and_complete_DRY_RUN_ledger":["Succeeded"]},"expression":"@triggerBody()?['operation']","cases":{
-          "ensureFolder":{"case":"ensureFolder","actions":{"EnsureFolder_BLOCKED":{"type":"Compose","inputs":"Exact-name create/readback plan; blocked before SharePoint."}}},
-          "upload":{"case":"upload","actions":{"Upload_BLOCKED":{"type":"Compose","inputs":"Binary upload with overwrite=false; blocked before SharePoint."}}},
-          "verifyFolder":{"case":"verifyFolder","actions":{"VerifyFolder_BLOCKED":{"type":"Compose","inputs":"Exact folder/type/parent readback; blocked before SharePoint."}}},
-          "verifyFile":{"case":"verifyFile","actions":{"VerifyFile_BLOCKED":{"type":"Compose","inputs":"Exact file/type/parent/size/ID readback; blocked before SharePoint."}}}
-        },"default":{"actions":{"Reject_unknown_operation":{"type":"Compose","inputs":"UNKNOWN_OPERATION"}}}},
-        "Respond_to_Power_Apps":{"type":"Response","kind":"PowerApp","runAfter":{"Route_operation":["Succeeded","Failed","Skipped","TimedOut"]},"inputs":{"statusCode":200,"body":"@outputs('Governed_fail_closed_response')"}}
+      "shared_office365users": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedoffice365users_27e91"
+        },
+        "api": {
+          "name": "shared_office365users"
+        }
+      },
+      "shared_commondataserviceforapps": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "new_sharedcommondataserviceforapps_28364"
+        },
+        "api": {
+          "name": "shared_commondataserviceforapps"
+        }
       }
     },
-    "templateName":null
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "112dffa4-7cb4-4c2d-ac28-dcbe38024900"
+          },
+          "type": "Request",
+          "kind": "PowerAppV2",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "title": "operation",
+                  "type": "string",
+                  "x-ms-dynamically-added": true,
+                  "description": "Requested transport operation: ensureFolder, upload, verifyFolder, or verifyFile",
+                  "x-ms-content-hint": "TEXT"
+                },
+                "text_1": {
+                  "description": "Please enter your input",
+                  "title": "dealId",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_2": {
+                  "description": "Please enter your input",
+                  "title": "correlationId",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_3": {
+                  "description": "Please enter your input",
+                  "title": "idempotencyKey",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_4": {
+                  "description": "Please enter your input",
+                  "title": "annualFolderName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_5": {
+                  "description": "Please enter your input",
+                  "title": "folderName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_6": {
+                  "description": "Please enter your input",
+                  "title": "fileName",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_7": {
+                  "description": "Please enter your input",
+                  "title": "mimeType",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_8": {
+                  "description": "Please enter your input",
+                  "title": "contentSha256",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_9": {
+                  "description": "Please enter your input",
+                  "title": "expectedSharePointItemId",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "text_10": {
+                  "description": "Please enter your input",
+                  "title": "expectedUniqueId",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                },
+                "number": {
+                  "description": "Please enter a number",
+                  "title": "expectedSize",
+                  "type": "number",
+                  "x-ms-content-hint": "NUMBER",
+                  "x-ms-dynamically-added": true
+                },
+                "file": {
+                  "description": "Please select file or image",
+                  "title": "fileContent",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "contentBytes": {
+                      "type": "string",
+                      "format": "byte"
+                    }
+                  },
+                  "x-ms-content-hint": "FILE",
+                  "x-ms-dynamically-added": true
+                },
+                "text_11": {
+                  "description": "Canonical SHA-256 of the immutable governed request material computed by the Code App.",
+                  "title": "requestFingerprint",
+                  "type": "string",
+                  "x-ms-content-hint": "TEXT",
+                  "x-ms-dynamically-added": true
+                }
+              },
+              "required": [
+                "text",
+                "text_1",
+                "text_2",
+                "text_3",
+                "text_4",
+                "text_5",
+                "text_6",
+                "text_7",
+                "text_8",
+                "text_9",
+                "text_10",
+                "number",
+                "file",
+                "text_11"
+              ]
+            }
+          }
+        }
+      },
+      "actions": {
+        "Compose": {
+          "runAfter": {
+            "Require_exactly_one_active_platform_user": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "9df516f5-313e-4b80-aca1-2569676a0af0"
+          },
+          "type": "Compose",
+          "inputs": "bootstrap"
+        },
+        "Get_my_profile_(V2)": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "fd4e266b-8367-4048-9530-8f73767048fb"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365users",
+              "operationId": "MyProfile_V2",
+              "connectionName": "shared_office365users"
+            }
+          }
+        },
+        "Resolve_active_platform_user": {
+          "runAfter": {
+            "Get_my_profile_(V2)": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "80fec46a-ef45-4c43-b52b-50a8657de4de"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "entityName": "cr664_platformusers",
+              "$select": "cr664_platformuserid,cr664_email,cr664_normalizedemail,cr664_activestatus,cr664_identitystatus,_cr664_coreuser_value,statecode",
+              "$filter": "cr664_normalizedemail eq '@{toLower(coalesce(outputs('Get_my_profile_(V2)')?['body/mail'],outputs('Get_my_profile_(V2)')?['body/userPrincipalName']))}' and cr664_activestatus eq true and cr664_identitystatus eq 788190000 and statecode eq 0",
+              "$top": 2
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+              "operationId": "ListRecords",
+              "connectionName": "shared_commondataserviceforapps"
+            }
+          }
+        },
+        "Require_exactly_one_active_platform_user": {
+          "actions": {
+            "Resolve_active_banker": {
+              "metadata": {
+                "operationMetadataId": "7f7cee64-371c-40c3-8973-a709e493e97f"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "entityName": "cr664_bankers",
+                  "$select": "cr664_bankerid,cr664_email,cr664_activeflag,_cr664_userloginmapping_value,statecode",
+                  "$filter": "_cr664_userloginmapping_value eq @{first(outputs('Resolve_active_platform_user')?['body/value'])?['cr664_platformuserid']} and cr664_activeflag eq true and statecode eq 0",
+                  "$top": 2
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "Resolve_assigned_active_deal": {
+              "runAfter": {
+                "Resolve_active_banker": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "fecdf319-cd50-4a16-8380-c4e081fc8195"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "parameters": {
+                  "entityName": "cr664_loandeals",
+                  "$select": "cr664_loandealid,_cr664_assignedbanker_value,statecode",
+                  "$filter": "cr664_loandealid eq @{triggerBody()?['text_1']} and _cr664_assignedbanker_value eq @{first(outputs('Resolve_active_banker')?['body/value'])?['cr664_bankerid']} and statecode eq 0",
+                  "$top": 2
+                },
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                  "operationId": "ListRecords",
+                  "connectionName": "shared_commondataserviceforapps"
+                }
+              }
+            },
+            "Require_exactly_one_authorized_banker_deal_binding": {
+              "actions": {
+                "Load_exact_cr664_environment_configuration": {
+                  "metadata": {
+                    "operationMetadataId": "272cc619-c7c0-48b1-ac75-00bdb1ee26a0"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "entityName": "environmentvariabledefinitions",
+                      "$select": "environmentvariabledefinitionid,schemaname,defaultvalue",
+                      "$filter": "schemaname eq 'cr664_OGBSharePointSiteUrl' or schemaname eq 'cr664_OGBSharePointLibraryName' or schemaname eq 'cr664_OGBSharePointGovernedRoot' or schemaname eq 'cr664_OGBSharePointLibraryId' or schemaname eq 'cr664_OGBSharePointGraphSiteId' or schemaname eq 'cr664_OGBSharePointGraphDriveId' or schemaname eq 'cr664_OGBSharePointGovernedRootItemId' or schemaname eq 'cr664_OGBSharePointContractVersion' or schemaname eq 'cr664_OGBSharePointTransportMode' or schemaname eq 'cr664_OGBSharePointMaxUploadBytes'",
+                      "$top": 20,
+                      "$expand": "environmentvariabledefinition_environmentvariablevalue($select=value,createdon,statecode;$orderby=createdon desc)"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "connectionName": "shared_commondataserviceforapps"
+                    }
+                  }
+                },
+                "Read_durable_transport_ledger": {
+                  "runAfter": {
+                    "Governed_target_path": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "f29d26ab-4401-4a80-9b37-77ce49e48bfd"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "entityName": "cr664_sharepointtransportledgers",
+                      "$select": "cr664_sharepointtransportledgerid,cr664_idempotencykey,cr664_correlationid,cr664_requestfingerprint,cr664_dealid,cr664_operation,cr664_targetpath,cr664_filename,cr664_expectedsize,cr664_transportstatus,cr664_startedon,cr664_completedon,cr664_failurecode,cr664_failuremessage",
+                      "$filter": "cr664_idempotencykey eq '@{triggerBody()?['text_3']}' and statecode eq 0",
+                      "$top": 2
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                      "operationId": "ListRecords",
+                      "connectionName": "shared_commondataserviceforapps"
+                    }
+                  }
+                },
+                "Governed_target_path": {
+                  "runAfter": {
+                    "Load_exact_cr664_environment_configuration": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "f7a14f4d-4341-49ee-9c99-f9ca4aa6add9"
+                  },
+                  "type": "Compose",
+                  "inputs": "@{concat('/(a) Loans/',triggerBody()?['text_4'],'/',triggerBody()?['text_5'],if(empty(triggerBody()?['text_6']),'',concat('/',triggerBody()?['text_6'])))}"
+                },
+                "No_existing_durable_ledger_record": {
+                  "actions": {
+                    "Reserve_durable_DRY_RUN_ledger": {
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "parameters": {
+                          "entityName": "cr664_sharepointtransportledgers",
+                          "item/cr664_correlationid": "@triggerBody()?['text_2']",
+                          "item/cr664_dealid": "@triggerBody()?['text_1']",
+                          "item/cr664_idempotencykey": "@triggerBody()?['text_3']",
+                          "item/cr664_operation": "@triggerBody()?['text']",
+                          "item/cr664_requestfingerprint": "@triggerBody()?['text_11']",
+                          "item/cr664_sharepointtransportledgername": "@triggerBody()?['text_3']",
+                          "item/cr664_transportstatus": "STARTED\n\n",
+                          "item/cr664_expectedsize": "@triggerBody()?['number']",
+                          "item/cr664_filemayexist": false,
+                          "item/cr664_filename": "@triggerBody()?['text_6']",
+                          "item/cr664_reconciliationrequired": false,
+                          "item/cr664_startedon": "@utcNow()",
+                          "item/cr664_targetpath": "@outputs('Governed_target_path')"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "operationId": "CreateRecord",
+                          "connectionName": "shared_commondataserviceforapps"
+                        }
+                      }
+                    },
+                    "Complete_durable_DRY_RUN_ledger": {
+                      "runAfter": {
+                        "Reserve_durable_DRY_RUN_ledger": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "parameters": {
+                          "entityName": "cr664_sharepointtransportledgers",
+                          "recordId": "@outputs('Reserve_durable_DRY_RUN_ledger')?['body/@odata.id']",
+                          "item/cr664_transportstatus": "DRY_RUN_COMPLETED",
+                          "item/cr664_completedon": "@utcNow()"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "operationId": "UpdateOnlyRecord",
+                          "connectionName": "shared_commondataserviceforapps"
+                        }
+                      }
+                    },
+                    "Read_back_durable_DRY_RUN_ledger": {
+                      "runAfter": {
+                        "Complete_durable_DRY_RUN_ledger": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "OpenApiConnection",
+                      "inputs": {
+                        "parameters": {
+                          "entityName": "cr664_sharepointtransportledgers",
+                          "recordId": "@outputs('Complete_durable_DRY_RUN_ledger')?['body/@odata.id']"
+                        },
+                        "host": {
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_commondataserviceforapps",
+                          "operationId": "GetItem",
+                          "connectionName": "shared_commondataserviceforapps"
+                        }
+                      }
+                    },
+                    "Respond_to_a_Power_App_or_flow": {
+                      "runAfter": {
+                        "Read_back_durable_DRY_RUN_ledger": [
+                          "Succeeded"
+                        ]
+                      },
+                      "type": "Response",
+                      "kind": "PowerApp",
+                      "inputs": {
+                        "schema": {
+                          "type": "object",
+                          "properties": {
+                            "transportresponse": {
+                              "title": "transportResponse",
+                              "type": "string",
+                              "x-ms-content-hint": "TEXT",
+                              "x-ms-dynamically-added": true
+                            }
+                          },
+                          "additionalProperties": {}
+                        },
+                        "statusCode": 200,
+                        "body": {
+                          "transportresponse": "@{concat(decodeUriComponent('%7B%22success%22%3Afalse%2C%22validationOnly%22%3Atrue%2C%22operation%22%3A%22'),triggerBody()?['text'],decodeUriComponent('%22%2C%22correlationId%22%3A%22'),triggerBody()?['text_2'],decodeUriComponent('%22%2C%22idempotencyKey%22%3A%22'),triggerBody()?['text_3'],decodeUriComponent('%22%2C%22requestFingerprint%22%3A%22'),triggerBody()?['text_11'],decodeUriComponent('%22%2C%22contentSha256%22%3A%22'),triggerBody()?['text_8'],decodeUriComponent('%22%2C%22dealId%22%3A%22'),triggerBody()?['text_1'],decodeUriComponent('%22%2C%22status%22%3A%22DRY_RUN_COMPLETED%22%2C%22errorCode%22%3A%22%22%2C%22errorMessage%22%3A%22DRY_RUN%20validation%20completed.%20No%20SharePoint%20object%20was%20created%20or%20changed.%22%2C%22fileMayExist%22%3Afalse%2C%22reconciliationRequired%22%3Afalse%2C%22targetPath%22%3A%22'),outputs('Governed_target_path'),decodeUriComponent('%22%2C%22fileName%22%3A%22'),triggerBody()?['text_6'],decodeUriComponent('%22%2C%22sharePointItemId%22%3A%22%22%2C%22sharePointUniqueId%22%3A%22%22%2C%22etag%22%3A%22%22%2C%22webUrl%22%3A%22%22%2C%22size%22%3A'),string(coalesce(triggerBody()?['number'],0)),decodeUriComponent('%2C%22created%22%3Afalse%2C%22completedOn%22%3A%22'),outputs('Read_back_durable_DRY_RUN_ledger')?['body/cr664_completedon'],decodeUriComponent('%22%2C%22contractVersion%22%3A%22ogb-deal-sharepoint%2Fv2%22%7D'))}"
+                        }
+                      }
+                    }
+                  },
+                  "runAfter": {
+                    "Read_durable_transport_ledger": [
+                      "Succeeded"
+                    ]
+                  },
+                  "else": {
+                    "actions": {
+                      "Respond_to_a_Power_App_or_flow_1": {
+                        "type": "Response",
+                        "kind": "PowerApp",
+                        "inputs": {
+                          "schema": {
+                            "type": "object",
+                            "properties": {
+                              "transportresponse": {
+                                "title": "transportResponse",
+                                "type": "string",
+                                "x-ms-content-hint": "TEXT",
+                                "x-ms-dynamically-added": true
+                              }
+                            },
+                            "additionalProperties": {}
+                          },
+                          "statusCode": 200,
+                          "body": {
+                            "transportresponse": "@{concat(decodeUriComponent('%7B%22success%22%3Afalse%2C%22validationOnly%22%3Atrue%2C%22operation%22%3A%22'),triggerBody()?['text'],decodeUriComponent('%22%2C%22correlationId%22%3A%22'),triggerBody()?['text_2'],decodeUriComponent('%22%2C%22idempotencyKey%22%3A%22'),triggerBody()?['text_3'],decodeUriComponent('%22%2C%22requestFingerprint%22%3A%22'),triggerBody()?['text_11'],decodeUriComponent('%22%2C%22contentSha256%22%3A%22'),triggerBody()?['text_8'],decodeUriComponent('%22%2C%22dealId%22%3A%22'),triggerBody()?['text_1'],decodeUriComponent('%22%2C%22status%22%3A%22'),if(and(equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_requestfingerprint'],triggerBody()?['text_11']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_dealid'],triggerBody()?['text_1']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_operation'],triggerBody()?['text']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_targetpath'],outputs('Governed_target_path')),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_transportstatus'],'DRY_RUN_COMPLETED')),'DRY_RUN_COMPLETED','BLOCKED'),decodeUriComponent('%22%2C%22errorCode%22%3A%22'),if(and(equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_requestfingerprint'],triggerBody()?['text_11']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_dealid'],triggerBody()?['text_1']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_operation'],triggerBody()?['text']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_targetpath'],outputs('Governed_target_path')),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_transportstatus'],'DRY_RUN_COMPLETED')),'','IDEMPOTENCY_COLLISION'),decodeUriComponent('%22%2C%22errorMessage%22%3A%22'),if(and(equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_requestfingerprint'],triggerBody()?['text_11']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_dealid'],triggerBody()?['text_1']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_operation'],triggerBody()?['text']),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_targetpath'],outputs('Governed_target_path')),equals(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_transportstatus'],'DRY_RUN_COMPLETED')),'DRY_RUN replay completed. No SharePoint object was created or changed.','Idempotency key is already reserved for a different request fingerprint or governed target.'),decodeUriComponent('%22%2C%22fileMayExist%22%3Afalse%2C%22reconciliationRequired%22%3Afalse%2C%22targetPath%22%3A%22'),first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_targetpath'],decodeUriComponent('%22%2C%22fileName%22%3A%22'),first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_filename'],decodeUriComponent('%22%2C%22sharePointItemId%22%3A%22%22%2C%22sharePointUniqueId%22%3A%22%22%2C%22etag%22%3A%22%22%2C%22webUrl%22%3A%22%22%2C%22size%22%3A'),string(coalesce(first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_expectedsize'],0)),decodeUriComponent('%2C%22created%22%3Afalse%2C%22completedOn%22%3A%22'),first(outputs('Read_durable_transport_ledger')?['body/value'])?['cr664_completedon'],decodeUriComponent('%22%2C%22contractVersion%22%3A%22ogb-deal-sharepoint%2Fv2%22%7D'))}"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "expression": {
+                    "and": [
+                      {
+                        "equals": [
+                          "@length(outputs('Read_durable_transport_ledger')?['body/value'])",
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  "type": "If"
+                }
+              },
+              "runAfter": {
+                "Resolve_assigned_active_deal": [
+                  "Succeeded"
+                ]
+              },
+              "else": {
+                "actions": {}
+              },
+              "expression": {
+                "and": [
+                  {
+                    "equals": [
+                      "@{and(equals(length(outputs('Resolve_active_banker')?['body/value']),1),equals(length(outputs('Resolve_assigned_active_deal')?['body/value']),1))}",
+                      true
+                    ]
+                  }
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "b543beda-6295-4879-baf3-9e5a3002ead8"
+              },
+              "type": "If"
+            }
+          },
+          "runAfter": {
+            "Resolve_active_platform_user": [
+              "Succeeded"
+            ]
+          },
+          "else": {
+            "actions": {}
+          },
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@{length(outputs('Resolve_active_platform_user')?['body/value'])}",
+                  1
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1d5c9efa-9cad-43ad-a136-6dcde01b83a6"
+          },
+          "type": "If"
+        }
+      }
+    },
+    "templateName": null
   },
-  "schemaVersion":"1.0.0.0"
+  "schemaVersion": "1.0.0.0"
 }

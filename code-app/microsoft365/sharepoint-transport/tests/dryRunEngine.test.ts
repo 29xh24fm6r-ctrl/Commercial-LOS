@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sha256Hex, type PowerAutomateTransportRequest } from '../power-automate/activationContract.js';
+import { canonicalFingerprintMaterial, sha256Hex, type PowerAutomateTransportRequest } from '../power-automate/activationContract.js';
 import {
   TestOnlyInMemoryDryRunLedger,
   executeGovernedDryRun,
@@ -15,20 +15,23 @@ const authorization = {
   assignedBankerId: 'banker-1',
 };
 const now = () => '2026-08-06T12:00:00.000Z';
-const folderRequest = (): PowerAutomateTransportRequest => ({
+async function signed(request: Omit<PowerAutomateTransportRequest, 'requestFingerprint'>): Promise<PowerAutomateTransportRequest> {
+  return { ...request, requestFingerprint: await sha256Hex(canonicalFingerprintMaterial(request)) };
+}
+const folderRequest = (): Promise<PowerAutomateTransportRequest> => signed({
   operation: 'ensureFolder', dealId, correlationId: 'corr-folder',
   idempotencyKey: 'dry-run:folder:' + dealId,
   annualFolderName: '2026 Loans', folderName: 'Borrower LLC',
 });
 async function uploadRequest(bytes = new Uint8Array([1, 2, 3])): Promise<PowerAutomateTransportRequest> {
   const binary = String.fromCharCode(...bytes);
-  return {
+  return signed({
     operation: 'upload', dealId, correlationId: 'corr-upload',
     idempotencyKey: 'dry-run:upload:' + dealId + ':document-1',
     annualFolderName: '2026 Loans', folderName: 'Borrower LLC', fileName: 'financials.pdf',
     mimeType: 'application/pdf', fileContent: { name: 'financials.pdf', contentBytes: btoa(binary) },
     contentSha256: await sha256Hex(bytes), expectedSize: bytes.byteLength,
-  };
+  });
 }
 
 describe('governed DRY_RUN engine', () => {
@@ -54,7 +57,7 @@ describe('governed DRY_RUN engine', () => {
 
   it('atomically reserves one concurrent request and never produces two rows', async () => {
     const ledger = new TestOnlyInMemoryDryRunLedger();
-    const request = folderRequest();
+    const request = await folderRequest();
     const results = await Promise.all([
       executeGovernedDryRun({ request, authorization }, { ledger, now }),
       executeGovernedDryRun({ request, authorization }, { ledger, now }),
@@ -80,13 +83,13 @@ describe('governed DRY_RUN engine', () => {
     [{ ...authorization, activePlatformUserCount: 2 }, 'ACTOR_IDENTITY_AMBIGUOUS'],
     [{ ...authorization, assignedBankerId: 'another-banker' }, 'DEAL_ACCESS_DENIED'],
   ])('fails closed for actor/deal authorization', async (facts, code) => {
-    const result = await executeGovernedDryRun({ request: folderRequest(), authorization: facts }, { ledger: new TestOnlyInMemoryDryRunLedger(), now });
+    const result = await executeGovernedDryRun({ request: await folderRequest(), authorization: facts }, { ledger: new TestOnlyInMemoryDryRunLedger(), now });
     expect(result.errorCode).toBe(code);
   });
 
   it('rejects invalid governed paths before reserving the ledger', async () => {
     const ledger = new TestOnlyInMemoryDryRunLedger();
-    const request = { ...folderRequest(), folderName: '../escape' };
+    const request = { ...(await folderRequest()), folderName: '../escape' };
     const result = await executeGovernedDryRun({ request, authorization }, { ledger, now });
     expect(result.errorCode).toBe('INVALID_REQUEST');
     expect(await ledger.read(request.idempotencyKey)).toBeUndefined();
@@ -101,7 +104,7 @@ describe('governed DRY_RUN engine', () => {
       async fail() { throw new Error('not called'); },
       async read() { return undefined; },
     };
-    const result = await executeGovernedDryRun({ request: folderRequest(), authorization }, { ledger, now });
+    const result = await executeGovernedDryRun({ request: await folderRequest(), authorization }, { ledger, now });
     expect(result.errorCode).toBe('LEDGER_UNAVAILABLE');
   });
 });

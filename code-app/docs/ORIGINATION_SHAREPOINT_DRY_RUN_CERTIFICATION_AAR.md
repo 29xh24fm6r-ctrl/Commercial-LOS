@@ -2,110 +2,82 @@
 
 ## Decision
 
-**LOCAL IMPLEMENTATION COMPLETE / RUNTIME CERTIFICATION BLOCKED BY PLATFORM-GENERATED INTEGRATION.**
+**DRY_RUN IMPLEMENTATION COMPLETE; LIVE AND CANARY REMAIN NO-GO.**
 
-The repository now contains the complete application-side v2 contract, cryptographic request identity, deterministic durable-ledger engine, fail-closed generated-runner seam, DRY_RUN-aware document actions, truthful operator UI, inactive workflow source, inactive read-only reconciliation source, and an inspected narrow solution package. The checked-in flow intentionally still returns `ACTOR_IDENTITY_CONTEXT_UNAVAILABLE`; Power Platform has not generated and exported the authenticated-caller, Dataverse authorization/ledger action definitions or the Code App `Run` client. Consequently the UI button remains unavailable and no runtime DRY_RUN success is claimed.
+The existing Developer transport flow now has a supported Power Apps V2 trigger, authenticated caller lookup, active platform-user/banker/deal authorization, exact configuration loading, durable Dataverse ledger reservation/readback, deterministic replay/collision handling, and a strict response envelope. Power Apps generated the real Code App client and production composition registers that exact client only while document storage mode resolves to `DRY_RUN`.
 
-No flow was activated, no application was deployed, no environment value was changed to LIVE, no SharePoint call or mutation occurred, and no canary ran.
+Neither flow was activated. No application was deployed. `cr664_OGBSharePointTransportMode` remains `DRY_RUN`. No SharePoint connector or Graph mutation action exists in either workflow, no SharePoint request ran, and no canary ran.
 
-## Architecture and execution path
+## Exact platform-generated integration
 
-1. `DealDocuments` renders `SharePointLoanFolderCard` and derives the annual/company path only from the authorized deal snapshot.
-2. The validation-only button asks `dealSharePointDryRunRuntime` for a registered generated runner.
-3. Runtime registration is unavailable by default and cannot silently substitute memory or a guessed generated service.
-4. Once Power Apps emits an inspected runner, `createGeneratedPowerAutomateDryRunPort` sends the v2 request and accepts only `validationOnly=true`, `success=false`, `DRY_RUN_COMPLETED` evidence with no SharePoint IDs, URL, ETag, or created flag.
-5. `executeGovernedDryRun` is the platform-independent reference behavior for request/path/binary validation, trusted authorization facts, SHA-256 fingerprinting, atomic ledger reservation, replay/collision, durable completion/readback, and durable failure.
-6. LIVE remains a separate adapter and still requires SharePoint readback plus reconciliation certification.
+- Solution workflow entity ID: `9448ac11-f490-f111-8076-7ced8d3bafd4`.
+- Generated runtime workflow name: `964787a4-83dc-ab3d-8625-bfe042ccd470`.
+- Generated service: `OGBOriginationSharePointTransportService`.
+- Generated method: `Run`.
+- Generated response field: `transportresponse`.
+- Generated trigger keys, in order: `text`, `text_1`, `text_2`, `text_3`, `text_4`, `text_5`, `text_6`, `text_7`, `text_8`, `text_9`, `text_10`, `number`, `file`, `text_11`.
+- Business mapping: operation, deal ID, correlation ID, idempotency key, annual folder, borrower folder, file name, MIME type, content SHA-256, expected SharePoint item ID, expected unique ID, expected size, file content, request fingerprint.
+- Office 365 Users connection reference: `new_sharedoffice365users_27e91`.
+- Code App logic-flow data source: `ogboriginationsharepointtransport`.
 
-## Contract and security controls
+`dealSharePointGeneratedRuntime.ts` maps the governed request into the generated trigger contract, checks `IOperationResult.success`, requires a non-empty `transportresponse`, parses JSON, and otherwise throws. The existing response parser then rejects missing fields, mismatched deal/correlation/idempotency/operation values, invalid fingerprints, or any DRY_RUN response that claims a SharePoint ID, URL, ETag, creation, or possible orphan.
 
-- Contract: `ogb-deal-sharepoint/v2`.
-- Configuration: ten exact `cr664_OGBSharePoint*` definitions; `LibraryId`, never `ListId`; stale `new_OGBSharePoint*` is rejected.
-- Root: `/(a) Loans`; traversal, encoded traversal, invalid characters, absolute URLs, controls, empty segments, and target overrides fail closed.
-- Upload identity includes SHA-256 of exact bytes, MIME type, exact filename, expected size, operation, deal, and governed path.
-- Authorization accepts only trusted server/flow facts: unique active platform user, unique active banker, active deal, and assigned-banker equality.
-- Ledger: `cr664_sharepointtransportledger`, atomic `cr664_idempotencykey`, `STARTED -> DRY_RUN_COMPLETED|FAILED`, immutable request fingerprint, transition evidence, exact replay, and collision rejection.
-- The in-memory ledger is named `TestOnlyInMemoryDryRunLedger` and is not composed into runtime code.
-- DRY_RUN never persists folder identity, pending/stored document metadata, satisfied requirements, SharePoint URLs/IDs, or a created/uploaded result.
+## Actual inactive transport workflow actions
 
-## Workflow behavior
+1. Power Apps V2 request trigger.
+2. `Get_my_profile_(V2)` under invoker identity.
+3. `Resolve_active_platform_user` and exactly-one condition.
+4. `Resolve_active_banker`.
+5. `Resolve_assigned_active_deal` and exactly-one authorization condition.
+6. `Load_exact_cr664_environment_configuration` for all ten exact definitions.
+7. `Governed_target_path` rooted at `/(a) Loans`.
+8. `Read_durable_transport_ledger` by idempotency key.
+9. Numeric zero-row branch.
+10. `Reserve_durable_DRY_RUN_ledger` with `STARTED`, correlation, actor-authorized deal, operation, target, size, and immutable request fingerprint.
+11. `Complete_durable_DRY_RUN_ledger` with `DRY_RUN_COMPLETED`.
+12. `Read_back_durable_DRY_RUN_ledger`.
+13. Strict Power Apps response, or deterministic replay / `IDEMPOTENCY_COLLISION` response.
 
-- Transport ID: `9448ac11-f490-f111-8076-7ced8d3bafd4`.
-- Reconciliation ID: `f4637494-69f5-4d79-9f8b-0be46a36e71f`.
-- Both package metadata records are inactive: `StateCode=1`, `StatusCode=2`.
-- Read-only Developer Dataverse readback on 2026-08-06 confirmed both workflow rows remain `statecode=1`, `statuscode=2`.
-- Read-only environment-variable readback confirmed `cr664_OGBSharePointTransportMode` has default and active current value `DRY_RUN`.
-- Transport source loads the exact v2 configuration declaration, validates the governed contract/path, declares trusted actor/deal resolution and atomic ledger semantics, routes all four operations, and contains no SharePoint mutation action.
-- It remains deliberately blocked until Power Platform exports supported authenticated-caller and Dataverse action definitions. No connector operation name was invented.
-- Reconciliation starts in 2099, inspects unresolved states as a read-only plan, disallows delete/overwrite/rename/fabricated completion, and terminates cancelled.
+Unauthorized, ambiguous, missing-identity, missing-deal, connector, configuration, and ledger failures have no permissive branch and therefore fail closed. The application validates governed segments and the canonical SHA-256 request material before invocation. The active Dataverse alternate key on `cr664_idempotencykey` provides the concurrency boundary.
 
-## Principal files changed
+## Durable and no-write controls
 
-- `microsoft365/sharepoint-transport/power-automate/{activationContract,transportContract,dryRunEngine}.ts`
-- `microsoft365/sharepoint-transport/tests/{dryRunEngine,powerAutomateActivationContract,powerAutomateContract,powerAutomateWorkflowSource}.test.ts`
-- `src/deals/documentStorage/dealSharePoint{DryRunPort,DryRunRuntime,PowerAutomateTransport,FolderAction,UploadAction}.ts`
-- `src/deals/DealDocuments.tsx`
-- `src/deals/documentIntake/{DocumentIntakeWorkspace,SharePointLoanFolderCard}.tsx`
-- both `power-platform/solutions/CommercialLendingLOS/Workflows/OGBOriginationSharePointTransport*.json`
-- `power-platform/solutions/CommercialLendingLOS/PowerAutomateOwned/activation-manifest.json`
-- `scripts/power-platform/Invoke-OGBSharePointTransportSolution.ps1`
+- Ledger: `cr664_sharepointtransportledger`, 22 verified columns, auditing enabled, active unique idempotency key.
+- Exact ten `cr664_OGBSharePoint*` definitions and current values verified in Developer.
+- Current transport mode read back as `DRY_RUN`.
+- Transport live readback: state `0`, status `1` (Draft/inactive).
+- Reconciliation live readback: state `0`, status `1` (Draft/inactive).
+- Reconciliation remains a blocked compose followed by failed termination; it has no delete, overwrite, rename, update, or SharePoint operation.
+- Static source/package scan found zero SharePoint mutation actions.
+- The LIVE document port still requires separately certified SharePoint readback and reconciliation and is not registered by this phase.
 
-## Package evidence
+## Exported package
 
-- Path: `artifacts/OGBSharePointTransport_unmanaged.zip`
-- Solution: `OGBSharePointTransport`
-- Version: `1.0.0.0`
-- Size: 22,578 bytes
-- SHA-256: `D531277632187D19AFA2474C793B9788157AF2BCA6DDB71C08217A01A8300699`
-- Contents verified: ledger table, ten environment-variable definitions, required solution dependencies/connection references, two exact current workflow JSON files, both inactive, zero SharePoint mutation actions.
+- Platform export: `artifacts/OGBSharePointTransport_platform-current.zip`.
+- Repacked source-controlled artifact: `artifacts/OGBSharePointTransport_unmanaged.zip`.
+- Solution: `OGBSharePointTransport`.
+- Version: `1.0.0.0`.
+- Platform export size/hash: 24,420 bytes / `A26D1E32B8D2214C6E5D0723F20C3F266B06D90C1DC1C3C17BF91DE3BFA58F7E`.
+- Repacked artifact size/hash: 24,484 bytes / `1EE440E8471869322180DE313321330B5036CBAF349DB91A66EECAABCA0E11BD`.
+- Package verification: two exact workflows, both inactive; ten environment variables; durable ledger table; zero SharePoint mutation actions.
 
-## Verification results
+## Verification
 
-- Focused transport/UI/workflow suite: **52/52 passed** across 11 files.
-- TypeScript `npx tsc -b --pretty false`: **passed**.
-- Scoped ESLint for every changed TS/TSX file: **passed**.
-- Production build: **passed**; existing chunk-size and ineffective-dynamic-import warnings remain.
-- Narrow solution source/package validation: **passed**.
-- Full Vitest suite: completed; **14,416 passed, 207 failed, 20 skipped; 2 worker errors** across 1,069 files. All SharePoint transport tests passed. Failures are existing broad release-governance/baseline assertions outside this changeset.
-- Full ESLint: existing baseline **77 errors and 6 warnings**; changed-file scoped lint is clean.
-- Reachability audit: existing baseline **43 unexpected orphans**. The new DRY_RUN runtime is reachable from `DealDocuments`.
-- `git diff --check`: recorded at final commit verification.
+- Focused transport/storage/UI suite: 25 files, 132/132 tests passed.
+- TypeScript `npx tsc -b --pretty false`: passed.
+- Production build: passed; only existing chunk/dynamic-import warnings were emitted.
+- Scoped ESLint: passed.
+- Narrow solution source validation: passed.
+- Exact platform-export and repacked-package verification: passed.
+- Developer Dataverse read-only verifier: 55 present, 0 planned, 0 created, 0 updated, 0 registered, 0 failed.
+- Live workflow readback: both exact flows inactive.
+- Full repository test command was executed; the broad baseline remains red on pre-existing release-governance/baseline assertions and existing ASCII-safety findings outside this change set. The complete focused SharePoint certification surface is green.
+- `git diff --check`: passed.
 
-## No-write evidence
+## Remaining LIVE-only prerequisite
 
-- Static solution verifier rejects SharePoint `Create file`, `Create new folder`, delete, move, copy, or update actions.
-- Package inspection reports `sharePointMutationActions=0`.
-- Both workflow metadata records are inactive in source and package.
-- The app runtime is unavailable until an inspected generated client is registered.
-- DRY_RUN response parsing rejects any claimed SharePoint identity or `created=true`.
-- No SharePoint token, access token, connection instance ID, URL fabrication, file ID, or successful storage result is stored in source.
-
-## Remaining platform-generated integration gate
-
-The single blocking dependency is a supported Power Platform-generated export. An authorized maker must edit the existing inactive transport flow in Developer, configure the Dataverse connection as an approved invoker/trusted identity design, add designer-generated actions for authenticated caller resolution, unique actor/banker/deal authorization, atomic ledger create/read/update and durable readback, save without activation, add the existing flow to the Code App, regenerate the SDK, and export the narrow solution. The exported operation names, parameter order, caller claims, and connection behavior must then be inspected and wired to `registerGeneratedDealSharePointDryRunRuntime`. The CLI available in this repository cannot add a Power Automate flow as a Code App data source, and `power.config.json` currently targets the Production app, so attempting automated generation here would risk an unauthorized deployment.
-
-## Supervised DRY_RUN canary commands after separate authorization
-
-Before any canary, replace the candidate package with the reviewed platform-generated export and re-run:
-
-```powershell
-pac auth select --name OGB-LOS-DEV
-powershell -File scripts/power-platform/Invoke-OGBSharePointTransportSolution.ps1 -Action Validate
-powershell -File scripts/power-platform/Invoke-OGBSharePointTransportSolution.ps1 -Action Pack -Apply
-powershell -File scripts/power-platform/Invoke-OGBSharePointTransportSolution.ps1 -Action Verify
-npx vitest run microsoft365/sharepoint-transport/tests/dryRunEngine.test.ts microsoft365/sharepoint-transport/tests/powerAutomateWorkflowSource.test.ts src/deals/documentStorage/dealSharePointPowerAutomateTransport.activation.test.ts src/deals/documentStorage/dealSharePointDryRunRuntime.test.ts
-```
-
-An authorized maker must then import only to Developer, bind the reviewed connection references, confirm `cr664_OGBSharePointTransportMode=DRY_RUN`, activate only the transport workflow for the supervised window, invoke `Validate SharePoint Setup (No Write)` against an authorized controlled deal, verify the durable ledger transition and absence of any SharePoint object, and immediately return the workflow to inactive. There is intentionally no repository command that silently activates a flow or deploys the Production-targeted Code App.
+LIVE remains fail-closed. A separately authorized Developer canary must first add and certify supported SharePoint mutation/readback operations, keep collision and cross-deal controls intact, prove orphan handling and non-destructive reconciliation, temporarily activate only the reviewed transport flow, execute a controlled authorized canary, reconcile SharePoint and ledger readback, and return the flow to inactive. This phase does not authorize that action.
 
 ## Rollback
 
-1. Disable the transport workflow; reconciliation stays disabled.
-2. Keep `cr664_OGBSharePointTransportMode=DRY_RUN` and the application storage mode DRY_RUN.
-3. Remove the generated runtime registration/data source from the application and republish only after ordinary change approval.
-4. Preserve ledger/audit evidence; do not delete, overwrite, rename, or mark unresolved operations complete.
-5. Re-run package state/no-write checks and confirm both workflow records are inactive.
-
-## Final state
-
-The non-live repository and package work that can be completed without designer-generated Power Platform artifacts is complete. LIVE is **NO-GO**. DRY_RUN runtime certification is **BLOCKED** until the single platform-generation action above is completed; this is not a request to activate, deploy, or write to SharePoint.
+No runtime rollback is required because nothing was activated or deployed. Preserve both inactive workflow records, keep both application and Dataverse modes at `DRY_RUN`, and retain the ledger and exported package as immutable evidence.

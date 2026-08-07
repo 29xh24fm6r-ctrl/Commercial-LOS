@@ -33,7 +33,7 @@ function Assert-Source {
     $json=Join-Path $sourceFolder "Workflows\$name";$metadata="$json.data.xml"
     if(-not(Test-Path $json) -or -not(Test-Path $metadata)){throw "Missing workflow source: $name"}
     $xml=Get-Content $metadata -Raw
-    if($xml -notmatch '<StateCode>1</StateCode>' -or $xml -notmatch '<StatusCode>2</StatusCode>'){throw "$name is not inactive."}
+    if($xml -notmatch '<StateCode>0</StateCode>' -or $xml -notmatch '<StatusCode>1</StatusCode>'){throw "$name is not inactive."}
   }
   $workflowText=(Get-Content (Join-Path $sourceFolder 'Workflows\*.json') -Raw) -join [Environment]::NewLine
   if($workflowText -match '(?i)Create file|Create new folder|Delete file|Move file|Copy file|Update file'){throw 'A SharePoint mutation action is present.'}
@@ -67,12 +67,14 @@ function Assert-Package([string]$path){
       $source=Join-Path $sourceFolder "Workflows\$name"
       $packed=Join-Path $inspection "Workflows\$name"
       if(-not(Test-Path $packed)){throw "Package is missing workflow $name"}
-      if((Get-FileHash $source).Hash -ne (Get-FileHash $packed).Hash){throw "Packed workflow source differs: $name"}
+      $sourceJson=Get-Content -LiteralPath $source -Raw|ConvertFrom-Json|ConvertTo-Json -Depth 100 -Compress
+      $packedJson=Get-Content -LiteralPath $packed -Raw|ConvertFrom-Json|ConvertTo-Json -Depth 100 -Compress
+      if($sourceJson -ne $packedJson){throw "Packed workflow source differs semantically: $name"}
     }
     [xml]$customizationsXml=$customizations
     foreach($workflowId in @('9448ac11-f490-f111-8076-7ced8d3bafd4','f4637494-69f5-4d79-9f8b-0be46a36e71f')){
       $workflow=@($customizationsXml.ImportExportXml.Workflows.Workflow|Where-Object {$_.WorkflowId.Trim('{}') -eq $workflowId})
-      if($workflow.Count -ne 1 -or [string]$workflow[0].StateCode -ne '1' -or [string]$workflow[0].StatusCode -ne '2'){throw "Packed workflow is missing or not inactive: $workflowId"}
+      if($workflow.Count -ne 1 -or [string]$workflow[0].StateCode -ne '0' -or [string]$workflow[0].StatusCode -ne '1'){throw "Packed workflow is missing or not inactive: $workflowId"}
     }
     $packageWorkflows=(Get-Content (Join-Path $inspection 'Workflows\*.json') -Raw)-join [Environment]::NewLine
     foreach($connectionReference in @('new_sharedsharepointonline_b8f0b','new_commondataserviceforapps_ogblos')){

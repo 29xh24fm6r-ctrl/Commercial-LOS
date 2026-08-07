@@ -21,6 +21,8 @@ export interface PowerAutomateTransportRequest {
   readonly dealId: string;
   readonly correlationId: string;
   readonly idempotencyKey: string;
+  /** Canonical lowercase SHA-256 computed by the Code App before the flow is invoked. */
+  readonly requestFingerprint?: string;
   readonly folderName?: string;
   readonly annualFolderName?: string;
   readonly fileName?: string;
@@ -68,6 +70,7 @@ export function validateActivationRequest(input: Record<string, unknown>): reado
   for (const field of ['correlationId', 'idempotencyKey']) {
     if (typeof input[field] !== 'string' || !input[field] || String(input[field]).length > 200) errors.push('MISSING_' + field);
   }
+  if (typeof input.requestFingerprint !== 'string' || !sha256.test(input.requestFingerprint)) errors.push('INVALID_REQUEST_FINGERPRINT');
   for (const forbidden of ['siteUrl', 'libraryName', 'governedRoot', 'authorizationResult', 'callerEmail', 'callerObjectId', 'overwrite', 'rename']) {
     if (forbidden in input) errors.push('CALLER_OVERRIDE_' + forbidden);
   }

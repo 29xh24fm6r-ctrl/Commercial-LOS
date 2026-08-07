@@ -16,13 +16,13 @@ export interface DealSharePointDryRunRuntime {
 
 let runtime: DealSharePointDryRunRuntime = Object.freeze({
   available: false,
-  reasons: ['The Power Apps SDK has not generated the inspected transport workflow Run client.'],
+  reasons: ['The inspected Power Apps workflow Run client has not been registered by production composition.'],
   port: unavailableDealSharePointDryRunPort,
 });
 
 /**
- * Called only by production composition after Power Apps generates the exact
- * workflow client. The repository does not fabricate a service name or Run signature.
+ * Called only by production composition with the exact generated workflow client.
+ * The repository does not fabricate a service name or Run signature.
  */
 export function registerGeneratedDealSharePointDryRunRuntime(
   runner: GeneratedPowerAutomateRunner,

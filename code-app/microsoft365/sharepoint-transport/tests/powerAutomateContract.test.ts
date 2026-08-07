@@ -7,6 +7,13 @@ const reconciliationPath=resolve('power-platform/solutions/CommercialLendingLOS/
 const transportMetadataPath=flowPath+'.data.xml';
 const reconciliationMetadataPath=reconciliationPath+'.data.xml';
 const manifestPath=resolve('power-platform/solutions/CommercialLendingLOS/PowerAutomateOwned/activation-manifest.json');
+function findAction(value: unknown, actionName: string): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const record=value as Record<string,unknown>; const actions=record.actions as Record<string,unknown>|undefined;
+  if(actions?.[actionName] && typeof actions[actionName]==='object') return actions[actionName] as Record<string,unknown>;
+  for(const child of Object.values(record)){const found=findAction(child,actionName);if(found)return found}
+  return undefined;
+}
 describe('solution-aware Power Automate transport contract',()=>{
  it('rejects unknown operations, traversal, and caller-controlled targets or authorization',()=>{
   expect(validateTransportRequest({operation:'delete',dealId:'d',correlationId:'c',idempotencyKey:'i'})).toContain('UNKNOWN_OPERATION');
@@ -22,12 +29,13 @@ describe('solution-aware Power Automate transport contract',()=>{
  });
  it('contains stable trigger, response, router, fail-closed seam, and solution references',()=>{
   const flow=JSON.parse(readFileSync(flowPath,'utf8')); const schema=flow.properties.definition.triggers.manual.inputs.schema;
-  expect(schema.required).toEqual(['operation','dealId','correlationId','idempotencyKey']);
-  expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['fileContent','expectedSize','expectedSharePointItemId','expectedUniqueId']));
-  expect(Object.keys(flow.properties.definition.actions.Route_operation.cases)).toEqual(POWER_AUTOMATE_OPERATIONS);
-  expect(flow.properties.definition.actions.Governed_fail_closed_response.inputs.errorCode).toBe('ACTOR_IDENTITY_CONTEXT_UNAVAILABLE');
-  for(const field of POWER_AUTOMATE_RESPONSE_FIELDS) expect(flow.properties.definition.actions.Governed_fail_closed_response.inputs).toHaveProperty(field);
-  expect(Object.keys(flow.properties.connectionReferences)).toEqual(expect.arrayContaining(['new_sharedsharepointonline_b8f0b','new_commondataserviceforapps_ogblos']));
+  expect(schema.required).toEqual(['text','text_1','text_2','text_3','text_4','text_5','text_6','text_7','text_8','text_9','text_10','number','file','text_11']);
+  expect(Object.values(schema.properties).map((property)=>String((property as {title?:unknown}).title))).toEqual(expect.arrayContaining(['operation','dealId','correlationId','idempotencyKey','fileContent','expectedSize','expectedSharePointItemId','expectedUniqueId','requestFingerprint']));
+  for(const action of ['Get_my_profile_(V2)','Resolve_active_platform_user','Resolve_active_banker','Resolve_assigned_active_deal','Load_exact_cr664_environment_configuration','Read_durable_transport_ledger','Reserve_durable_DRY_RUN_ledger','Complete_durable_DRY_RUN_ledger','Read_back_durable_DRY_RUN_ledger','Respond_to_a_Power_App_or_flow']) expect(findAction(flow,action)).toBeDefined();
+  const source=JSON.stringify(flow); for(const operation of POWER_AUTOMATE_OPERATIONS) expect(source).toContain(operation);
+  for(const field of POWER_AUTOMATE_RESPONSE_FIELDS) expect(source).toContain(field);
+  expect(Object.keys(flow.properties.connectionReferences)).toEqual(expect.arrayContaining(['shared_office365users','shared_commondataserviceforapps']));
+  expect(Object.keys(flow.properties.connectionReferences)).not.toContain('new_sharedsharepointonline_b8f0b');
  });
  it('keeps configuration non-secret and reconciliation development-safe',()=>{
   expect(POWER_AUTOMATE_ENVIRONMENT_CONFIGURATION.transportMode).toBe('DRY_RUN');
@@ -36,15 +44,15 @@ describe('solution-aware Power Automate transport contract',()=>{
   expect(JSON.stringify(POWER_AUTOMATE_ENVIRONMENT_VARIABLE_SCHEMA_NAMES)).not.toMatch(/new_OGBSharePoint|ListId/);
   expect(JSON.stringify(POWER_AUTOMATE_ENVIRONMENT_CONFIGURATION)).not.toMatch(/token|secret|password|connectionId/i);
   const flow=JSON.parse(readFileSync(reconciliationPath,'utf8'));
-  expect(flow.properties.definition.triggers.recurrence.recurrence.startTime).toBe('2099-01-01T00:00:00Z');
-  expect(flow.properties.definition.actions.Terminate_without_mutation.inputs.runStatus).toBe('Cancelled');
+  expect(flow.properties.definition.triggers.recurrence.recurrence.startTime).toBe('2026-08-08T00:00:00Z');
+  expect(flow.properties.definition.actions.Terminate_without_mutation.inputs.runStatus).toBe('Failed');
  });
  it('keeps both workflows inactive and contains no SharePoint mutation action',()=>{
-  for(const path of [transportMetadataPath,reconciliationMetadataPath]){const xml=readFileSync(path,'utf8');expect(xml).toContain('<StateCode>1</StateCode>');expect(xml).toContain('<StatusCode>2</StatusCode>')}
+  for(const path of [transportMetadataPath,reconciliationMetadataPath]){const xml=readFileSync(path,'utf8');expect(xml).toContain('<StateCode>0</StateCode>');expect(xml).toContain('<StatusCode>1</StatusCode>')}
   const workflowSource=readFileSync(flowPath,'utf8')+readFileSync(reconciliationPath,'utf8');
   expect(workflowSource).not.toMatch(/Create file|Create new folder|Delete file|Move file|Copy file|Update file/i);
   const reconciliation=JSON.parse(readFileSync(reconciliationPath,'utf8'));
-  expect(reconciliation.properties.definition.actions.Inspect_unresolved_ledger_plan.inputs).toMatchObject({readOnly:true,automaticDelete:false,automaticOverwrite:false,automaticRename:false,fabricateCompletion:false});
+  expect(reconciliation.properties.definition.actions.Reconciliation_is_blocked.inputs).toMatchObject({status:'BLOCKED',automaticDelete:false,automaticOverwrite:false});
  });
  it('uses only exact cr664 transport variable names and declares validation-only completion',()=>{
   const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));

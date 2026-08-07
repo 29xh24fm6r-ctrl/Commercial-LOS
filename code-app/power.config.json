@@ -51,6 +51,25 @@
           }
         }
       }
+    },
+    "89d7c597-97ba-49f7-ac74-c43fec24df56": {
+      "id": "/providers/microsoft.powerapps/apis/shared_office365users",
+      "displayName": "Office 365 Users"
+    },
+    "01437222-05e5-4f72-8fb3-fa2d4878d05c": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+      "displayName": "Logic flows",
+      "dataSources": [
+        "ogboriginationsharepointtransport"
+      ],
+      "workflowDetails": {
+        "workflowEntityId": "9448ac11-f490-f111-8076-7ced8d3bafd4",
+        "workflowDisplayName": "OGB Origination SharePoint Transport",
+        "workflowName": "964787a4-83dc-ab3d-8625-bfe042ccd470",
+        "dependencies": {
+          "shared_office365users": "89d7c597-97ba-49f7-ac74-c43fec24df56"
+        }
+      }
     }
   },
   "databaseReferences": {
